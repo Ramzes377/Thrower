@@ -1,7 +1,8 @@
 from .base_COG import *
 from .classify import get_app_id, user_is_playing
+from mcstatus import MinecraftServer
 
-
+server_ip = str(os.environ.get('Server_IP'))
 
 class Commands(Base_COG):
 
@@ -110,6 +111,51 @@ class Commands(Base_COG):
         channel = ctx.message.channel
         async for message in channel.history(limit = messages_count + 1):
             await message.delete()
+    
+    @commands.command(aliases = ['status'])
+    async def mc_server_status(self, ctx):
+        '''Показывает текущее состояние нашего майнкрафт сервера'''
+        content = None
+        channel = ctx.message.channel
+        bot = channel.guild.get_member(self.bot.user.id)
+        try:
+            server = MinecraftServer.lookup(server_ip)
+            status = server.status()  # 'status' is supported by all Minecraft servers that are version 1.7 or higher.
+            query = server.query()  # 'query' has to be enabled in a servers' server.properties file.
+            content = (status.players.online, ', '.join(query.players.names))
+        except socket.timeout:
+            pass
+
+        if content is None:
+            embed_obj = discord.Embed(title="Статус нашего майнкрафт сервера",
+                                      color=discord.Color.from_rgb(194, 53, 76))
+            embed_obj.add_field(name='Состояние:',
+                                value='Оффлайн',
+                                inline=False)
+            embed_obj.description = 'Это сообщение автоматически удалится через 3 минуты!'
+
+        else:
+            embed_obj = discord.Embed(title="Статус нашего майнкрафт сервера",
+                                      color=discord.Color.from_rgb(53, 231, 141))
+            embed_obj.add_field(name='Состояние:',
+                                value='Онлайн',
+                                inline=False)
+            embed_obj.add_field(name='Игроков на сервере:',
+                                value=f'{content[0]}',
+                                inline=False)
+            if content[1]:
+                embed_obj.add_field(name='Сейчас на сервере:',
+                                    value=content[1],
+                                    inline=False)
+
+        embed_obj.description = 'Это сообщение автоматически удалится через минуту!'
+        embed_obj.set_footer(text='Великий бот - ' + bot.display_name, icon_url=bot.avatar_url)
+
+        await ctx.message.delete()
+        message = await channel.send(embed=embed_obj)
+        await asyncio.sleep(60)
+        await message.delete()
+
 
     async def send_removable_message(self, ctx, message, delay = 5):
         message = await ctx.send(message)
