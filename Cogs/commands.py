@@ -1,6 +1,9 @@
+import socket
+from mcstatus import MinecraftServer
+
 from .base_COG import *
 from .classify import get_app_id, user_is_playing
-from mcstatus import MinecraftServer
+
 
 server_ip = str(os.environ.get('Server_IP'))
 
