@@ -1,4 +1,3 @@
-import socket
 from mcstatus import MinecraftServer
 
 from .base_COG import *
@@ -126,7 +125,7 @@ class Commands(Base_COG):
             status = server.status()  # 'status' is supported by all Minecraft servers that are version 1.7 or higher.
             query = server.query()  # 'query' has to be enabled in a servers' server.properties file.
             content = (status.players.online, ', '.join(query.players.names))
-        except socket.timeout:
+        except:
             pass
 
         if content is None:
