@@ -29,8 +29,8 @@ get_pseudo_random_color = lambda: (randint(70, 255), randint(70, 255), randint(7
 flatten = lambda collection: chain(*collection) if collection is not None else []
 
 leader_role_rights = discord.PermissionOverwrite(kick_members=True,
-                                                      mute_members=True,
-                                                      deafen_members=True,
+                                                      mute_members=False,
+                                                      deafen_members=False,
                                                       manage_channels=True,
                                                       create_instant_invite=True)
 
@@ -41,7 +41,7 @@ default_role_rights = discord.PermissionOverwrite(connect=True,
                                                        mute_members=False,
                                                        deafen_members=False,
                                                        manage_channels=False,
-                                                       create_instant_invite=False)
+                                                       create_instant_invite=True)
 
 
 
