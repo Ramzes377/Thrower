@@ -200,7 +200,7 @@ class Channels_manager(Base_COG):
                     await user.add_roles(role)
             elif user.activity.type != discord.ActivityType.custom: #if status isn't custom create new role
                 color = await self._create_activity_emoji(guild, app_id) if is_real else get_pseudo_random_color()
-                if color:
+                if color.all():
                     role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                                    colour=discord.Colour(1).from_rgb(*color), hoist=True, mentionable=True)
                     await cur.execute(f"INSERT INTO CreatedRoles (application_id, role_id) VALUES ({app_id}, {role.id})")
