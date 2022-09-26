@@ -1,11 +1,9 @@
 import datetime
 import discord
-import numpy as np
 import re
-import cv2
 
 from .tools.base_cog import BaseCog, commands
-from .tools.utils import get_pseudo_random_color, get_dominant_colors, get_app_id, role_request_id, zone_Moscow
+from .tools.utils import get_pseudo_random_color, get_median_color, get_app_id, role_request_id, zone_Moscow
 
 
 class GameRolesManager(BaseCog):
@@ -93,7 +91,7 @@ class GameRolesManager(BaseCog):
                     f"INSERT INTO CreatedEmoji (role_id, emoji_id) VALUES ((SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}), {emoji.id})"
                 )
                 await self.add_gamerole_emoji(emoji.id)
-                return get_dominant_colors(cv2.imdecode(np.frombuffer(content, dtype='uint8'), 1), 3)[0]
+                return get_median_color(content)
         return get_pseudo_random_color()
 
     async def delete_unused_roles(self):

@@ -2,13 +2,14 @@ import asyncio
 import zoneinfo
 import datetime
 import discord
-import cv2
 import re
 
+from io import BytesIO
+from PIL import Image
+from PIL.ImageStat import Stat
 from hashlib import sha3_224
 from itertools import chain
 from random import randint
-from sklearn.cluster import KMeans
 
 zone_Moscow = zoneinfo.ZoneInfo("Europe/Moscow")
 
@@ -128,10 +129,5 @@ def flatten(collection):
     return chain(*collection) if collection is not None else []
 
 
-def get_dominant_colors(img, clusters):
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = img.reshape((img.shape[0] * img.shape[1], 3))
-    kmeans = KMeans(n_clusters=clusters)
-    kmeans.fit(img)
-    colors = kmeans.cluster_centers_
-    return colors.astype(int)
+def get_median_color(raw_img):
+    return Stat(Image.open(BytesIO(raw_img))).median
