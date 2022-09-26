@@ -1,8 +1,0 @@
-discord.py
-datetime
-aiohttp
-aiopg
-sklearn
-opencv-contrib-python-headless
-asyncio_extras
-mcstatus
