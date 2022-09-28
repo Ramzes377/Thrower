@@ -31,8 +31,10 @@ async def create_tables(cur):
         CREATE TABLE IF NOT EXISTS SessionActivities
         (
             channel_id bigint NOT NULL,
-            associate_role bigint NOT NULL,
-            PRIMARY KEY (channel_id, associate_role)
+            role_id bigint NOT NULL,
+            PRIMARY KEY (channel_id, role_id),
+            FOREIGN KEY (role_id) REFERENCES CreatedRoles(role_id) ON DELETE CASCADE,
+            FOREIGN KEY (channel_id) REFERENCES CreatedSessions(channel_id) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS ActivitiesINFO
         (

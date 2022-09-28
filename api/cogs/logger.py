@@ -7,20 +7,20 @@ from .tools.utils import flatten, time_format, user_is_playing, get_app_id, sess
 
 
 class Logger(BaseCog):
-    MIN_SESS_DURATION = 5 * 60 # in seconds
+    MIN_SESS_DURATION = 5 * 60  # in seconds
 
     async def log_activity(self, user, user_channel):
         if not user_is_playing(user):
             return
         app_id, is_real = get_app_id(user)
-        associate_role = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
+        role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
         if is_real:
             try:
                 await self.execute_sql(
-                    f"INSERT INTO SessionActivities (channel_id, associate_role) VALUES ({user_channel.id}, {associate_role[0]})")
+                    f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({user_channel.id}, {role_id[0]})")
                 msg = await self.update_activity_icon(app_id, user_channel.id)
                 if msg:
-                    await self.log_msg_add_activities(msg, associate_role)
+                    await self.log_msg_add_activities(msg, role_id)
             except:  # record already exist not duplicate session activities
                 pass
 
@@ -76,10 +76,10 @@ class Logger(BaseCog):
             sess_duration = end_time - start_time
 
             if sess_duration.seconds > Logger.MIN_SESS_DURATION:
-                _, associated_roles = await self.execute_sql(
+                _, roles_ids = await self.execute_sql(
                     f"UPDATE SessionCounters SET past_sessions_counter = {past_sessions_counter + 1} WHERE current_day = {start_day}",
-                    f"SELECT associate_role FROM SessionActivities WHERE channel_id = {channel.id}", fetch_all=True)
-                roles_ids = set(flatten(associated_roles))
+                    f"SELECT role_id FROM SessionActivities WHERE channel_id = {channel.id}", fetch_all=True)
+                roles_ids = set(flatten(roles_ids))
 
                 embed = discord.Embed(title=f"Сессия {sess_repr} окончена!", color=discord.Color.red())
                 embed.description = f'├ [ВАЖНО!]({choice(urls)})'
@@ -100,10 +100,10 @@ class Logger(BaseCog):
         except Exception as e:
             pass
         finally:
-            await self.execute_sql(f"DELETE FROM CreatedSessions WHERE channel_id = {channel.id}",
-                                   f"DELETE FROM SessionMembers WHERE channel_id = {channel.id}",
-                                   f"DELETE FROM SessionActivities WHERE channel_id = {channel.id}",
-                                   f"DELETE FROM LoggerSessions WHERE channel_id = {channel.id}")
+            await self.execute_sql(
+                f'''DELETE FROM CreatedSessions WHERE channel_id = {channel.id}; 
+                    DELETE FROM SessionActivities WHERE channel_id = {channel.id}'''
+            )
 
     async def log_msg_change_leader(self, leader_mention, channel_id):
         try:
@@ -132,9 +132,8 @@ class Logger(BaseCog):
     async def log_msg_add_activities(self, msg, roles_ids):
         for role_id in roles_ids:
             emoji_id = await self.execute_sql(f'''SELECT emoji_id FROM 
-                                                    CreatedRoles  
-                                                        JOIN CreatedEmoji 
-                                                            on CreatedRoles.role_id = CreatedEmoji.role_id
+                                                    CreatedRoles JOIN CreatedEmoji 
+                                                        on CreatedRoles.role_id = CreatedEmoji.role_id
                                                     WHERE CreatedRoles.role_id = {role_id}''')
             if emoji_id:
                 emoji = self.bot.get_emoji(emoji_id[0])
