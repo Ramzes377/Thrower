@@ -44,7 +44,8 @@ class Commands(BaseCog):
         sended_messages = []
         for role in requested_games:
             embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
-            seconds = await self.execute_sql(f"SELECT COALESCE(seconds, 0) FROM UserActivities WHERE role_id = {role.id}")
+            seconds = await self.execute_sql(
+                f"SELECT COALESCE(seconds, 0) FROM UserActivities WHERE role_id = {role.id}")
             if seconds and seconds[0]:
                 ingame_time = datetime.timedelta(seconds=seconds[0])
                 embed.add_field(name='В игре вы провели', value=f"{str(ingame_time).split('.')[0]}", inline=False)
@@ -54,7 +55,8 @@ class Commands(BaseCog):
                                       'то зайдите в Настройки пользователя/Игровая активность/Отображать '
                                       'в статусе игру в которую сейчас играете',
                                 inline=False)
-            icon_url = await self.execute_sql(f'''SELECT icon_url FROM CreatedRoles join ActivitiesINFO using(app_id) WHERE role_id = {role.id}''')
+            icon_url = await self.execute_sql(
+                f'''SELECT icon_url FROM CreatedRoles join ActivitiesINFO using(app_id) WHERE role_id = {role.id}''')
             if icon_url:
                 embed.set_thumbnail(url=icon_url[0])
             bot = channel.guild.get_member(self.bot.user.id)
@@ -113,7 +115,7 @@ class Commands(BaseCog):
         async for message in channel.history(limit=messages_count + 1):
             await message.delete()
 
-    async def set_sess_name(self, ctx, name):
+    async def set_sess_name(self, ctx, name: str):
         user = ctx.message.author
         await self.execute_sql(f"""INSERT INTO UserDefaultSessionName (user_id, name) VALUES ({user.id}, {name})
                                         ON CONFLICT (user_id) DO UPDATE SET name = {name}""")
@@ -159,15 +161,16 @@ class Commands(BaseCog):
                                                     left JOIN UserActivities as ua on 
                                                         cr.role_id = ua.role_id 
                                                         and user_id = {user_id}
-                                            WHERE app_id = {app_id}''')
+                                                WHERE cr.app_id = {app_id}''')
 
     async def write_played_time(self, before):
         app_id, _ = get_app_id(before)
         role_id, seconds = await self.get_gamerole_time(before.id, app_id)
         sess_duration = int(time() - before.activity.start.timestamp())
-        await self.execute_sql(f"""INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, {0})
-                                        ON CONFLICT (role_id) DO NOTHING;
-                                    UPDATE UserActivities SET seconds = {seconds + sess_duration} where role_id = {role_id}""")
+        await self.execute_sql(
+            f"INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, 0) ON CONFLICT (role_id) DO NOTHING",
+            f'UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE role_id = {role_id} and user_id = {before.id}'
+        )
 
 
 async def setup(bot):
