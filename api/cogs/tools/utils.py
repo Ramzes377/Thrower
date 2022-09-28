@@ -28,7 +28,7 @@ role_request_id = int(environ['role_request_id'])
 command_id = int(environ['command_id'])
 
 bots_ids = [184405311681986560, 721772274830540833]
-another_bots_prefixes = [';;', '-v']
+another_bots_prefixes = (';;', '-v')
 
 categories = {
     discord.ActivityType.playing: int(environ['playing_category']),

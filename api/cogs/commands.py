@@ -42,33 +42,33 @@ class Commands(BaseCog):
 
         sended_messages = []
         for role in requested_games:
+            embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
             seconds = await self.execute_sql(f"SELECT seconds FROM UserActivities WHERE role_id = {role.id}")
             if seconds:
                 ingame_time = datetime.timedelta(seconds=seconds[0])
-                embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
                 if ingame_time:
                     embed.add_field(name='В игре вы провели', value=f"{str(ingame_time).split('.')[0]}",
                                     inline=False)
-                else:
-                    embed.add_field(name='Вы не играли в эту игру или Discord не смог это обнаружить',
-                                    value='Если вам нужна эта функция,'
-                                          'то зайдите в Настройки пользователя/Игровая активность/Отображать '
-                                          'в статусе игру в которую сейчас играете',
-                                    inline=False)
+            else:
+                embed.add_field(name='Вы не играли в эту игру или Discord не смог это обнаружить',
+                                value='Если вам нужна эта функция,'
+                                      'то зайдите в Настройки пользователя/Игровая активность/Отображать '
+                                      'в статусе игру в которую сейчас играете',
+                                inline=False)
 
-                icon_url = await self.execute_sql(f'''SELECT icon_url FROM ActivitiesINFO 
-                                            WHERE app_id = (SELECT app_id FROM CreatedRoles WHERE role_id = {role.id})''')
-                if icon_url:
-                    embed.set_thumbnail(url=icon_url[0])
+            icon_url = await self.execute_sql(f'''SELECT icon_url FROM ActivitiesINFO 
+                                        WHERE app_id = (SELECT app_id FROM CreatedRoles WHERE role_id = {role.id})''')
+            if icon_url:
+                embed.set_thumbnail(url=icon_url[0])
 
-                bot = channel.guild.get_member(self.bot.user.id)
-                embed.set_footer(text='Великий бот - ' + bot.display_name, icon_url=bot.avatar)
-                embed.description = 'Это сообщение автоматически удалится через минуту'
+            bot = channel.guild.get_member(self.bot.user.id)
+            embed.set_footer(text='Великий бот - ' + bot.display_name, icon_url=bot.avatar)
+            embed.description = 'Это сообщение автоматически удалится через минуту'
 
-                message = await member.send(embed=embed)
-                sended_messages.append(message)
+            message = await member.send(embed=embed)
+            sended_messages.append(message)
 
-        await asyncio.sleep(60)
+        await asyncio.sleep(20)
         try:
             for message in sended_messages:
                 await message.delete()
@@ -103,9 +103,7 @@ class Commands(BaseCog):
                     message = await send_removable_message(ctx, f'У вас уже есть роль {role.mention}!', 20)
             else:  # wrong role
                 message = await send_removable_message(ctx, f'{role.mention} не относится к игровым ролям!', 20)
-
             sended_messages.append(message)
-
         await asyncio.sleep(20)
         for message in sended_messages:
             await message.delete()
@@ -173,22 +171,17 @@ class Commands(BaseCog):
         if user_is_playing(after):
             app_id, _ = get_app_id(after)
             gamerole_time = await self.get_gamerole_time(after.id, app_id)
-            if gamerole_time:
-                _, seconds = gamerole_time
-                if not seconds:
-                    await self.execute_sql(
-                        f"INSERT INTO UserActivities (user_id, app_id, seconds) VALUES ({after.id}, {app_id}, {0})")
+            if not gamerole_time or (gamerole_time and not gamerole_time[0]):
+                await self.execute_sql(f"""INSERT INTO UserActivities (role_id, user_id, seconds) VALUES 
+                                        ((SELECT role_id from CreatedRoles where app_id = {app_id}), {after.id}, {0})""")
         if user_is_playing(before):
-            try:
-                app_id, _ = get_app_id(before)
-                gamerole_time = await self.get_gamerole_time(before.id, app_id)
-                if gamerole_time:
-                    role_id, seconds = gamerole_time
-                    sess_duration = int(time() - before.activity.start.timestamp())
-                    await self.execute_sql(
-                        f"UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE user_id = {before.id} AND role_id = {role_id}")
-            except AttributeError:
-                pass
+            app_id, _ = get_app_id(before)
+            gamerole_time = await self.get_gamerole_time(before.id, app_id)
+            if gamerole_time:
+                role_id, seconds = gamerole_time
+                sess_duration = int(time() - before.activity.start.timestamp())
+                await self.execute_sql(
+                    f"UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE user_id = {before.id} AND role_id = {role_id}")
 
 
 async def setup(bot):

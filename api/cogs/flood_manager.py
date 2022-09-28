@@ -8,7 +8,7 @@ def message_belongs_bot(author_id):
 
 
 def user_calling_bot(msg_content):
-    return any(msg_content.startswith(prefix) for prefix in another_bots_prefixes)
+    return msg_content.startswith(another_bots_prefixes)
 
 
 async def remove_msg_after_delay(message, delay=30):
