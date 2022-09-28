@@ -75,22 +75,24 @@ class ChannelsManager(BaseCog):
             except:
                 pass
 
+    async def end_session(self, channel):
+        await self.logger_instance.session_over_msg(channel)
+        await channel.delete()
+
     async def leader_leave(self, leader, channel):
         user_channel_empty = not channel.members
-        remain_bots_only = all(member.id in bots_ids for member in channel.members)
-        if user_channel_empty or remain_bots_only:  # write end session message and delete channel
-            await self.logger_instance.session_over_msg(channel)
-            await channel.delete()
-        else:  # if channel isn't empty just transfer channel
-            await self.transfer_channel(leader, channel)
+        await self.end_session(channel) if user_channel_empty else await self.transfer_channel(leader, channel)
 
     async def transfer_channel(self, user, channel):
-        new_leader = channel.members[0]  # New leader of this channel
-        overwrites = {user: default_role_rights, new_leader: leader_role_rights}
-        await edit_channel_name_category(new_leader, channel, overwrites=overwrites)
-        await self.execute_sql(f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
-        await self.logger_instance.log_activity(new_leader, channel)
-        await self.logger_instance.log_msg_change_leader(new_leader.mention, channel.id)
+        try:
+            new_leader = [member for member in channel.members if member.id not in bots_ids][0]  # New leader of this channel
+            overwrites = {user: default_role_rights, new_leader: leader_role_rights}
+            await edit_channel_name_category(new_leader, channel, overwrites=overwrites)
+            await self.execute_sql(f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
+            await self.logger_instance.log_activity(new_leader, channel)
+            await self.logger_instance.log_msg_change_leader(new_leader.mention, channel.id)
+        except IndexError:  # remain only bots in channel
+            await self.end_session(channel)
 
     def set_logger_instance(self, logger):
         self.logger_instance = logger
