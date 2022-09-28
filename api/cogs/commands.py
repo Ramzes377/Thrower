@@ -81,7 +81,6 @@ class Commands(BaseCog):
         чтобы получить сразу несколько ролей!"""
         member = ctx.message.author
         requested_roles = ctx.message.role_mentions
-
         if len(requested_roles) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания ролей! Введите !help give_role.', 20)
             await ctx.message.delete()
@@ -105,9 +104,11 @@ class Commands(BaseCog):
     @commands.command()
     @commands.has_permissions(manage_messages=True)
     async def clear(self, ctx, messages_count=0):
-        '''Удаляет последние message_count сообщений
+        """
+        Удаляет последние message_count сообщений
            Example: !clear 10
-           Только для ролей с правом удаления сообщений.'''
+           Только для ролей с правом удаления сообщений.
+        """
         channel = ctx.message.channel
         async for message in channel.history(limit=messages_count + 1):
             await message.delete()
