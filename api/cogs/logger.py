@@ -7,7 +7,7 @@ from .tools.utils import flatten, time_format, user_is_playing, get_app_id, sess
 
 
 class Logger(BaseCog):
-    MIN_SESS_DURATION = 5  # in seconds
+    MIN_SESS_DURATION = 5 * 60  # in seconds
 
     async def log_activity(self, user, user_channel):
         if not user_is_playing(user):
