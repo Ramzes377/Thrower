@@ -129,5 +129,22 @@ def flatten(collection):
     return chain(*collection) if collection is not None else []
 
 
-def get_median_color(raw_img):
-    return Stat(Image.open(BytesIO(raw_img))).median
+def get_mean_color(raw_img):
+    return [int(x) for x in Stat(Image.open(BytesIO(raw_img))).mean[:3]]
+
+
+def get_dominant_colors(raw_img, numcolors=5, resize=64):
+    img = Image.open(BytesIO(raw_img))
+    img = img.copy()
+    img.thumbnail((resize, resize))
+    paletted = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=numcolors)
+    palette = paletted.getpalette()
+    color_counts = sorted(paletted.getcolors(), reverse=True)
+    colors = []
+    for i in range(numcolors):
+        palette_index = color_counts[i][1]
+        dominant_color = dc = tuple(palette[palette_index*3:palette_index*3+3])
+        sq_dist = dc[0]*dc[0] + dc[1]*dc[1] + dc[2]*dc[2]
+        if sq_dist > 8:  # drop too dark colors
+            colors.append(dominant_color)
+    return colors

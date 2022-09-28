@@ -11,7 +11,10 @@ from .tools.utils import get_app_id, user_is_playing
 async def send_removable_message(ctx, message, delay=5):
     message = await ctx.send(message)
     await asyncio.sleep(delay)
-    await message.delete()
+    try:
+        await message.delete()
+    except:
+        pass
 
 
 class Commands(BaseCog):
@@ -75,12 +78,12 @@ class Commands(BaseCog):
 
     @commands.command(aliases=['gr'])
     async def give_role(self, ctx):
-        '''Дает пользователю ИГРОВУЮ роль!
+        """Дает пользователю ИГРОВУЮ роль!
         Введите
         !give_role @роль чтобы получить роль!
         или
         !give_role @роль, @роль, ...
-        чтобы получить сразу несколько ролей!'''
+        чтобы получить сразу несколько ролей!"""
         member = ctx.message.author
         requested_roles = ctx.message.role_mentions
 
@@ -117,6 +120,46 @@ class Commands(BaseCog):
         channel = ctx.message.channel
         async for message in channel.history(limit=messages_count + 1):
             await message.delete()
+
+    async def set_sess_name(self, ctx, name):
+        user = ctx.message.author
+        await self.execute_sql(f"""INSERT INTO UserDefaultSessionName (user_id, name) VALUES ({user.id}, {name})
+                                        ON CONFLICT (user_id) DO UPDATE SET name = {name}""")
+        default_channel_name = f"{ctx.message.author.display_name}'s channel"
+        default_or_new = name if name != 'null' else default_channel_name
+        msg_text = f'''Стандартное название вашей сессии успешно установлено на {default_or_new}!'''
+
+        channel = await self.get_user_channel(user.id)  # try to get user's channel
+        user_have_channel = channel is not None
+        if user_have_channel and channel.name == default_channel_name:
+            try:
+                await asyncio.wait_for(channel.edit(name=default_or_new), timeout=5.0)
+            except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :(
+                pass
+        await send_removable_message(ctx, msg_text, 20)
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+
+    @commands.command(aliases=['set_dsn'])
+    async def set_default_session_name(self, ctx, *session_name):
+        """
+        Устанавливает стандартное название сессии пользователя на session_name.
+        """
+        new_default_channel_name = f"'{' '.join(session_name)}'"
+        if new_default_channel_name:
+            await self.set_sess_name(ctx, new_default_channel_name)
+        else:
+            await send_removable_message(ctx, 'Имя канала не должно быть пустым!', 20)
+
+    @commands.command(aliases=['remove_dsn'])
+    async def remove_default_session_name(self, ctx):
+        """
+        Устанавливает стандартное название сессии пользователя на значение по-умолчанию.
+        В названии запрещено использовать последовательность символов SELECT!
+        """
+        await self.set_sess_name(ctx, name='null')
 
     async def get_gamerole_time(self, user_id, app_id):
         gamerole_time = await self.execute_sql(

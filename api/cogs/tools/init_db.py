@@ -58,6 +58,11 @@ async def create_tables(cur):
             seconds bigint,
             FOREIGN KEY (role_id) REFERENCES CreatedRoles(role_id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS UserDefaultSessionName
+        (
+            user_id bigint PRIMARY KEY, 
+            name text
+        );
     '''
     await cur.execute(commands)
     await cur.execute('SELECT COUNT(*) FROM SessionCounters')

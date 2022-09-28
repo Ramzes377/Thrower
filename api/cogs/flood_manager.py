@@ -1,6 +1,6 @@
 import asyncio
-from mydiscordbot.api.cogs.tools.base_cog import BaseCog, commands
-from mydiscordbot.api.cogs.tools.utils import command_id, another_bots_prefixes, bots_ids
+from .tools.base_cog import BaseCog, commands
+from .tools.utils import command_id, another_bots_prefixes, bots_ids
 
 
 def message_belongs_bot(author_id):

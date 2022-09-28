@@ -4,10 +4,13 @@ import aiopg
 import asyncio
 
 from discord.ext import commands
-from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token
-from mydiscordbot.api.cogs.tools.init_db import create_tables
+from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id
+from api.cogs.tools.init_db import create_tables
 
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+try:
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+except:
+    pass
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
@@ -21,10 +24,12 @@ async def on_ready():
         async with bot.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await create_tables(cur)
+
         await load_cogs()
 
         bot.create_channel = bot.get_channel(create_channel_id)
         bot.logger_channel = bot.get_channel(logger_id)
+        bot.role_request_channel = bot.get_channel(role_request_id)
         for category in categories:
             categories[category] = bot.get_channel(categories[category])
 
