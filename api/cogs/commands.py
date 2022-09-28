@@ -176,9 +176,8 @@ class Commands(BaseCog):
                 sess_duration = int(time() - before.activity.start.timestamp())
                 await self.execute_sql(
                     f"""INSERT INTO UserActivities (role_id, user_id, seconds) VALUES 
-                                                    ((SELECT role_id from CreatedRoles where app_id = {app_id}), {after.id}, {0})
-                                                            ON CONFLICT (role_id) DO NOTHING;
-                        UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE user_id = {before.id} AND role_id = {role_id}""")
+                            ((SELECT role_id from CreatedRoles where app_id = {app_id}), {before.id}, {0})
+                                    ON CONFLICT (role_id) DO UPDATE SET seconds = {seconds + sess_duration}""")
 
 
 async def setup(bot):
