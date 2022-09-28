@@ -168,11 +168,6 @@ class Commands(BaseCog):
         return gamerole_time
 
     async def game_statistics(self, before, after):
-        if user_is_playing(after):
-            app_id, _ = get_app_id(after)
-            await self.execute_sql(f"""INSERT INTO UserActivities (role_id, user_id, seconds) VALUES 
-                                    ((SELECT role_id from CreatedRoles where app_id = {app_id}), {after.id}, {0})
-                                            ON CONFLICT (role_id) DO NOTHING""")
         if user_is_playing(before):
             app_id, _ = get_app_id(before)
             gamerole_time = await self.get_gamerole_time(before.id, app_id)
