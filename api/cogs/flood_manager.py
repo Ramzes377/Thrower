@@ -1,5 +1,5 @@
 import asyncio
-from .tools.base_cog import BaseCog, commands
+from .tools.mixins import BaseCogMixin, commands
 from .tools.utils import command_id, another_bots_prefixes, bots_ids
 
 
@@ -16,7 +16,7 @@ async def remove_msg_after_delay(message, delay=30):
     await message.delete()
 
 
-class FloodManager(BaseCog):
+class FloodManager(BaseCogMixin):
     @commands.Cog.listener()
     async def on_message(self, message):
         author = message.author

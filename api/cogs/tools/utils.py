@@ -1,8 +1,6 @@
-import asyncio
 import zoneinfo
 import datetime
 import discord
-import re
 
 from io import BytesIO
 from PIL import Image
@@ -61,11 +59,11 @@ default_role_rights = discord.PermissionOverwrite(connect=True,
                                                   create_instant_invite=True)
 
 
-def get_category(user):
-    return categories[user.activity.type] if user.activity else categories[0]
+def get_category(user: discord.member.Member) -> discord.CategoryChannel:
+    return categories[user.activity.type: discord.CategoryChannel] if user.activity else categories[0]
 
 
-def user_is_playing(user):
+def user_is_playing(user: discord.member.Member) -> bool:
     return user.activity and user.activity.type == discord.ActivityType.playing
 
 
@@ -76,42 +74,27 @@ def session_id():
     return n_day_of_year, is_leap_year(cur_time.year)
 
 
-def get_activity_name(user):  # describe few activities to correct show
-    if not user.activity or user.activity.type == discord.ActivityType.custom:
-        return f"{user.display_name}'s channel"
-    return f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
-
-
-def get_app_id(activity_interval):
+def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
     try:
-        app_id, is_real = activity_interval.activity.application_id, True
+        app_id, is_real = user.activity.application_id, True
     except AttributeError:
-        app_id, is_real = _hash(activity_interval.activity.name), False
+        app_id, is_real = _hash(user.activity.name), False
     return app_id, is_real
 
 
-def get_cur_user_channel(user):
+def get_cur_user_channel(user: discord.member.Member) -> discord.VoiceChannel | None:
     return None if not user.voice else user.voice.channel
 
 
-async def edit_channel_name_category(user, channel, overwrites=None):
-    channel_name = get_activity_name(user)
-    category = get_category(user)
-    try:
-        await asyncio.wait_for(channel.edit(name=channel_name, category=category, overwrites=overwrites), timeout=5.0)
-    except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :('
-        await channel.edit(category=category)
-
-
-def time_format(time):
+def format_time(time: datetime.datetime) -> str:
     return "%02d:%02d:%02d - %02d.%02d.%04d" % (time.hour, time.minute, time.second, time.day, time.month, time.year)
 
 
-def _hash(string):
+def _hash(string: str) -> int:
     return int(str(sha3_224(string.encode(encoding='utf8')).hexdigest()), 16) % 10 ** 10
 
 
-def is_leap_year(year):
+def is_leap_year(year: int) -> bool:
     if year % 400 == 0:
         return True
     if year % 100 == 0:
@@ -121,7 +104,7 @@ def is_leap_year(year):
     return False
 
 
-def get_pseudo_random_color():
+def get_pseudo_random_color() -> tuple[int, int, int]:
     return randint(70, 255), randint(70, 255), randint(70, 255)
 
 
@@ -129,11 +112,11 @@ def flatten(collection):
     return chain(*collection) if collection is not None else []
 
 
-def get_mean_color(raw_img):
+def get_mean_color(raw_img) -> list[int, int, int]:
     return [int(x) for x in Stat(Image.open(BytesIO(raw_img))).mean[:3]]
 
 
-def get_dominant_colors(raw_img, numcolors=5, resize=64):
+def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] | list:
     img = Image.open(BytesIO(raw_img))
     img = img.copy()
     img.thumbnail((resize, resize))
@@ -147,4 +130,4 @@ def get_dominant_colors(raw_img, numcolors=5, resize=64):
         sq_dist = dc[0]*dc[0] + dc[1]*dc[1] + dc[2]*dc[2]
         if sq_dist > 8:  # drop too dark colors
             colors.append(dominant_color)
-    return colors
+    return colors[0]
