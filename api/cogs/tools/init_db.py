@@ -55,9 +55,10 @@ async def create_tables(cur):
         );
         CREATE TABLE IF NOT EXISTS UserActivities
         (
-            role_id bigint PRIMARY KEY,
-            user_id bigint, 
+            role_id bigint NOT NULL,
+            user_id bigint NOT NULL, 
             seconds bigint,
+            PRIMARY KEY (role_id, user_id),
             FOREIGN KEY (role_id) REFERENCES CreatedRoles(role_id) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS UserDefaultSessionName

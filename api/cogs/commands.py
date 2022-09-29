@@ -168,7 +168,7 @@ class Commands(BaseCog):
         role_id, seconds = await self.get_gamerole_time(before.id, app_id)
         sess_duration = int(time() - before.activity.start.timestamp())
         await self.execute_sql(
-            f"INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, 0) ON CONFLICT (role_id) DO NOTHING",
+            f"INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, 0) ON CONFLICT (role_id, user_id) DO NOTHING",
             f'UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE role_id = {role_id} and user_id = {before.id}'
         )
 

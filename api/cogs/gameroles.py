@@ -20,16 +20,16 @@ class GameRolesManager(BaseCog):
         emoji_id = payload.emoji.id
         if user_is_bot or not emoji_id:
             return
-        associated_role = await self.execute_sql(
+        role_id = await self.execute_sql(
             f'''SELECT CreatedEmoji.role_id 
                     FROM CreatedEmoji
                         JOIN CreatedRoles 
                             USING(role_id)
                 WHERE emoji_id = {emoji_id}''')
-        if associated_role:
+        if role_id:
             guild = self.bot.get_guild(payload.guild_id)
             member = guild.get_member(payload.user_id)
-            role = guild.get_role(associated_role[0])
+            role = guild.get_role(role_id[0])
             return member, role
 
     @commands.Cog.listener()
