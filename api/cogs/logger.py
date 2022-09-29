@@ -51,7 +51,7 @@ class Logger(BaseCog):
         embed.add_field(name='Текущий лидер', value=f'{creator.mention}', inline=True)
         embed.add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
         creator = channel.guild.get_member(creator.id)
-        embed.set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.avatar)
+        embed.set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
         msg = await self.bot.logger_channel.send(embed=embed)
 
         await self.execute_sql(
