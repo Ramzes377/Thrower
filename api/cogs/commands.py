@@ -4,7 +4,7 @@ import discord
 
 from time import time
 
-from .tools.base_cog import BaseCog, commands
+from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 from .tools.utils import get_app_id, user_is_playing
 
 
@@ -17,7 +17,7 @@ async def send_removable_message(ctx, message, delay=5):
         pass
 
 
-class Commands(BaseCog):
+class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, _):
@@ -137,7 +137,7 @@ class Commands(BaseCog):
             pass
 
     @commands.command(aliases=['set_dsn'])
-    async def set_default_session_name(self, ctx, *session_name):
+    async def set_default_session_name(self, ctx, *session_name: str):
         """
         Устанавливает стандартное название сессии пользователя на session_name.
         """
@@ -155,7 +155,7 @@ class Commands(BaseCog):
         """
         await self.set_sess_name(ctx, name='null')
 
-    async def get_gamerole_time(self, user_id, app_id):
+    async def get_gamerole_time(self, user_id: int, app_id: int):
         return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds
                                                 FROM CreatedRoles as cr
                                                     left JOIN UserActivities as ua on 

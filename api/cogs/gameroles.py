@@ -2,11 +2,11 @@ import datetime
 import discord
 import re
 
-from .tools.base_cog import BaseCog, commands
-from .tools.utils import get_pseudo_random_color, get_app_id,  zone_Moscow, get_dominant_colors
+from .tools.mixins import BaseCogMixin, commands, ConnectionMixin
+from .tools.utils import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
 
 
-class GameRolesManager(BaseCog):
+class GameRolesManager(BaseCogMixin, ConnectionMixin):
     msg = None
     story = None
 
@@ -14,6 +14,12 @@ class GameRolesManager(BaseCog):
     async def on_ready(self):
         await self.delete_unused_roles()
         await self.delete_unused_emoji()
+
+    @commands.Cog.listener()
+    async def on_presence_update(self, _, after):
+        is_user_playing = user_is_playing(after)
+        if is_user_playing:
+            await self.add_gamerole(after)
 
     async def get_gamerole_link_data(self, payload):
         user_is_bot = payload.user_id == self.bot.user.id
@@ -55,7 +61,7 @@ class GameRolesManager(BaseCog):
             if role_exist:
                 await role.edit(position=len(role.members) if len(role.members) > 0 else 1)
 
-    async def add_gamerole(self, user):
+    async def add_gamerole(self, user: discord.member.Member):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
@@ -82,7 +88,7 @@ class GameRolesManager(BaseCog):
         async with self.url_request(thumbnail_url) as response:
             content = await response.read()
         if content:
-            dominant_color = get_dominant_colors(content)[0]
+            dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
             await self.execute_sql(f"INSERT INTO CreatedEmoji (role_id, emoji_id) VALUES ({role.id}, {emoji.id})")
             await self.add_emoji_rolerequest(emoji.id, name)
