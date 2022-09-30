@@ -60,14 +60,14 @@ default_role_rights = discord.PermissionOverwrite(connect=True,
 
 
 def get_category(user: discord.member.Member) -> discord.CategoryChannel:
-    return categories[user.activity.type: discord.CategoryChannel] if user.activity else categories[0]
+    return categories[user.activity.type] if user.activity else categories[0]
 
 
 def user_is_playing(user: discord.member.Member) -> bool:
     return user.activity and user.activity.type == discord.ActivityType.playing
 
 
-def session_id():
+def session_id() -> tuple[int, bool]:
     cur_time = datetime.datetime.now(tz=zone_Moscow)
     start_of_year = datetime.datetime(cur_time.year, 1, 1).astimezone(zone_Moscow)
     n_day_of_year = (cur_time - start_of_year).days + 1
