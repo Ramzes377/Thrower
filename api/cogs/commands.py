@@ -45,7 +45,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         for role in requested_games:
             embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
             seconds = await self.execute_sql(
-                f"SELECT COALESCE(seconds, 0) FROM UserActivities WHERE role_id = {role.id}")
+                f"SELECT COALESCE(seconds, 0) FROM UserActivities WHERE role_id = {role.id} and user_id = {member.id}")
             if seconds and seconds[0]:
                 ingame_time = datetime.timedelta(seconds=seconds[0])
                 embed.add_field(name='В игре вы провели', value=f"{str(ingame_time).split('.')[0]}", inline=False)

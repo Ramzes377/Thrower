@@ -138,4 +138,3 @@ class Logger(ConnectionMixin):
                 f'''DELETE FROM CreatedSessions WHERE channel_id = {channel.id}; 
                     DELETE FROM SessionActivities WHERE channel_id = {channel.id}'''
             )
-
