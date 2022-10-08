@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 
 from api.cogs.tools.logger import Logger
@@ -11,19 +13,17 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = logger
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.startup_channels_handle()
-
-    async def startup_channels_handle(self):
-        db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions"))
-        for user_id, channel_id in db_channels:
-            user = self.bot.get_user(user_id)
-            channel = self.bot.get_channel(channel_id)
-            user_in_channel = get_cur_user_channel(user)
-            channel_exist = channel is not None
-            if channel_exist and channel != user_in_channel:
-                await self.join_to_foreign(user, channel, user_in_channel)
+    async def handle_created_channels(self, period=60*30):
+        while True:
+            db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions"))
+            for user_id, channel_id in db_channels:
+                user = self.bot.get_user(user_id)
+                channel = self.bot.get_channel(channel_id)
+                user_in_channel = get_cur_user_channel(user)
+                channel_exist = channel is not None
+                if channel_exist and channel != user_in_channel:
+                    await self.join_to_foreign(user, channel, user_in_channel)
+            await asyncio.sleep(period)
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.member.Member):
@@ -37,7 +37,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.member.Member, _, after: discord.VoiceState):
-        channel = await self.get_user_channel(member.id)  # try to get user's channel
+        channel = await self.get_user_channel(member.id)
         user_join_create_channel = after.channel == self.bot.create_channel
         user_join_to_foreign = not (channel and after.channel == channel)
         if user_join_create_channel:
@@ -47,12 +47,19 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     async def user_try_create_channel(self, user: discord.member.Member, user_channel: discord.VoiceChannel):
         user_have_channel = user_channel is not None
-        if not user_have_channel:  # if channel already exist
-            user_channel = await self.create_channel(user)  # create channel
-            await self.logger_instance.session_begin(user, user_channel)  # send session message
-        await user.move_to(user_channel)  # just send user to his channel
+        # if channel already exist
+        if not user_have_channel:
+            # create channel
+            user_channel = await self.create_channel(user)
+            # send session message
+            await self.logger_instance.session_begin(user, user_channel)
+        # just send user to his channel
+        await user.move_to(user_channel)
 
-    async def join_to_foreign(self, user: discord.member.Member, user_channel: discord.VoiceChannel, foreign_channel: discord.VoiceChannel):  # User haven't channel and try to join to channel of another user
+    async def join_to_foreign(self, user: discord.member.Member,
+                              user_channel: discord.VoiceChannel,
+                              foreign_channel: discord.VoiceChannel):
+        # User haven't channel and try to join to channel of another user
         user_have_channel = user_channel is not None
         user_stay_guild = foreign_channel is not None
         if user_have_channel:
@@ -73,7 +80,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     async def add_user_to_session(self, user: discord.member.Member, channel: discord.VoiceChannel):
         try:
             await self.execute_sql(f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
-            await self.logger_instance.update_members(channel=channel)  # add new member to logger message
+            # add new member to logging message
+            await self.logger_instance.update_members(channel=channel)
         except:
             pass
 
@@ -100,4 +108,6 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 async def setup(bot):
     logger = Logger()
     logger.set_bot(bot)
-    await bot.add_cog(ChannelsManager(bot, logger))
+    manager = ChannelsManager(bot, logger)
+    await bot.add_cog(manager)
+    await asyncio.ensure_future(manager.handle_created_channels())

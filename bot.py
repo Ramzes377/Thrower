@@ -30,7 +30,7 @@ async def on_ready():
 
         bot.create_channel = bot.get_channel(create_channel_id)
         bot.logger_channel = bot.get_channel(logger_id)
-        bot.role_request_channel = bot.get_channel(role_request_id)
+        bot.request_channel = bot.get_channel(role_request_id)
         for category in categories:
             categories[category] = bot.get_channel(categories[category])
 
@@ -41,7 +41,7 @@ async def on_ready():
         print('Error on startup: ', e)
 
 
-async def clear_connections(period=300):
+async def clear_connections(period=60*5):
     while True:
         try:
             await bot.db.clear()
