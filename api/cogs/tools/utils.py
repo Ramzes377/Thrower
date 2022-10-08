@@ -83,7 +83,7 @@ def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
 
 
 def get_cur_user_channel(user: discord.member.Member) -> discord.VoiceChannel | None:
-    return None if not user.voice else user.voice.channel
+    return None if not (hasattr(user, 'voice') and user.voice) else user.voice.channel
 
 
 def format_time(time: datetime.datetime) -> str:

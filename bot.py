@@ -26,14 +26,13 @@ async def on_ready():
             async with conn.cursor() as cur:
                 await create_tables(cur)
 
-        await load_cogs()
-
         bot.create_channel = bot.get_channel(create_channel_id)
         bot.logger_channel = bot.get_channel(logger_id)
         bot.request_channel = bot.get_channel(role_request_id)
         for category in categories:
             categories[category] = bot.get_channel(categories[category])
 
+        await load_cogs()
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
         await asyncio.ensure_future(clear_connections())
         print('Bot have been started!')

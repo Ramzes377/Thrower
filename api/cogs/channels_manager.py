@@ -15,7 +15,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     async def handle_created_channels(self, period=60*30):
         while True:
-            db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions"))
+            db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True))
             for user_id, channel_id in db_channels:
                 user = self.bot.get_user(user_id)
                 channel = self.bot.get_channel(channel_id)
