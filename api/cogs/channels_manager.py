@@ -38,6 +38,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.join_to_foreign(member, channel, after.channel)
 
     async def handle_created_channels(self, period=60*30):
+        # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
+        # or if bot was offline for some reasons then calculate possible current behavior
         guild = self.bot.guilds[0]
         while True:
             db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True))
@@ -47,7 +49,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
                 user_in_own_channel = channel and user in channel.members
                 if not user_in_own_channel:
                     cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel]
-                    cur_channel = cur_channel if len(cur_channel) > 0 else None
+                    cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
                     await self.join_to_foreign(user, channel, cur_channel)
             await asyncio.sleep(period)
 
