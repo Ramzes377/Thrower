@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from asyncio_extras import async_contextmanager
 
-from api.cogs.tools.utils import get_category
+from api.cogs.tools.utils import get_category, send_removable_message
 
 
 class BaseCogMixin(commands.Cog):

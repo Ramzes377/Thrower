@@ -61,7 +61,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
             if role_exist:
                 await role.edit(position=len(role.members) if len(role.members) > 0 else 1)
 
-    async def add_gamerole(self, user: discord.member.Member):
+    async def add_gamerole(self, user: discord.Member):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
@@ -98,7 +98,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
 
     async def add_emoji_rolerequest(self, emoji_id, app_name):
         emoji = self.bot.get_emoji(emoji_id)
-        self.msg = await self.bot.role_request_channel.send(f'[{app_name}]')
+        self.msg = await self.bot.request_channel.send(f'[{app_name}]')
         await self.msg.add_reaction(emoji)
 
     async def delete_unused_roles(self):
@@ -111,8 +111,8 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
                 await role.delete()
 
     async def delete_unused_emoji(self):
-        guild = self.bot.role_request_channel.guild
-        for msg, reaction in ((msg, reaction) async for msg in self.bot.role_request_channel.history(limit=None)
+        guild = self.bot.request_channel.guild
+        for msg, reaction in ((msg, reaction) async for msg in self.bot.request_channel.history(limit=None)
                               for reaction in msg.reactions if reaction.emoji not in guild.emojis):
             await msg.remove_reaction(reaction.emoji, guild.get_member(self.bot.user.id))
             async with self.get_connection() as cur:

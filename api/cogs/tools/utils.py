@@ -1,13 +1,14 @@
-import zoneinfo
-import datetime
-import discord
-
+import asyncio
 from io import BytesIO
-from PIL import Image
-from PIL.ImageStat import Stat
+import datetime
 from hashlib import sha3_224
 from itertools import chain
 from random import randint
+
+import zoneinfo
+import discord
+from PIL import Image
+from PIL.ImageStat import Stat
 
 zone_Moscow = zoneinfo.ZoneInfo("Europe/Moscow")
 
@@ -82,10 +83,6 @@ def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
     return app_id, is_real
 
 
-def get_cur_user_channel(user: discord.member.Member) -> discord.VoiceChannel | None:
-    return None if not user.voice else user.voice.channel
-
-
 def format_time(time: datetime.datetime) -> str:
     return "%02d:%02d:%02d - %02d.%02d.%04d" % (time.hour, time.minute, time.second, time.day, time.month, time.year)
 
@@ -131,3 +128,11 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
         if sq_dist > 8:  # drop too dark colors
             colors.append(dominant_color)
     return colors[0]
+
+async def send_removable_message(ctx, message, delay=5):
+    message = await ctx.send(message)
+    await asyncio.sleep(delay)
+    try:
+        await message.delete()
+    except:
+        pass
