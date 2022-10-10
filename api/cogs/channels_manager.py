@@ -1,10 +1,11 @@
 import asyncio
+from functools import partial
+from time import time
 
 import discord
 
 from api.cogs.tools.logger import Logger
-from .tools.utils import flatten, get_category, user_is_playing, default_role_rights, \
-    leader_role_rights, bots_ids, get_cur_user_channel
+from .tools.utils import flatten, get_category, default_role_rights, leader_role_rights, bots_ids, get_cur_user_channel
 from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
@@ -12,6 +13,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     def __init__(self, bot, logger):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = logger
+        self._loop = asyncio.get_event_loop()
 
     async def handle_created_channels(self, period=60*30):
         while True:
@@ -28,11 +30,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.member.Member):
         channel = await self.get_user_channel(after.id)
-        user_have_channel = channel is not None
-        is_user_playing = user_is_playing(after)
-        if user_have_channel:
-            if is_user_playing:
-                await self.logger_instance.log_activity(after, channel)
+        if channel is not None:
+            await self.logger_instance.log_activity(after, channel)
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()
@@ -48,13 +47,16 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     async def user_try_create_channel(self, user: discord.member.Member, user_channel: discord.VoiceChannel):
         user_have_channel = user_channel is not None
         # if channel already exist
-        if not user_have_channel:
-            # create channel
-            user_channel = await self.create_channel(user)
-            # send session message
-            await self.logger_instance.session_begin(user, user_channel)
-        # just send user to his channel
+        if user_have_channel:
+            await user.move_to(user_channel)
+            return
+
+        # create channel
+        user_channel = await self.create_channel(user)
+        # send user to his channel
         await user.move_to(user_channel)
+        # send session message
+        await self.logger_instance.session_begin(user, user_channel)
 
     async def join_to_foreign(self, user: discord.member.Member,
                               user_channel: discord.VoiceChannel,
