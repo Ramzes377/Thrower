@@ -61,7 +61,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
             if role_exist:
                 await role.edit(position=len(role.members) if len(role.members) > 0 else 1)
 
-    async def add_gamerole(self, user: discord.member.Member):
+    async def add_gamerole(self, user: discord.Member):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild

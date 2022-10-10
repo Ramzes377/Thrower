@@ -1,3 +1,4 @@
+import asyncio
 from io import BytesIO
 import datetime
 from hashlib import sha3_224
@@ -127,3 +128,11 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
         if sq_dist > 8:  # drop too dark colors
             colors.append(dominant_color)
     return colors[0]
+
+async def send_removable_message(ctx, message, delay=5):
+    message = await ctx.send(message)
+    await asyncio.sleep(delay)
+    try:
+        await message.delete()
+    except:
+        pass
