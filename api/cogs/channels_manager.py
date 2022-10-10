@@ -1,11 +1,9 @@
 import asyncio
-from functools import partial
-from time import time
 
 import discord
 
-from api.cogs.tools.logger import Logger
-from .tools.utils import flatten, get_category, default_role_rights, leader_role_rights, bots_ids, get_cur_user_channel
+from .tools.logger import Logger
+from .tools.utils import flatten, get_category, default_role_rights, leader_role_rights, bots_ids
 from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
@@ -13,18 +11,19 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     def __init__(self, bot, logger):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = logger
-        self._loop = asyncio.get_event_loop()
 
     async def handle_created_channels(self, period=60*30):
+        guild = self.bot.guilds[0]
         while True:
             db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True))
             for user_id, channel_id in db_channels:
                 user = self.bot.get_user(user_id)
                 channel = self.bot.get_channel(channel_id)
-                user_in_channel = get_cur_user_channel(user)
-                channel_exist = channel is not None
-                if channel_exist and channel != user_in_channel:
-                    await self.join_to_foreign(user, channel, user_in_channel)
+                user_in_own_channel = channel and user in channel.members
+                if not user_in_own_channel:
+                    cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel]
+                    cur_channel = cur_channel if len(cur_channel) > 0 else None
+                    await self.join_to_foreign(user, channel, cur_channel)
             await asyncio.sleep(period)
 
     @commands.Cog.listener()
@@ -58,6 +57,16 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         # send session message
         await self.logger_instance.session_begin(user, user_channel)
 
+    async def create_channel(self, user: discord.member.Member):
+        channel_name = await self.get_user_sess_name(user)
+        category = get_category(user)
+        permissions = {user.guild.default_role: default_role_rights, user: leader_role_rights}
+        channel = await user.guild.create_voice_channel(channel_name, category=category, overwrites=permissions)
+        await self.execute_sql(f'''INSERT INTO CreatedSessions (user_id, channel_id) VALUES ({user.id}, {channel.id})
+                                        ON CONFLICT (user_id) DO UPDATE SET channel_id = {channel.id};
+                                INSERT INTO SessionMembers (member_id, channel_id) VALUES ({user.id}, {channel.id})''')
+        return channel
+
     async def join_to_foreign(self, user: discord.member.Member,
                               user_channel: discord.VoiceChannel,
                               foreign_channel: discord.VoiceChannel):
@@ -68,16 +77,6 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.leader_leave(user, user_channel)
         if user_stay_guild:
             await self.add_user_to_session(user, foreign_channel)
-
-    async def create_channel(self, user: discord.member.Member):
-        channel_name = await self.get_user_sess_name(user)
-        category = get_category(user)
-        permissions = {user.guild.default_role: default_role_rights, user: leader_role_rights}
-        channel = await user.guild.create_voice_channel(channel_name, category=category, overwrites=permissions)
-        await self.execute_sql(f'''INSERT INTO CreatedSessions (user_id, channel_id) VALUES ({user.id}, {channel.id})
-                                        ON CONFLICT (user_id) DO UPDATE SET channel_id = {channel.id};
-                                INSERT INTO SessionMembers (member_id, channel_id) VALUES ({user.id}, {channel.id})''')
-        return channel
 
     async def add_user_to_session(self, user: discord.member.Member, channel: discord.VoiceChannel):
         try:

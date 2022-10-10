@@ -1,13 +1,13 @@
-import zoneinfo
-import datetime
-import discord
-
 from io import BytesIO
-from PIL import Image
-from PIL.ImageStat import Stat
+import datetime
 from hashlib import sha3_224
 from itertools import chain
 from random import randint
+
+import zoneinfo
+import discord
+from PIL import Image
+from PIL.ImageStat import Stat
 
 zone_Moscow = zoneinfo.ZoneInfo("Europe/Moscow")
 
@@ -80,10 +80,6 @@ def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
     except AttributeError:
         app_id, is_real = _hash(user.activity.name), False
     return app_id, is_real
-
-
-def get_cur_user_channel(user: discord.member.Member) -> discord.VoiceChannel | None:
-    return None if not (hasattr(user, 'voice') and user.voice) else user.voice.channel
 
 
 def format_time(time: datetime.datetime) -> str:
