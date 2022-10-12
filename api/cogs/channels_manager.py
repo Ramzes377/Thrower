@@ -11,6 +11,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     def __init__(self, bot, logger):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = logger
+        self._transfer_flag = False
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member):
@@ -21,11 +22,14 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
-        if before.name != after.name:
+        # skip transfer channel rename
+        if not self._transfer_flag and before.name != after.name:
+            new_name = f"""'{after.name.replace("'", "''")}'"""
             await self.execute_sql(
                 f"""INSERT INTO UserDefaultSessionName (user_id, name) 
-                        VALUES ((SELECT user_id FROM CreatedSessions WHERE channel_id = {after.id}), '{after.name}')
-                            ON CONFLICT (user_id) DO UPDATE SET name = '{after.name}'""")
+                        VALUES ((SELECT user_id FROM CreatedSessions WHERE channel_id = {after.id}), {new_name})
+                            ON CONFLICT (user_id) DO UPDATE SET name = {new_name}""")
+        self._transfer_flag = False
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, _, after: discord.VoiceState):
@@ -95,6 +99,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.execute_sql(f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
             await self.logger_instance.log_activity(new_leader, channel)
             await self.logger_instance.change_leader(new_leader.mention, channel.id)
+            self._transfer_flag = True
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)
 
