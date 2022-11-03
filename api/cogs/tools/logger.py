@@ -9,34 +9,32 @@ from api.cogs.tools.utils import flatten, format_time, user_is_playing, get_app_
 class Logger(ConnectionMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
 
-    async def log_activity(self, user, channel):
-        if not user_is_playing(user):
-            return
+    async def log_activity(self, user: discord.Member, channel: discord.VoiceChannel):
         app_id, is_real = get_app_id(user)
-        role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
-        if is_real:
-            msg = await self.update_activity_icon(app_id, channel.id)
-            try:
-                await self.execute_sql(f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({channel.id}, {role_id[0]})")
-                if msg:
-                    await self.add_activities(msg, role_id)
-            except:  # record already exist not duplicate session activities
-                pass
+        if not (user_is_playing(user) and is_real):
+            return
 
-    async def update_activity_icon(self, app_id, channel_id):
-        icon_data = await self.execute_sql(
-            f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}",
-            f'SELECT icon_url FROM ActivitiesINFO WHERE app_id  = {app_id}'
-        )
+        role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
+        msg = await self.update_activity_icon(app_id, channel.id)
+        try:
+            await self.execute_sql(f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({channel.id}, {role_id})")
+            if msg:
+                await self.add_activity(msg, role_id)
+        except:  # record already exist not duplicate session activities
+            pass
+
+    async def update_activity_icon(self, app_id: int, channel_id: discord.VoiceChannel):
+        icon_data = await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}",
+                                           f'SELECT icon_url FROM ActivitiesINFO WHERE app_id = {app_id}')
         if icon_data:
             message_id, thumbnail_url = icon_data
-            msg = await self.bot.logger_channel.fetch_message(message_id[0])
+            msg = await self.bot.logger_channel.fetch_message(message_id)
             msg_embed = msg.embeds[0]
-            msg_embed.set_thumbnail(url=thumbnail_url[0])
+            msg_embed.set_thumbnail(url=thumbnail_url)
             await msg.edit(embed=msg_embed)
             return msg
 
-    async def session_begin(self, creator, channel):
+    async def session_begin(self, creator: discord.Member, channel: discord.VoiceChannel):
         day_of_year, is_leap_year = session_id()
         past_sessions_counter, current_sessions_counter = await self.execute_sql(
             f"SELECT past_sessions_counter, current_sessions_counter FROM SessionCounters WHERE current_day = {day_of_year}"
@@ -46,8 +44,8 @@ class Logger(ConnectionMixin):
 
         embed = discord.Embed(title=f"{creator.display_name} начал сессию {sess_id}", color=discord.Color.green())
         embed.add_field(name='├ Сессия активна', value=f'├ [ВАЖНО!]({choice(urls)})', inline=False)
-        embed.add_field(name=f'├ Время начала', value=f'├ **`{format_time(cur_time)}`**', inline=True)
-        embed.add_field(name='Текущий лидер', value=f'{creator.mention}', inline=True)
+        embed.add_field(name=f'├ Время начала', value=f'├ **`{format_time(cur_time)}`**')
+        embed.add_field(name='Текущий лидер', value=f'{creator.mention}')
         embed.add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
         creator = channel.guild.get_member(creator.id)
         embed.set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
@@ -59,42 +57,38 @@ class Logger(ConnectionMixin):
         )
         await self.log_activity(creator, channel)
 
-    async def change_leader(self, leader_mention, channel_id):
+    async def change_leader(self, leader_mention: str, channel_id: discord.VoiceChannel):
         try:
             message_id = await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}")
-            msg = await self.bot.logger_channel.fetch_message(*message_id)
+            msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_field_at(2, name='Текущий лидер', value=leader_mention)
             await msg.edit(embed=embed)
         except discord.errors.NotFound:
             pass
 
-    async def update_members(self, channel):
+    async def update_members(self, channel: discord.VoiceChannel):
         try:
-            message_id, member_ids = await self.execute_sql(
+            message_id, *member_ids = await self.execute_sql(
                 f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel.id}",
                 f"SELECT member_id FROM SessionMembers WHERE channel_id = {channel.id}",
                 fetch_all=True)
-            msg = await self.bot.logger_channel.fetch_message(*message_id[0])
+            msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
-            embed.set_field_at(3, name='├ Участники', value='└ ' + ', '.join((f'<@{id}>' for id in set(flatten(member_ids)))),
+            embed.set_field_at(3, name='├ Участники', value='└ ' + ', '.join((f'<@{id}>' for id in member_ids)),
                                inline=False)
             await msg.edit(embed=embed)
-        except Exception as e:
+        except:
             pass
 
-    async def add_activities(self, msg, roles_ids):
-        for role_id in roles_ids:
-            emoji_id = await self.execute_sql(f'''SELECT emoji_id FROM 
-                                                    CreatedRoles JOIN CreatedEmoji 
-                                                        on CreatedRoles.role_id = CreatedEmoji.role_id
-                                                    WHERE CreatedRoles.role_id = {role_id}''')
-            if emoji_id:
-                emoji = self.bot.get_emoji(emoji_id[0])
-                if emoji:
-                    await msg.add_reaction(emoji)
+    async def add_activity(self, msg: discord.Message, role_id: int):
+        emoji_id: int | None = await self.execute_sql(f'''SELECT emoji_id FROM 
+                                                CreatedRoles JOIN CreatedEmoji 
+                                                    on CreatedRoles.role_id = CreatedEmoji.role_id
+                                                WHERE CreatedRoles.role_id = {role_id}''')
+        await msg.add_reaction(self.bot.get_emoji(emoji_id))
 
-    async def session_over(self, channel):
+    async def session_over(self, channel: discord.VoiceChannel):
         try:
             creator_id, start_day, sess_repr, message_id = \
                 await self.execute_sql(
@@ -110,10 +104,9 @@ class Logger(ConnectionMixin):
             sess_duration = end_time - start_time
 
             if sess_duration.seconds > Logger.MIN_SESS_DURATION:
-                _, roles_ids = await self.execute_sql(
+                _, *roles_ids = await self.execute_sql(
                     f"UPDATE SessionCounters SET past_sessions_counter = {past_sessions_counter + 1} WHERE current_day = {start_day}",
                     f"SELECT role_id FROM SessionActivities WHERE channel_id = {channel.id}", fetch_all=True)
-                roles_ids = set(flatten(roles_ids))
 
                 embed = discord.Embed(title=f"Сессия {sess_repr} окончена!", color=discord.Color.red())
                 embed.description = f'├ [ВАЖНО!]({choice(urls)})'
@@ -128,10 +121,10 @@ class Logger(ConnectionMixin):
                 embed.set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
                 await msg.edit(embed=embed)
                 await self.update_members(channel)
-                await self.add_activities(msg, roles_ids)
+                await self.add_activity(msg, roles_ids)
             else:
                 await msg.delete()
-        except Exception as e:
+        except:
             pass
         finally:
             await self.execute_sql(

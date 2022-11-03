@@ -35,7 +35,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
         if role_id:
             guild = self.bot.get_guild(payload.guild_id)
             member = guild.get_member(payload.user_id)
-            role = guild.get_role(role_id[0])
+            role = guild.get_role(role_id)
             return member, role
 
     @commands.Cog.listener()
@@ -67,7 +67,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
         guild = user.guild
         created_role = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
         if created_role:  # role already exist
-            role = guild.get_role(created_role[0])  # get role
+            role = guild.get_role(created_role)  # get role
             if role not in user.roles:  # check user have these role
                 await user.add_roles(role)
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
@@ -107,7 +107,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
         cur_time = datetime.datetime.now(tz=zone_Moscow)
         for role in roles:
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
-                await self.execute_sql(f'''DELETE FROM CreatedRoles WHERE role_id = {role.id}''')
+                await self.execute_sql(f'DELETE FROM CreatedRoles WHERE role_id = {role.id}')
                 await role.delete()
 
     async def delete_unused_emoji(self):

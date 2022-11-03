@@ -5,6 +5,7 @@ from hashlib import sha3_224
 from itertools import chain
 from random import randint
 
+import sqlparse
 import zoneinfo
 import discord
 from PIL import Image
@@ -60,6 +61,14 @@ default_role_rights = discord.PermissionOverwrite(connect=True,
                                                   create_instant_invite=True)
 
 
+def query_identifiers(query: str) -> bool:
+    parsed_sql = sqlparse.parse(query)
+    all_identifiers = '*' in query
+    any_many_identifiers = any(type(x) == sqlparse.sql.IdentifierList for query in parsed_sql for x in query.tokens)
+    many_identifiers = all_identifiers or any_many_identifiers
+    return many_identifiers
+
+
 def get_category(user: discord.member.Member) -> discord.CategoryChannel:
     return categories[user.activity.type] if user.activity else categories[0]
 
@@ -79,7 +88,10 @@ def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
     try:
         app_id, is_real = user.activity.application_id, True
     except AttributeError:
-        app_id, is_real = _hash(user.activity.name), False
+        try:
+            app_id, is_real = _hash(user.activity.name), False
+        except AttributeError:
+            app_id, is_real = None, False
     return app_id, is_real
 
 
@@ -128,6 +140,7 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
         if sq_dist > 8:  # drop too dark colors
             colors.append(dominant_color)
     return colors[0]
+
 
 async def send_removable_message(ctx, message, delay=5):
     message = await ctx.send(message)
