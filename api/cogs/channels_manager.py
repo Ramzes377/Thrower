@@ -3,38 +3,36 @@ import asyncio
 import discord
 
 from .tools.logger import Logger
-from .tools.utils import flatten, get_category, default_role_rights, leader_role_rights, bots_ids
+from .tools.utils import get_category, default_role_rights, leader_role_rights, bots_ids
 from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
+    channel_flags = {}
+
     def __init__(self, bot, logger):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = logger
-        self._transfer_flag = False
-        self._activity_flag = False
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member):
         channel = await self.get_user_channel(after.id)
         if channel is not None:
-            self._activity_flag = True
+            ChannelsManager.channel_flags[channel.id] = 'A'
             await self.logger_instance.log_activity(after, channel)
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
         # skip transfer channel rename and activity rename
-        await asyncio.sleep(10)
-        need_save = not (self._transfer_flag or self._activity_flag)
+        await asyncio.sleep(3)
+        need_save = not ChannelsManager.channel_flags.pop(after.id) in ('T', 'A')
         if need_save and before.name != after.name:
             new_name = f"""'{after.name.replace("'", "''")}'"""
             await self.execute_sql(
-                f"""INSERT INTO UserDefaultSessionName (user_id, name) 
+                f"""INSERT INTO UserDefaultSessionName (user_id, name)
                         VALUES ((SELECT user_id FROM CreatedSessions WHERE channel_id = {after.id}), {new_name})
                             ON CONFLICT (user_id) DO UPDATE SET name = {new_name}""")
-        self._transfer_flag = False
-        self._activity_flag = False
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, _, after: discord.VoiceState):
@@ -46,20 +44,21 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         elif user_join_to_foreign:
             await self.join_to_foreign(member, channel, after.channel)
 
-    async def handle_created_channels(self, period=60*30):
+    async def handle_created_channels(self, period: int = 30*60):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
         guild = self.bot.guilds[0]
         while True:
-            db_channels = flatten(await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True))
-            for user_id, channel_id in db_channels:
-                user = self.bot.get_user(user_id)
-                channel = self.bot.get_channel(channel_id)
-                user_in_own_channel = channel and user in channel.members
-                if not user_in_own_channel:
-                    cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel]
-                    cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
-                    await self.join_to_foreign(user, channel, cur_channel)
+            db_channels = await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True)
+            if db_channels[0]:
+                for user_id, channel_id in db_channels[0]:
+                    user = self.bot.get_user(user_id)
+                    channel = self.bot.get_channel(channel_id)
+                    user_in_own_channel = channel and user in channel.members
+                    if not user_in_own_channel:
+                        cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel.members]
+                        cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
+                        await self.join_to_foreign(user, channel, cur_channel)
             await asyncio.sleep(period)
 
     async def user_try_create_channel(self, user: discord.Member, user_channel: discord.VoiceChannel):
@@ -104,7 +103,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.execute_sql(f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
             await self.logger_instance.log_activity(new_leader, channel)
             await self.logger_instance.change_leader(new_leader.mention, channel.id)
-            self._transfer_flag = True
+            ChannelsManager.channel_flags[channel.id] = 'T'
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)
 
