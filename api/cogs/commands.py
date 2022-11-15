@@ -25,7 +25,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         """
         member = ctx.message.author
         channel = ctx.message.channel
-        requested_games = ctx._recreate_msg.role_mentions
+        requested_games = ctx.update_msg.role_mentions
 
         if len(requested_games) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания игровых ролей! Введите !help activity', 20)
@@ -73,7 +73,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         !give_role @роль, @роль, ...
         чтобы получить сразу несколько ролей!"""
         member = ctx.message.author
-        requested_roles = ctx._recreate_msg.role_mentions
+        requested_roles = ctx.update_msg.role_mentions
         if len(requested_roles) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания ролей! Введите !help give_role.', 20)
             await ctx.message.delete()
@@ -92,7 +92,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
                 message = await send_removable_message(ctx, f'{role.mention} не относится к игровым ролям!', 20)
             sended_messages.append(message)
         await asyncio.sleep(20)
-        await ctx._recreate_msg.delete()
+        await ctx.update_msg.delete()
 
     @commands.command()
     @commands.has_permissions(manage_messages=True)

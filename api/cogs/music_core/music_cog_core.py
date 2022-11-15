@@ -6,7 +6,7 @@ from api.cogs.tools.mixins import BaseCogMixin
 
 
 class MusicCore(BaseCogMixin):
-    _recreate_msg = lambda: None
+    update_msg = lambda: None
 
     def __init__(self, bot):
         super(MusicCore, self).__init__(bot)
@@ -38,7 +38,7 @@ class MusicCore(BaseCogMixin):
             raise commands.CommandInvokeError('Join a voicechannel first.')
 
         v_client = ctx.voice_client
-        need_vc = ctx.command.name not in ('preferences', )
+        need_vc = ctx.command.name not in ('preferences',)
         if not need_vc:
             return
         if not v_client:
@@ -59,6 +59,13 @@ class MusicCore(BaseCogMixin):
         if isinstance(event, lavalink.events.QueueEndEvent):
             guild_id = event.player.guild_id
             guild = self.bot.get_guild(guild_id)
+
+            try:
+                await self._msg.delete()
+                self._msg = None
+            except:
+                pass
+
             await guild.voice_client.disconnect(force=True)
         if isinstance(event, lavalink.events.TrackStartEvent):
-            await self._recreate_msg()
+            await self.update_msg()

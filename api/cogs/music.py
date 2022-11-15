@@ -3,10 +3,11 @@ from functools import partial
 
 import discord
 from discord.ext import commands
+import interactions
 # from discord.ui import view
 # from discord_ui import SlashOption
 # from discord_ui.cogs import slash_command, subslash_command, context_cog, listening_component
-from api.cogs.music_core.dropdown import create_dropdown
+from api.cogs.music_core.views import create_dropdown, PlayerButtonsView
 from api.cogs.music_core.music_cog_core import MusicCore
 from api.cogs.music_core.query_cache import write_music_query, mru_queries
 
@@ -39,7 +40,7 @@ class Music(MusicCore):
                 else:
                     self._paused = not self._paused
                     await player.set_pause(self._paused)
-                await self._recreate_msg()
+                await self.update_msg()
 
     @commands.command(name='play', aliases=['p'])
     # @slash_command(options=[SlashOption(str, name='play', description="this is a parameter",
@@ -66,12 +67,12 @@ class Music(MusicCore):
             tracks = results.tracks
             for track in tracks:
                 player.add(requester=ctx.author.id, track=track)
-            embed.title = 'Playlist Enqueued!'
+            embed.title = 'Плейлист добавлен в очередь!'
             embed.description = f'{results.playlist_info.name} - {len(tracks)} tracks'
             write_music_query(results.playlist_info.name, ctx.message.author.id, query)
         else:
             track = results.tracks[0]
-            embed.title = 'Track Enqueued'
+            embed.title = 'Трек добавлен в очередь!'
             embed.description = f'[{track.title}]({track.uri})'
             player.add(requester=ctx.author.id, track=track)
             write_music_query(track.title, ctx.message.author.id, track.uri)
@@ -107,40 +108,36 @@ class Music(MusicCore):
         queue_msg = queue_repr(player.queue, player.current.title)
         await ctx.send(queue_msg, delete_after=30)
 
-    async def _recreate_msg(self) -> None:
-        try:
-            await self._msg.delete()
-        except:
-            pass
-
+    async def update_msg(self) -> None:
         player = self.bot.lavalink.player_manager.get(self._guild_id)
         if player.current:
-            msg = await self._text_channel.send(embed=self._embed_cur_track(player))
-            await msg.add_reaction('⏯️')
-            await msg.add_reaction('➡️')
-            self._msg = msg
+            status = ':musical_note: Играет :musical_note:' if not self._paused else ':pause_button: Пауза :pause_button:'
+            if not self._msg:
+                embed = (discord.Embed(color=discord.Color.blurple())
+                         .add_field(name='Текущий трек', value=player.current.title)
+                         .add_field(name='Статус', value=status, inline=False)
+                         .set_footer(text='Великий бот - ' + self.bot.user.display_name, icon_url=self.bot.user.avatar))
+                msg = await self._text_channel.send(embed=embed, view=PlayerButtonsView(player.set_pause, player.skip))
+                self._msg = msg
+            else:
+                embed = self._msg.embeds[0]
+                embed.set_field_at(0, name='Текущий трек', value=player.current.title)
+                embed.set_field_at(1, name='Статус', value=status, inline=False)
+                await self._msg.edit(embed=embed)
 
-    def _embed_cur_track(self, player) -> discord.Embed:
-        return (
-            discord.Embed(color=discord.Color.blurple())
-                .add_field(name='Текущий трек', value=player.current.title)
-                .add_field(name='Статус',
-                           value=':musical_note: Играет :musical_note:' if not self._paused else ':pause_button: Пауза :pause_button:',
-                           inline=False)
-                .set_footer(text='Великий бот - ' + self.bot.user.display_name, icon_url=self.bot.user.avatar)
-        )
-
-    @commands.command(name='preferences')
+    @commands.command(name='preferences', aliases=['history', 'favorite'])
     async def _preferences(self, ctx):
         user = ctx.message.author
         prefences = mru_queries(user.id)
-        ctx.command.name = 'play' # change command name from preferences to ensure voice channel
+        ctx.command.name = 'play'  # change command name from preferences to ensure voice channel
         try:
             await user.send(view=create_dropdown('Выберите трек для добавления в очередь', prefences,
                                                  handlers=[partial(self.ensure_voice, ctx), partial(self._play, ctx)]),
                             delete_after=60)
         except AttributeError:
-            await user.send('У вас нет избранных треков. Используйте команду !play *query* , чтобы добавить их туда.')
+            await user.send(
+                'У вас нет избранных треков. Использование команды !play *query* автоматически добавит их туда.'
+            )
 
 
 async def setup(bot):
