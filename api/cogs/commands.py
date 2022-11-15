@@ -25,7 +25,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         """
         member = ctx.message.author
         channel = ctx.message.channel
-        requested_games = ctx.message.role_mentions
+        requested_games = ctx._recreate_msg.role_mentions
 
         if len(requested_games) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания игровых ролей! Введите !help activity', 20)
@@ -73,7 +73,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         !give_role @роль, @роль, ...
         чтобы получить сразу несколько ролей!"""
         member = ctx.message.author
-        requested_roles = ctx.message.role_mentions
+        requested_roles = ctx._recreate_msg.role_mentions
         if len(requested_roles) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания ролей! Введите !help give_role.', 20)
             await ctx.message.delete()
@@ -92,7 +92,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
                 message = await send_removable_message(ctx, f'{role.mention} не относится к игровым ролям!', 20)
             sended_messages.append(message)
         await asyncio.sleep(20)
-        await ctx.message.delete()
+        await ctx._recreate_msg.delete()
 
     @commands.command()
     @commands.has_permissions(manage_messages=True)
@@ -117,6 +117,8 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
     async def write_played_time(self, before):
         app_id, _ = get_app_id(before)
         role_id, seconds = await self.get_gamerole_time(before.id, app_id)
+        if not (before.activity and before.activity.start):
+            return
         sess_duration = int(time() - before.activity.start.timestamp())
         await self.execute_sql(
             f"INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, 0) ON CONFLICT (role_id, user_id) DO NOTHING",

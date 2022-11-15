@@ -1,5 +1,8 @@
-import discord
 import os
+
+import discord
+#from discord_ui import UI
+
 import aiopg
 import asyncio
 
@@ -50,6 +53,7 @@ async def clear_connections(period=60*5):
 
 
 async def load_cogs():
+    #await bot.load_extension(f'api.cogs.music')
     for filename in reversed(os.listdir('api/cogs')):
         if filename.endswith('.py'):
             await bot.load_extension(f'api.cogs.{filename[:-3]}')
