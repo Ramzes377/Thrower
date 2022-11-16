@@ -104,7 +104,10 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         """
         channel = ctx.message.channel
         async for message in channel.history(limit=messages_count + 1):
-            await message.delete()
+            try:
+                await message.delete()
+            except discord.ext.commands.CommandsInvokeError:
+                pass
 
     async def get_gamerole_time(self, user_id: int, app_id: int):
         return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds

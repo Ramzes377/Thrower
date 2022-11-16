@@ -10,6 +10,7 @@ from discord.ext import commands
 from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id
 from api.cogs.tools.init_db import create_tables
 
+
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 except:
@@ -17,6 +18,9 @@ except:
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
+#tree = discord.app_commands.CommandTree(bot)
+#bot.loop.create_task(tree.sync(guild =discord.Object(id=257878464667844618)))
+#ui = UI(bot)
 bot.db = None
 
 
@@ -53,10 +57,10 @@ async def clear_connections(period=60*5):
 
 
 async def load_cogs():
-    #await bot.load_extension(f'api.cogs.music')
-    for filename in reversed(os.listdir('api/cogs')):
-        if filename.endswith('.py'):
-            await bot.load_extension(f'api.cogs.{filename[:-3]}')
+    await bot.load_extension(f'api.cogs.music')
+    # for filename in reversed(os.listdir('api/cogs')):
+    #     if filename.endswith('.py'):
+    #         await bot.load_extension(f'api.cogs.{filename[:-3]}')
 
 
 bot.run(token)

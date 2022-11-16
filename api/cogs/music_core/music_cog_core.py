@@ -29,26 +29,26 @@ class MusicCore(BaseCogMixin):
     async def ensure_voice(self, ctx):
         """ This check ensures that the bot and command author are in the same voicechannel. """
 
-        await ctx.message.delete(delay=5)
+        try:
+            await ctx.message.delete(delay=5)
+        except:
+            pass
 
         player = self.bot.lavalink.player_manager.create(ctx.guild.id)
-        should_connect = ctx.command.name in ('play',)
 
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandInvokeError('Join a voicechannel first.')
 
-        v_client = ctx.voice_client
-        need_vc = ctx.command.name not in ('preferences',)
+        need_vc = ctx.command.name not in ('preferences', )
         if not need_vc:
             return
+
+        v_client = ctx.voice_client
         if not v_client:
-            if not should_connect:
-                raise commands.CommandInvokeError('Not connected.')
-
-            permissions = ctx.author.voice.channel.permissions_for(ctx.me)
-
-            if not permissions.connect or not permissions.speak:  # Check user limit too?
-                raise commands.CommandInvokeError('I need the `CONNECT` and `SPEAK` permissions.')
+            # permissions = ctx.author.voice.channel.permissions_for(ctx.me)
+            #
+            # if not permissions.connect or not permissions.speak:  # Check user limit too?
+            #     raise commands.CommandInvokeError('I need the `CONNECT` and `SPEAK` permissions.')
 
             player.store('channel', ctx.channel.id)
             await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
