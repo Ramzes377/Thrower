@@ -1,3 +1,4 @@
+import discord
 import lavalink
 from discord.ext import commands
 
@@ -17,6 +18,7 @@ class MusicCore(BaseCogMixin):
 
     async def cog_before_invoke(self, ctx):
         """ Command before-invoke handler. """
+        print('before invoke')
         guild_check = ctx.guild is not None
         if guild_check:
             await self.ensure_voice(ctx)
@@ -39,19 +41,17 @@ class MusicCore(BaseCogMixin):
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandInvokeError('Join a voicechannel first.')
 
-        need_vc = ctx.command.name not in ('preferences', )
+        need_vc = ctx.command.name not in ('preferences', 'queue', 'sync')
         if not need_vc:
             return
 
         v_client = ctx.voice_client
         if not v_client:
-            # permissions = ctx.author.voice.channel.permissions_for(ctx.me)
-            #
-            # if not permissions.connect or not permissions.speak:  # Check user limit too?
-            #     raise commands.CommandInvokeError('I need the `CONNECT` and `SPEAK` permissions.')
-
             player.store('channel', ctx.channel.id)
-            await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
+            try:
+                await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
+            except discord.errors.ClientException:
+                pass
         elif v_client.channel.id != ctx.author.voice.channel.id:
             raise commands.CommandInvokeError('You need to be in my voicechannel.')
 

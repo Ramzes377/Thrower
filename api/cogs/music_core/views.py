@@ -2,16 +2,15 @@ import discord
 from typing import Callable
 
 
-def create_dropdown(placeholder: str, select_options: list, channel, handler: Callable):
-    dropdown = Dropdown(placeholder, select_options, channel, handler)
+def create_dropdown(placeholder: str, select_options: list, handler: Callable):
+    dropdown = Dropdown(placeholder, select_options, handler)
     view = discord.ui.View()
     view.add_item(dropdown)
     return view
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, placeholder: str, select_options: list, channel, handler: Callable) -> None:
-        self._channel = channel
+    def __init__(self, placeholder: str, select_options: list, handler: Callable) -> None:
         self._play = handler
         self._map = {}
         options = []
@@ -29,22 +28,22 @@ class Dropdown(discord.ui.Select):
 
 
 class PlayerButtonsView(discord.ui.View):
-    def __init__(self, pause_handler: Callable, skip_handler: Callable) -> None:
-        super().__init__()
-        self._pause, self._skip = pause_handler, skip_handler
+    def __init__(self, pause: Callable, skip: Callable, queue: Callable, favorite: Callable) -> None:
+        super().__init__(timeout=None)
+        self._pause, self._skip, self._queue, self._favorite = pause, skip, queue, favorite
 
     @discord.ui.button(label="Play/Pause", style=discord.ButtonStyle.primary, emoji="⏯️")
     async def pause(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._pause()
-        try:
-            await interaction.response.send_message('', ephemeral=True)
-        except discord.errors.HTTPException:
-            pass
+        await self._pause(interaction)
 
     @discord.ui.button(label="Skip", style=discord.ButtonStyle.blurple, emoji="➡️")
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._skip()
-        try:
-            await interaction.response.send_message('', ephemeral=True)
-        except discord.errors.HTTPException:
-            pass
+        await self._skip(interaction)
+
+    @discord.ui.button(label="Queue", style=discord.ButtonStyle.blurple)
+    async def queue(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._queue(interaction)
+
+    @discord.ui.button(label="Favorite", style=discord.ButtonStyle.blurple, emoji="💙")
+    async def favorite(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._favorite(interaction)
