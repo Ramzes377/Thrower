@@ -9,7 +9,7 @@ from .tools.utils import get_app_id, user_is_playing, send_removable_message
 
 
 class Commands(BaseCogMixin, DiscordFeaturesMixin):
-    CLEAR_CONNECTION_PERIOD = 60 * 5
+    CLEAR_CONNECTION_PERIOD = 5 * 60
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, _):
@@ -136,12 +136,13 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
     async def _clear_connections(self):
         await self.bot.db.clear()
-        await asyncio.sleep(Commands.CLEAR_CONNECTION_PERIOD)
 
     async def clear_connections_loop(self):
         while True:
             try:
+                print('here')
                 await self._clear_connections()
+                await asyncio.sleep(Commands.CLEAR_CONNECTION_PERIOD)
             except AttributeError:
                 pass
 
@@ -149,4 +150,4 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 async def setup(bot):
     commands = Commands(bot)
     await bot.add_cog(commands)
-    await asyncio.ensure_future(commands.clear_connections_loop())
+    bot.loop.create_task(commands.clear_connections_loop())
