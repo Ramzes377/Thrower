@@ -1,3 +1,5 @@
+from itertools import zip_longest
+
 import discord
 from typing import Callable
 
@@ -32,18 +34,18 @@ class PlayerButtonsView(discord.ui.View):
         super().__init__(timeout=None)
         self._pause, self._skip, self._queue, self._favorite = pause, skip, queue, favorite
 
-    @discord.ui.button(label="Play/Pause", style=discord.ButtonStyle.primary, emoji="⏯️")
+    @discord.ui.button(style=discord.ButtonStyle.primary, emoji="⏯️")
     async def pause(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self._pause(interaction)
 
-    @discord.ui.button(label="Skip", style=discord.ButtonStyle.blurple, emoji="➡️")
+    @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="➡️")
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self._skip(interaction)
 
-    @discord.ui.button(label="Queue", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🇶")
     async def queue(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self._queue(interaction)
 
-    @discord.ui.button(label="Favorite", style=discord.ButtonStyle.blurple, emoji="💙")
+    @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="💙")
     async def favorite(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self._favorite(interaction)

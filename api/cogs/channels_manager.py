@@ -10,9 +10,10 @@ from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     channel_flags = {}
 
-    def __init__(self, bot, logger):
+    def __init__(self, bot):
         super(ChannelsManager, self).__init__(bot)
-        self.logger_instance = logger
+        self.logger_instance = Logger()
+        self.logger_instance.set_bot(bot)
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member):
@@ -126,8 +127,6 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
 
 async def setup(bot):
-    logger = Logger()
-    logger.set_bot(bot)
-    manager = ChannelsManager(bot, logger)
+    manager = ChannelsManager(bot)
     await bot.add_cog(manager)
     await asyncio.ensure_future(manager.handle_created_channels())

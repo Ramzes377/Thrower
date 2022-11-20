@@ -9,6 +9,7 @@ from .tools.utils import get_app_id, user_is_playing, send_removable_message
 
 
 class Commands(BaseCogMixin, DiscordFeaturesMixin):
+    CLEAR_CONNECTION_PERIOD = 60 * 5
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, _):
@@ -109,6 +110,11 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
             except discord.ext.commands.CommandsInvokeError:
                 pass
 
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def clear_connections(self, ctx):
+        await self._clear_connections()
+
     async def get_gamerole_time(self, user_id: int, app_id: int):
         return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds
                                                 FROM CreatedRoles as cr
@@ -128,6 +134,19 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
             f'UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE role_id = {role_id} and user_id = {before.id}'
         )
 
+    async def _clear_connections(self):
+        await self.bot.db.clear()
+        await asyncio.sleep(Commands.CLEAR_CONNECTION_PERIOD)
+
+    async def clear_connections_loop(self):
+        while True:
+            try:
+                await self._clear_connections()
+            except AttributeError:
+                pass
+
 
 async def setup(bot):
-    await bot.add_cog(Commands(bot))
+    commands = Commands(bot)
+    await bot.add_cog(commands)
+    await asyncio.ensure_future(commands.clear_connections_loop())
