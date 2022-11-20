@@ -1,29 +1,30 @@
 import asyncio
+
+import discord
+
 from .tools.mixins import BaseCogMixin, commands
 from .tools.utils import command_id, another_bots_prefixes, bots_ids
 
 
-def message_belongs_bot(author_id):
+def message_belongs_bot(author_id: int) -> bool:
     return any(author_id == id for id in bots_ids)
 
 
-def user_calling_bot(msg_content):
-    return msg_content.startswith(another_bots_prefixes)
-
-
-async def remove_msg_after_delay(message, delay=30):
-    await asyncio.sleep(delay)
-    await message.delete()
+def user_calling_bot(content: str) -> bool:
+    return content.startswith(another_bots_prefixes)
 
 
 class FloodManager(BaseCogMixin):
+    REMOVE_DELAY = 30   # in seconds
+
     @commands.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message) -> None:
         author = message.author
         if author == self.bot.user or message.channel.id == command_id:
             return
         if user_calling_bot(message.content) or message_belongs_bot(author.id):
-            await remove_msg_after_delay(message)
+            await asyncio.sleep(FloodManager.REMOVE_DELAY)
+            await message.delete()
 
 
 async def setup(bot):

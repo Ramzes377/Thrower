@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import discord
 import re
@@ -6,22 +7,28 @@ from .tools.mixins import BaseCogMixin, commands, ConnectionMixin
 from .tools.utils import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
 
 
-class GameRolesManager(BaseCogMixin, ConnectionMixin):
-    msg = None
-    story = None
+class GameRoles(BaseCogMixin, ConnectionMixin):
+    HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
+
+    async def remove_unused_activities_loop(self) -> None:
+        while True:
+            try:
+                await self.delete_unused_roles()
+            except:
+                pass
+            try:
+                await self.delete_unused_emoji()
+            except:
+                pass
+            await asyncio.sleep(GameRoles.HANDLE_UNUSED_CONTENT_PERIOD)
 
     @commands.Cog.listener()
-    async def on_ready(self):
-        await self.delete_unused_roles()
-        await self.delete_unused_emoji()
-
-    @commands.Cog.listener()
-    async def on_presence_update(self, _, after):
+    async def on_presence_update(self, _, after: discord.Member) -> None:
         is_user_playing = user_is_playing(after)
         if is_user_playing:
             await self.add_gamerole(after)
 
-    async def get_gamerole_link_data(self, payload):
+    async def get_gamerole_link_data(self, payload: discord.RawReactionActionEvent) -> None:
         user_is_bot = payload.user_id == self.bot.user.id
         emoji_id = payload.emoji.id
         if user_is_bot or not emoji_id:
@@ -39,29 +46,20 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
             return member, role
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         data = await self.get_gamerole_link_data(payload)
         if data:
             member, role = data
             await member.add_roles(role)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload):
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
         data = await self.get_gamerole_link_data(payload)
         if data:
             member, role = data
             await member.remove_roles(role)
 
-    async def sort_roles_by_count(self):
-        guild = self.bot.create_channel.guild
-        roles = guild.roles
-        sorted_roles = sorted(roles, key=lambda r: len(r.members), reverse=True)
-        for role in filter(lambda r: r.hoist, sorted_roles):
-            role_exist = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE role_id = {role.id}")
-            if role_exist:
-                await role.edit(position=len(role.members) if len(role.members) > 0 else 1)
-
-    async def add_gamerole(self, user: discord.Member):
+    async def add_gamerole(self, user: discord.Member) -> None:
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
@@ -77,7 +75,7 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
 
-    async def create_activity_emoji(self, guild, app_id, role):
+    async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         activity_info = await self.execute_sql(f'SELECT app_name, icon_url FROM ActivitiesINFO WHERE app_id = {app_id}')
         if not activity_info:
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
@@ -96,12 +94,13 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
             return
         await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
 
-    async def add_emoji_rolerequest(self, emoji_id, app_name):
+    async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
         emoji = self.bot.get_emoji(emoji_id)
-        self.msg = await self.bot.request_channel.send(f'[{app_name}]')
-        await self.msg.add_reaction(emoji)
+        msg = await self.bot.request_channel.send(f'[{app_name}]')
+        await msg.add_reaction(emoji)
 
-    async def delete_unused_roles(self):
+    async def delete_unused_roles(self) -> None:
+        """Delete role if it cant reach greater than 1 members for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
         roles = guild.roles
         cur_time = datetime.datetime.now(tz=zone_Moscow)
@@ -110,14 +109,25 @@ class GameRolesManager(BaseCogMixin, ConnectionMixin):
                 await self.execute_sql(f'DELETE FROM CreatedRoles WHERE role_id = {role.id}')
                 await role.delete()
 
-    async def delete_unused_emoji(self):
+    async def delete_unused_emoji(self) -> None:
+        """Clear emoji from request channel if it origin were deleted for some reason"""
         guild = self.bot.request_channel.guild
         for msg, reaction in ((msg, reaction) async for msg in self.bot.request_channel.history(limit=None)
                               for reaction in msg.reactions if reaction.emoji not in guild.emojis):
             await msg.remove_reaction(reaction.emoji, guild.get_member(self.bot.user.id))
-            async with self.get_connection() as cur:
-                await cur.execute(f"DELETE FROM CreatedEmoji WHERE emoji_id = {reaction.emoji.id}")
+            await self.execute_sql(f"DELETE FROM CreatedEmoji WHERE emoji_id = {reaction.emoji.id}")
+
+    # async def sort_roles_by_count(self) -> None:
+    #     guild = self.bot.create_channel.guild
+    #     roles = guild.roles
+    #     sorted_roles = sorted(roles, key=lambda r: len(r.members), reverse=True)
+    #     for role in filter(lambda r: r.hoist, sorted_roles):
+    #         role_exist = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE role_id = {role.id}")
+    #         if role_exist:
+    #             await role.edit(position=len(role.members) if len(role.members) > 0 else 1)
 
 
 async def setup(bot):
-    await bot.add_cog(GameRolesManager(bot))
+    gameroles = GameRoles(bot)
+    await bot.add_cog(gameroles)
+    bot.loop.create_task(gameroles.remove_unused_activities_loop())

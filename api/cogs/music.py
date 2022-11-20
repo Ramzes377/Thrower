@@ -1,6 +1,7 @@
 import re
 
 import discord
+import lavalink
 from discord import app_commands
 from discord.ext import commands
 
@@ -27,9 +28,25 @@ class Music(MusicCore):
         self._msg = None
         self._guild_id = None
         self._paused = False
+        lavalink.add_event_hook(self.events_handler)
+
+    async def events_handler(self, event: lavalink.events.Event):
+        if isinstance(event, lavalink.events.QueueEndEvent):
+            guild_id = event.player.guild_id
+            guild = self.bot.get_guild(guild_id)
+
+            try:
+                await self._msg.delete()
+                self._msg = None
+            except:
+                pass
+
+            await guild.voice_client.disconnect(force=True)
+        if isinstance(event, lavalink.events.TrackStartEvent):
+            await self.update_msg()
 
     @commands.command()
-    async def sync(self, ctx) -> None:
+    async def sync(self, ctx: commands.Context) -> None:
         print(await ctx.bot.tree.sync(guild=ctx.guild))
 
     def _custom_context(self, interaction: discord.Interaction, command_name: str) -> type:

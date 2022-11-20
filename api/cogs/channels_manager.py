@@ -8,9 +8,10 @@ from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
+    CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60    # in seconds
     channel_flags = {}
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
         self.logger_instance = Logger()
         self.logger_instance.set_bot(bot)
@@ -46,7 +47,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         elif user_join_to_foreign:
             await self.join_to_foreign(member, channel, after.channel)
 
-    async def handle_created_channels(self, period: int = 30*60):
+    async def handle_created_channels(self):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
         guild = self.bot.guilds[0]
@@ -61,7 +62,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
                         cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel.members]
                         cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
                         await self.join_to_foreign(user, channel, cur_channel)
-            await asyncio.sleep(period)
+            await asyncio.sleep(ChannelsManager.CREATED_CHANNELS_HANDLE_PERIOD)
 
     async def user_try_create_channel(self, user: discord.Member, user_channel: discord.VoiceChannel):
         user_have_channel = user_channel is not None
@@ -126,7 +127,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         await channel.delete()
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     manager = ChannelsManager(bot)
     await bot.add_cog(manager)
-    await asyncio.ensure_future(manager.handle_created_channels())
+    bot.loop.create_task(manager.handle_created_channels())

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import discord
+from discord.ext import commands
 
 from time import time
 
@@ -9,15 +10,15 @@ from .tools.utils import get_app_id, user_is_playing, send_removable_message
 
 
 class Commands(BaseCogMixin, DiscordFeaturesMixin):
-    CLEAR_CONNECTION_PERIOD = 5 * 60
+    CLEAR_CONNECTION_PERIOD: int = 5 * 60   # seconds
 
     @commands.Cog.listener()
-    async def on_presence_update(self, before, _):
+    async def on_presence_update(self, before: discord.Member, _):
         if user_is_playing(before):
             await self.write_played_time(before)
 
     @commands.command(aliases=['a', 'act'])
-    async def activity(self, ctx):
+    async def activity(self, ctx: commands.Context):
         """
         Дает пользователю время в игре у соответствующей игре роли!
            Введите !activity @роль или Введите !activity @роль @роль . . .
@@ -26,7 +27,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         """
         member = ctx.message.author
         channel = ctx.message.channel
-        requested_games = ctx.update_msg.role_mentions
+        requested_games = ctx.message.role_mentions
 
         if len(requested_games) == 0:
             await send_removable_message(ctx, 'Отсутствуют упоминания игровых ролей! Введите !help activity', 20)
@@ -66,7 +67,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
             pass
 
     @commands.command(aliases=['gr'])
-    async def give_role(self, ctx):
+    async def give_role(self, ctx: commands.Context):
         """Дает пользователю ИГРОВУЮ роль!
         Введите
         !give_role @роль чтобы получить роль!
@@ -97,7 +98,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
     @commands.command()
     @commands.has_permissions(manage_messages=True)
-    async def clear(self, ctx, messages_count=0):
+    async def clear(self, ctx: commands.Context, messages_count: int = 0):
         """
         Удаляет последние message_count сообщений
            Example: !clear 10
@@ -107,13 +108,14 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         async for message in channel.history(limit=messages_count + 1):
             try:
                 await message.delete()
-            except discord.ext.commands.CommandsInvokeError:
+            except:
                 pass
 
     @commands.command()
     @commands.has_permissions(administrator=True)
-    async def clear_connections(self, ctx):
+    async def clear_connections(self, ctx: commands.Context):
         await self._clear_connections()
+        await ctx.message.delete()
 
     async def get_gamerole_time(self, user_id: int, app_id: int):
         return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds
@@ -123,7 +125,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
                                                         and user_id = {user_id}
                                                 WHERE cr.app_id = {app_id}''')
 
-    async def write_played_time(self, before):
+    async def write_played_time(self, before: discord.Member):
         app_id, _ = get_app_id(before)
         role_id, seconds = await self.get_gamerole_time(before.id, app_id)
         if not (before.activity and before.activity.start):
@@ -136,11 +138,11 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
     async def _clear_connections(self):
         await self.bot.db.clear()
+        print("Successfully cleared db connections!")
 
     async def clear_connections_loop(self):
         while True:
             try:
-                print('here')
                 await self._clear_connections()
                 await asyncio.sleep(Commands.CLEAR_CONNECTION_PERIOD)
             except AttributeError:
@@ -148,6 +150,6 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
 
 async def setup(bot):
-    commands = Commands(bot)
-    await bot.add_cog(commands)
-    bot.loop.create_task(commands.clear_connections_loop())
+    _commands = Commands(bot)
+    await bot.add_cog(_commands)
+    bot.loop.create_task(_commands.clear_connections_loop())
