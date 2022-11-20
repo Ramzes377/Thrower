@@ -12,14 +12,8 @@ class GameRoles(BaseCogMixin, ConnectionMixin):
 
     async def remove_unused_activities_loop(self) -> None:
         while True:
-            try:
-                await self.delete_unused_roles()
-            except:
-                pass
-            try:
-                await self.delete_unused_emoji()
-            except:
-                pass
+            await self.delete_unused_roles()
+            await self.delete_unused_emoji()
             await asyncio.sleep(GameRoles.HANDLE_UNUSED_CONTENT_PERIOD)
 
     @commands.Cog.listener()
@@ -106,16 +100,24 @@ class GameRoles(BaseCogMixin, ConnectionMixin):
         cur_time = datetime.datetime.now(tz=zone_Moscow)
         for role in roles:
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
-                await self.execute_sql(f'DELETE FROM CreatedRoles WHERE role_id = {role.id}')
-                await role.delete()
+                try:
+                    await role.delete()
+                    await self.execute_sql(f'DELETE FROM CreatedRoles WHERE role_id = {role.id}')
+                except:
+                    pass
+
+
 
     async def delete_unused_emoji(self) -> None:
         """Clear emoji from request channel if it origin were deleted for some reason"""
         guild = self.bot.request_channel.guild
         for msg, reaction in ((msg, reaction) async for msg in self.bot.request_channel.history(limit=None)
                               for reaction in msg.reactions if reaction.emoji not in guild.emojis):
-            await msg.remove_reaction(reaction.emoji, guild.get_member(self.bot.user.id))
-            await self.execute_sql(f"DELETE FROM CreatedEmoji WHERE emoji_id = {reaction.emoji.id}")
+            try:
+                await msg.remove_reaction(reaction.emoji, guild.get_member(self.bot.user.id))
+                await self.execute_sql(f"DELETE FROM CreatedEmoji WHERE emoji_id = {reaction.emoji.id}")
+            except:
+                pass
 
     # async def sort_roles_by_count(self) -> None:
     #     guild = self.bot.create_channel.guild
