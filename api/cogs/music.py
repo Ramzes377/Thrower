@@ -8,13 +8,14 @@ from discord.ext import commands
 from api.cogs.music_core.views import create_dropdown, PlayerButtonsView
 from api.cogs.music_core.music_cog_core import MusicCore
 from api.cogs.music_core.query_cache import write_music_query, mru_queries
+from api.cogs.tools.utils import guild_id
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
 
 def queue_repr(queue: list, current: str) -> str:
     wrap = '```'
-    others = '\n'.join(map(lambda x: f"{x[0]}. {x[1].title}", enumerate(queue[:9], start=2)))
+    others = '\n'.join((f"{i}. {x.title}" for i, x in enumerate(queue[:9], start=2)))
     result = f'{wrap}1. {current}\n{others}'
     remains = len(queue) - 9
     ending = '' if remains < 0 else f'\nи еще ({remains}) трека ...'
@@ -217,4 +218,4 @@ class Music(MusicCore):
 
 
 async def setup(bot):
-    await bot.add_cog(Music(bot), guilds=[discord.Object(id=257878464667844618)])
+    await bot.add_cog(Music(bot), guilds=[discord.Object(id=guild_id)])

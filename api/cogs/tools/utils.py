@@ -24,6 +24,8 @@ with open('./api/cogs/tools/config.ini') as f:
         except ValueError:
             pass
 
+guild_id = int(environ['guild_id'])
+
 create_channel_id = int(environ['create_channel_id'])
 logger_id = int(environ['logger_id'])
 role_request_id = int(environ['role_request_id'])
