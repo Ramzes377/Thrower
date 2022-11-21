@@ -70,7 +70,7 @@ class Music(MusicCore):
         except ValueError:
             ctx = self._custom_context(interaction, command_name='play')
             self._guild_id = self.bot.guilds[0].id
-            self._text_channel = self.bot.get_channel(866284793313624064)
+            self._text_channel = self.bot.commands_channel
 
         await self.ensure_voice(ctx)
         player = self.bot.lavalink.player_manager.get(self._guild_id)
@@ -170,8 +170,9 @@ class Music(MusicCore):
     async def _pause(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(self._guild_id)
         self._paused = not self._paused
-        await interaction.response.send_message(f'Воспроизведение {"приостановлено" if self._paused else "вознобновлено"}!',
-                                                ephemeral=False, delete_after=15)
+        await interaction.response.send_message(
+            f'Воспроизведение {"приостановлено" if self._paused else "вознобновлено"}!',
+            ephemeral=False, delete_after=15)
         await player.set_pause(self._paused)
         await self.update_msg()
 

@@ -5,7 +5,7 @@ import discord
 import aiopg
 
 from discord.ext import commands
-from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id
+from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
 from api.cogs.tools.init_db import create_tables
 
 try:
@@ -16,6 +16,16 @@ except:
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
 bot.db = None
+
+
+async def clear_unregistered_messages_on_startup(bot):
+    guild = bot.guilds[0]
+    exclude = [bot.logger_channel, bot.request_channel]
+    pub_text_channels = (channel for channel in guild.channels if
+                         channel.type.name == 'text' and channel not in exclude)
+    for channel in pub_text_channels:
+        deleted = await channel.purge(limit=100, check=lambda msg: msg.author == bot.user)
+        print(f'Delete {len(deleted)} messages from {channel}!')
 
 
 @bot.event
@@ -30,6 +40,7 @@ async def on_ready():
         bot.create_channel = bot.get_channel(create_channel_id)
         bot.logger_channel = bot.get_channel(logger_id)
         bot.request_channel = bot.get_channel(role_request_id)
+        bot.commands_channel = bot.get_channel(command_id)
         for category in categories:
             categories[category] = bot.get_channel(categories[category])
 
@@ -47,4 +58,5 @@ async def load_cogs():
     #         await bot.load_extension(f'api.cogs.{filename[:-3]}')
 
 
+bot.loop.create_task(clear_unregistered_messages_on_startup(bot))
 bot.run(token)

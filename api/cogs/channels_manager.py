@@ -8,7 +8,7 @@ from .tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
-    CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60    # in seconds
+    CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
     channel_flags = {}
 
     def __init__(self, bot: commands.Bot):
@@ -59,7 +59,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
                     channel = self.bot.get_channel(channel_id)
                     user_in_own_channel = channel and user in channel.members
                     if not user_in_own_channel:
-                        cur_channel = [guild_channel for guild_channel in guild.voice_channels if user in guild_channel.members]
+                        cur_channel = [guild_channel for guild_channel in guild.voice_channels if
+                                       user in guild_channel.members]
                         cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
                         await self.join_to_foreign(user, channel, cur_channel)
             await asyncio.sleep(ChannelsManager.CREATED_CHANNELS_HANDLE_PERIOD)
@@ -100,10 +101,12 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     async def transfer_channel(self, user: discord.Member, channel: discord.VoiceChannel):
         try:
-            new_leader = [member for member in channel.members if member.id not in bots_ids][0]  # New leader of this channel
+            new_leader = [member for member in channel.members if member.id not in bots_ids][
+                0]  # New leader of this channel
             overwrites = {user: default_role_rights, new_leader: leader_role_rights}
             await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
-            await self.execute_sql(f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
+            await self.execute_sql(
+                f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
             await self.logger_instance.log_activity(new_leader, channel)
             await self.logger_instance.change_leader(new_leader.mention, channel.id)
             ChannelsManager.channel_flags[channel.id] = 'T'
@@ -116,7 +119,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     async def add_user_to_session(self, user: discord.Member, channel: discord.VoiceChannel):
         try:
-            await self.execute_sql(f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
+            await self.execute_sql(
+                f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
             # add new member to logging message
             await self.logger_instance.update_members(channel=channel)
         except:

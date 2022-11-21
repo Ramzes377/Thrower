@@ -106,8 +106,6 @@ class GameRoles(BaseCogMixin, ConnectionMixin):
                 except:
                     pass
 
-
-
     async def delete_unused_emoji(self) -> None:
         """Clear emoji from request channel if it origin were deleted for some reason"""
         guild = self.bot.request_channel.guild
