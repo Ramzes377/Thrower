@@ -31,6 +31,10 @@ class Music(MusicCore):
         self._paused = False
         lavalink.add_event_hook(self.events_handler)
 
+    @commands.command()
+    async def sync(self, ctx: commands.Context) -> None:
+        print(await ctx.bot.tree.sync(guild=ctx.guild))
+
     async def events_handler(self, event: lavalink.events.Event):
         if isinstance(event, lavalink.events.QueueEndEvent):
             guild_id = event.player.guild_id
@@ -45,10 +49,6 @@ class Music(MusicCore):
             await guild.voice_client.disconnect(force=True)
         if isinstance(event, lavalink.events.TrackStartEvent):
             await self.update_msg()
-
-    @commands.command()
-    async def sync(self, ctx: commands.Context) -> None:
-        print(await ctx.bot.tree.sync(guild=ctx.guild))
 
     def _custom_context(self, interaction: discord.Interaction, command_name: str) -> type:
         guild = self.bot.guilds[0]

@@ -11,7 +11,7 @@ class MusicCore(BaseCogMixin):
         super(MusicCore, self).__init__(bot)
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
-            bot.lavalink.add_node('127.0.0.1', 2333, 'youshallnotpass', 'eu', 'default-node')
+            bot.lavalink.add_node('host.docker.internal', 2333, 'youshallnotpass', 'eu', 'default-node')
 
     async def cog_before_invoke(self, ctx):
         """ Command before-invoke handler. """

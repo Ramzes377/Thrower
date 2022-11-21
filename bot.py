@@ -41,6 +41,7 @@ async def on_ready():
         bot.logger_channel = bot.get_channel(logger_id)
         bot.request_channel = bot.get_channel(role_request_id)
         bot.commands_channel = bot.get_channel(command_id)
+
         for category in categories:
             categories[category] = bot.get_channel(categories[category])
 
@@ -53,10 +54,11 @@ async def on_ready():
 
 async def load_cogs():
     await bot.load_extension(f'api.cogs.music')
+
     # for filename in reversed(os.listdir('api/cogs')):
     #     if filename.endswith('.py'):
     #         await bot.load_extension(f'api.cogs.{filename[:-3]}')
 
 
-bot.loop.create_task(clear_unregistered_messages_on_startup(bot))
 bot.run(token)
+bot.loop.create_task(clear_unregistered_messages_on_startup(bot))

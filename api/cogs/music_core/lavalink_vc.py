@@ -10,7 +10,7 @@ class LavalinkVoiceClient(discord.VoiceClient):
             self.lavalink = self.client.lavalink
         else:
             self.client.lavalink = lavalink.Client(client.user.id)
-            self.client.lavalink.add_node('localhost', 2333, 'youshallnotpass', 'eu', 'default-node')
+            self.client.lavalink.add_node('host.docker.internal', 2333, 'youshallnotpass', 'eu', 'default-node')
             self.lavalink = self.client.lavalink
 
     async def on_voice_server_update(self, data):
