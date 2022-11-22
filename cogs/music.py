@@ -5,24 +5,24 @@ import lavalink
 from discord import app_commands
 from discord.ext import commands
 
-from api.cogs.music_core.views import create_dropdown, PlayerButtonsView
-from api.cogs.music_core.music_cog_core import MusicCore
-from api.cogs.music_core.query_cache import write_music_query, mru_queries
-from api.cogs.tools.utils import guild_id
+from api.core.music.base import MusicBase
+from api.core.music.favorites import write_music_query, mru_queries
+from api.core.music.views import create_dropdown, PlayerButtonsView
+from api.tools.utils import guild_id, code_block
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
 
+@code_block
 def queue_repr(queue: list, current: str) -> str:
-    wrap = '```'
     others = '\n'.join((f"{i}. {x.title}" for i, x in enumerate(queue[:9], start=2)))
-    result = f'{wrap}1. {current}\n{others}'
+    result = f'1. {current}\n{others}'
     remains = len(queue) - 9
     ending = '' if remains < 0 else f'\nи еще ({remains}) трека ...'
-    return f'{result}{ending}{wrap}'
+    return f'{result}{ending}'
 
 
-class Music(MusicCore):
+class Music(MusicBase):
     def __init__(self, bot) -> None:
         super(Music, self).__init__(bot)
         self._text_channel = None

@@ -2,13 +2,13 @@ import discord
 import lavalink
 from discord.ext import commands
 
-from api.cogs.music_core.lavalink_vc import LavalinkVoiceClient
-from api.cogs.tools.mixins import BaseCogMixin
+from api.core.music.voiceclient import LavalinkVoiceClient
+from api.tools.mixins import BaseCogMixin
 
 
-class MusicCore(BaseCogMixin):
+class MusicBase(BaseCogMixin):
     def __init__(self, bot):
-        super(MusicCore, self).__init__(bot)
+        super(MusicBase, self).__init__(bot)
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
             bot.lavalink.add_node('host.docker.internal', 2333, 'youshallnotpass', 'eu', 'default-node')

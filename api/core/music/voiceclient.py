@@ -14,12 +14,12 @@ class LavalinkVoiceClient(discord.VoiceClient):
             self.lavalink = self.client.lavalink
 
     async def on_voice_server_update(self, data):
-        lavalink_data = {'t': 'VOICE_SERVER_UPDATE', 'd': data}
-        await self.lavalink.voice_update_handler(lavalink_data)
+        data = {'t': 'VOICE_SERVER_UPDATE', 'd': data}
+        await self.lavalink.voice_update_handler(data)
 
     async def on_voice_state_update(self, data):
-        lavalink_data = {'t': 'VOICE_STATE_UPDATE', 'd': data}
-        await self.lavalink.voice_update_handler(lavalink_data)
+        data = {'t': 'VOICE_STATE_UPDATE', 'd': data}
+        await self.lavalink.voice_update_handler(data)
 
     async def connect(self, *, timeout: float, reconnect: bool, self_deaf: bool = False, self_mute: bool = False) -> None:
         self.lavalink.player_manager.create(guild_id=self.channel.guild.id)

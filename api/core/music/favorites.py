@@ -1,6 +1,6 @@
 import sqlite3
 
-connection = sqlite3.connect('query_cache.db')
+connection = sqlite3.connect('../../../favorites.db')
 cursor = connection.cursor()
 
 create_table_query = """
@@ -36,9 +36,10 @@ def mru_queries(user_id: int, limit: int = 20) -> list[tuple[str, str, int]]:
 
 
 if __name__ == '__main__':
-    write_music_query('', 242349833245949953, 'https://youtu.be/OvCQrgJTmxo')
-    write_music_query('', 242349833245949953, 'https://youtu.be/oDsiqiYCp1A')
-    write_music_query('', 242349833245949953, 'https://youtu.be/Iv3edUPFalg')
+    print(mru_queries(242349833245949953))
+    # write_music_query('', 242349833245949953, 'https://youtu.be/OvCQrgJTmxo')
+    # write_music_query('', 242349833245949953, 'https://youtu.be/oDsiqiYCp1A')
+    # write_music_query('', 242349833245949953, 'https://youtu.be/Iv3edUPFalg')
 
 
 

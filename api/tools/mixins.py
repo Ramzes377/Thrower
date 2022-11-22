@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 from asyncio_extras import async_contextmanager
 
-from api.cogs.tools.utils import get_category, flatten, query_identifiers
+from api.tools.utils import get_category, flatten, query_identifiers
 
 db_response_types: TypeAlias = int | float | str
 
@@ -21,9 +21,6 @@ class BaseCogMixin(commands.Cog):
 
 class ConnectionMixin:
     bot = None
-
-    def set_bot(self, bot):
-        self.bot = bot
 
     @async_contextmanager
     async def get_connection(self) -> None:

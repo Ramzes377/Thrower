@@ -1,12 +1,12 @@
-import os
 import asyncio
+import os
 
 import discord
 import aiopg
 
 from discord.ext import commands
-from api.cogs.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
-from api.cogs.tools.init_db import create_tables
+from api.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
+from api.tools.init_db import create_tables
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -53,11 +53,11 @@ async def on_ready():
 
 
 async def load_cogs():
-    await bot.load_extension(f'api.cogs.music')
+    # await bot.load_extension(f'api.cogs.music')
 
-    # for filename in reversed(os.listdir('api/cogs')):
-    #     if filename.endswith('.py'):
-    #         await bot.load_extension(f'api.cogs.{filename[:-3]}')
+    for filename in reversed(os.listdir('cogs')):
+        if filename.endswith('.py'):
+            await bot.load_extension(f'cogs.{filename[:-3]}')
 
 
 bot.run(token)
