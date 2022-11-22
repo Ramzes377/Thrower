@@ -93,7 +93,6 @@ def leadership_end(message_id: int, leader_id: int, _time: datetime.datetime, ne
 
 
 def member_join(message_id: int, member_id: int, begin: datetime.datetime):
-    print('CALLING MEMBER JOIN')
     cursor.execute(f"""INSERT INTO MemberPresence (message_id, member_id, begin, end) 
                             VALUES ({message_id}, {member_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', null)""")
     connection.commit()
