@@ -34,7 +34,7 @@ def register_logger_views(bot):
 
 
 class Logger(ConnectionMixin):
-    MIN_SESS_DURATION = 3  # in seconds
+    MIN_SESS_DURATION = 5 * 60  # in seconds
 
     def __init__(self, bot):
         super(Logger, self).__init__()

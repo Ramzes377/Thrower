@@ -15,7 +15,7 @@ from PIL.ImageStat import Stat
 zone_Moscow = zoneinfo.ZoneInfo("Europe/Moscow")
 
 environ = {}
-with open('env_vars') as f:
+with open('env') as f:
     for x in f.readlines():
         try:
             k, v = x.split()
