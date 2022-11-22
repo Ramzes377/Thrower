@@ -3,27 +3,26 @@ import datetime
 import discord
 from random import choice
 
-from api.core.logger.log_detail import detailed_log_activity, leadership_begin, leadership_end, member_join, \
-    member_leave, register_detailed_log, get_detailed_msgs
+from api.core.logger.log_detail import leadership_begin, leadership_end, member_join, member_leave, \
+    register_detailed_log, get_detailed_msgs, log_activity_begin, log_activity_end
 from api.core.logger.views import LoggerView
 from api.tools.mixins import ConnectionMixin
 from api.tools.utils import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now, code_block
 
 
-def log_joined_member(message_id: int, member_id: int):
-    member_join(message_id, member_id, now())
+def log_joined_member(message_id: int, member_id: int, t0: datetime.datetime = now()):
+    member_join(message_id, member_id, t0)
 
 
 def begin_leadership(msg_id: int, member_id: int, t0: datetime.datetime = now()):
     leadership_begin(msg_id, member_id, t0)
 
 
-def end_leadership(msg_id: int, member_id: int, end=now()):
-    leadership_end(msg_id, member_id, end)
+def end_leadership(msg_id: int, member_id: int, t0: datetime.datetime = now()):
+    leadership_end(msg_id, member_id, t0)
 
 
-def change_leader(msg_id: int, prev_leader_id: int, new_leader_id: int):
-    t0 = now()
+def change_leader(msg_id: int, prev_leader_id: int, new_leader_id: int, t0: datetime.datetime = now()):
     end_leadership(msg_id, prev_leader_id, t0)
     begin_leadership(msg_id, new_leader_id, t0)
 
@@ -44,16 +43,16 @@ class Logger(ConnectionMixin):
     async def log_activity(self, before: discord.Member, after: discord.Member, channel: discord.VoiceChannel):
         app_id, is_real = get_app_id(after)
 
-        if not user_is_playing(after):
-            if before is not None and user_is_playing(before):
-                msg_id = await self.get_channel_message_id(channel.id)
-                detailed_log_activity(msg_id, before.activity.application_id, None, now())
-            if not is_real:
-                return
+        if before is not None and user_is_playing(before):
+            msg_id = await self.get_channel_message_id(channel.id)
+            log_activity_end(msg_id, before.activity.application_id, before.activity.start.astimezone(zone_Moscow), now())
+
+        if not user_is_playing(after) or not is_real:
+            return
 
         role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
         msg = await self.update_activity_icon(app_id, channel.id)
-        detailed_log_activity(msg.id, app_id)
+        log_activity_begin(msg.id, app_id, after.activity.start.astimezone(zone_Moscow))
         try:
             await self.execute_sql(
                 f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({channel.id}, {role_id})")

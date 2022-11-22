@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 import aiohttp
 import discord
+import psycopg2
 from discord.ext import commands
 from asyncio_extras import async_contextmanager
 
@@ -24,9 +25,15 @@ class ConnectionMixin:
 
     @async_contextmanager
     async def get_connection(self) -> None:
-        async with self.bot.db.acquire() as conn:
-            async with conn.cursor() as cur:
-                yield cur
+        try:
+            async with self.bot.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    yield cur
+        except psycopg2.OperationalError:
+            await self.bot.db.clear()
+            async with self.bot.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    yield cur
 
     @async_contextmanager
     async def url_request(self, url: str) -> None:

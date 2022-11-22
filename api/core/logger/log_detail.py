@@ -1,6 +1,8 @@
 import datetime
 import sqlite3
 
+from api.tools.utils import now
+
 connection = sqlite3.connect('logger-details.db')
 cursor = connection.cursor()
 
@@ -60,27 +62,26 @@ def get_detailed_msgs():
     return cursor.fetchall()
 
 
-def detailed_log_activity(message_id: int, activity_id: int, begin: datetime.datetime = datetime.datetime.now(),
-                          end: datetime.datetime = None):
-    if end is None:
-        try:
-            cursor.execute(f"""INSERT INTO Activities (message_id, activity_id, begin, end) 
-                                    VALUES ({message_id}, {activity_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', null)""")
-        except sqlite3.IntegrityError:
-            pass
-    else:
-        try:
-            cursor.execute(
-                f"""UPDATE Activities SET activity_id = {activity_id}, end = '{end.strftime('%Y-%m-%d %H:%M:%S')}'
-                                    WHERE message_id = {message_id} and activity_id = {activity_id} and end is NULL""")
-        except sqlite3.IntegrityError:
-            pass
+def log_activity_begin(message_id: int, activity_id: int, begin: datetime.datetime):
+    try:
+        cursor.execute(f"""INSERT INTO Activities (message_id, activity_id, begin, end) 
+                                VALUES ({message_id}, {activity_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', NULL)""")
+    except sqlite3.IntegrityError:
+        pass
     connection.commit()
 
 
-def leadership_begin(message_id: int, leader_id: int, begin: datetime.datetime = datetime.datetime.now()):
+def log_activity_end(message_id: int, activity_id: int, begin: datetime.datetime, end: datetime.datetime):
+    cursor.execute(
+        f"""UPDATE Activities SET end = '{end.strftime('%Y-%m-%d %H:%M:%S')}'
+                WHERE message_id = {message_id} and activity_id = {activity_id} 
+                and begin ='{begin.strftime('%Y-%m-%d %H:%M:%S')}'""")
+    connection.commit()
+
+
+def leadership_begin(message_id: int, leader_id: int, begin: datetime.datetime = now()):
     cursor.execute(f"""INSERT INTO Leadership (message_id, user_id, begin, end) 
-                            VALUES ({message_id}, {leader_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', null)""")
+                            VALUES ({message_id}, {leader_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', NULL)""")
     connection.commit()
 
 

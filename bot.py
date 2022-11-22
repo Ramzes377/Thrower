@@ -53,7 +53,7 @@ async def on_ready():
 
 
 async def load_cogs():
-    # await bot.load_extension(f'api.cogs.music')
+    #await bot.load_extension(f'cogs.music')
 
     for filename in reversed(os.listdir('cogs')):
         if filename.endswith('.py'):

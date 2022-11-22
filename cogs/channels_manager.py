@@ -61,7 +61,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
                         cur_channel = [guild_channel for guild_channel in guild.voice_channels if
                                        user in guild_channel.members]
                         cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
-                        await self.join_to_foreign(user, channel, cur_channel)
+                        await self.join_to_foreign(user, channel, None, cur_channel)
             await asyncio.sleep(ChannelsManager.CREATED_CHANNELS_HANDLE_PERIOD)
 
     async def user_try_create_channel(self, user: discord.Member, user_channel: discord.VoiceChannel):

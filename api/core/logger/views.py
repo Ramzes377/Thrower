@@ -13,7 +13,7 @@ def format_date(s: str) -> str:
 
 
 def format_members(getter: Callable, message_id: int) -> Generator:
-    return ((f"<@{l[0]}>", format_date(l[1]), format_date(l[2]) if l[2] is not None else '\u200b' * 10 + "-") for l in
+    return ((f"<@{l[0]}>", format_date(l[1]), format_date(l[2]) if l[2] is not None else "#" * 10) for l in
             getter(message_id))
 
 
@@ -39,7 +39,8 @@ class LoggerView(discord.ui.View, ConnectionMixin):
         res = []
         for id, begin, end in get_activities_list(message_id):
             role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {id}")
-            res.append((f'<@&{role_id}>' if role_id else 'Deleted role', format_date(begin), format_date(end)))
+            end = format_date(end) if end else '#' * 10
+            res.append((f'<@&{role_id}>' if role_id else 'Deleted role', format_date(begin), end))
         return res
 
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership')
