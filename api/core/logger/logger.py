@@ -3,7 +3,7 @@ import datetime
 import discord
 from random import choice
 
-from api.core.logger.detailed_log_db import detailed_log_activity, leadership_begin, leadership_end, member_join, \
+from api.core.logger.log_detail import detailed_log_activity, leadership_begin, leadership_end, member_join, \
     member_leave, register_detailed_log, get_detailed_msgs
 from api.core.logger.views import LoggerView
 from api.tools.mixins import ConnectionMixin
