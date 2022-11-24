@@ -6,7 +6,9 @@ from itertools import chain
 from random import randint
 
 import sqlparse
+
 import zoneinfo
+
 import discord
 from PIL import Image
 from PIL.ImageStat import Stat
@@ -27,7 +29,7 @@ logger_id = int(environ['logger_id'])
 role_request_id = int(environ['role_request_id'])
 command_id = int(environ['command_id'])
 
-bots_ids = [184405311681986560, 721772274830540833]
+bots_ids = [184405311681986560, 721772274830540833, 668929628081094669]
 another_bots_prefixes = (';;', '-v')
 
 categories = {
@@ -143,7 +145,7 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
 
 
 async def send_removable_message(ctx, message, delay=5):
-    message = await ctx.send(message)
+    message = await ctx.send(message, )
     await asyncio.sleep(delay)
     try:
         await message.delete()

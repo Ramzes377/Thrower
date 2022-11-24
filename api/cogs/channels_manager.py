@@ -26,7 +26,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
         # skip transfer channel rename and activity rename
         await asyncio.sleep(3)
-        need_save = not ChannelsManager.channel_flags.pop(after.id) in ('T', 'A')
+        channel_state = ChannelsManager.channel_flags.pop(after.id, None)
+        need_save = not channel_state in ('T', 'A')
         if need_save and before.name != after.name:
             new_name = f"""'{after.name.replace("'", "''")}'"""
             await self.execute_sql(
