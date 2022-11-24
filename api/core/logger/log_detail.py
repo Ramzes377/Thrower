@@ -1,8 +1,6 @@
 import datetime
 import sqlite3
 
-from api.misc import now
-
 connection = sqlite3.connect('logger-details.db')
 cursor = connection.cursor()
 
@@ -48,18 +46,12 @@ create_tables_query = [
 
 for query in create_tables_query:
     cursor.execute(query)
-
 connection.commit()
 
 
 def register_detailed_log(message_id: int):
     cursor.execute(f"""INSERT INTO DetailedLog (message_id) VALUES ({message_id}) ON CONFLICT DO NOTHING""")
     connection.commit()
-
-
-def get_detailed_msgs():
-    cursor.execute(f"""SELECT message_id from DetailedLog""")
-    return cursor.fetchall()
 
 
 def log_activity_begin(message_id: int, activity_id: int, begin: datetime.datetime):
@@ -79,23 +71,21 @@ def log_activity_end(message_id: int, activity_id: int, begin: datetime.datetime
     connection.commit()
 
 
-def leadership_begin(message_id: int, leader_id: int, begin: datetime.datetime = now()):
+def leadership_begin(message_id: int, leader_id: int, begin: datetime.datetime):
     cursor.execute(f"""INSERT INTO Leadership (message_id, user_id, begin, end) 
                             VALUES ({message_id}, {leader_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', NULL)""")
     connection.commit()
 
 
-def leadership_end(message_id: int, leader_id: int, _time: datetime.datetime, new_leader_id: int = None):
+def leadership_end(message_id: int, leader_id: int, _time: datetime.datetime):
     cursor.execute(f"""UPDATE Leadership SET end = '{_time.strftime('%Y-%m-%d %H:%M:%S')}'
                             WHERE message_id = {message_id} and user_id = {leader_id}""")
-    if new_leader_id is not None:
-        leadership_begin(message_id, new_leader_id, _time)
     connection.commit()
 
 
 def member_join(message_id: int, member_id: int, begin: datetime.datetime):
     cursor.execute(f"""INSERT INTO MemberPresence (message_id, member_id, begin, end) 
-                            VALUES ({message_id}, {member_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', null)""")
+                            VALUES ({message_id}, {member_id}, '{begin.strftime('%Y-%m-%d %H:%M:%S')}', NULL)""")
     connection.commit()
 
 
@@ -103,6 +93,11 @@ def member_leave(message_id: int, member_id: int, end: datetime.datetime):
     cursor.execute(f"""UPDATE MemberPresence SET end = '{end.strftime('%Y-%m-%d %H:%M:%S')}'
                             WHERE message_id = {message_id} and member_id = {member_id} and end is NULL""")
     connection.commit()
+
+
+def get_detailed_msgs():
+    cursor.execute(f"""SELECT message_id from DetailedLog""")
+    return cursor.fetchall()
 
 
 def get_leaders_list(message_id: int) -> list[tuple[int, datetime.datetime, datetime.datetime]]:

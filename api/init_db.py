@@ -1,6 +1,6 @@
+import aiopg
 
-async def create_tables(cur):
-    commands = '''
+commands = '''
         CREATE TABLE IF NOT EXISTS CreatedSessions
         (
             channel_id bigint PRIMARY KEY,
@@ -67,12 +67,18 @@ async def create_tables(cur):
             name text
         );
     '''
-    await cur.execute(commands)
-    await cur.execute('SELECT COUNT(*) FROM SessionCounters')
-    count = await cur.fetchone()
-    if not count[0]:
-        commands = '\n'.join([
-            f'INSERT INTO SessionCounters (current_day, past_sessions_counter, current_sessions_counter) VALUES ({x}, 0, 0);'
-            for x in range(1, 367)
-        ])
-        await cur.execute(commands)
+
+
+async def init_tables(db: aiopg.pool.Pool):
+    async with db.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(commands)
+
+            await cur.execute('SELECT COUNT(*) FROM SessionCounters')
+            count = await cur.fetchone()
+            if not count[0]:
+                init_sess_counters = '\n'.join([
+                    f'INSERT INTO SessionCounters (current_day, past_sessions_counter, current_sessions_counter) VALUES ({x}, 0, 0);'
+                    for x in range(1, 367)
+                ])
+                await cur.execute(init_sess_counters)
