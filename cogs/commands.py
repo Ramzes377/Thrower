@@ -13,6 +13,10 @@ from api.misc import get_app_id, user_is_playing, guild_id
 class Commands(BaseCogMixin, DiscordFeaturesMixin):
     CLEAR_CONNECTIONS_PERIOD: int = 5 * 60  # seconds
 
+    def __init__(self, bot):
+        super(Commands, self).__init__(bot)
+        bot.loop.create_task(self.clear_connections_loop())
+
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, _):
         if user_is_playing(before):
@@ -104,6 +108,5 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
 
 
 async def setup(bot):
-    _commands = Commands(bot)
-    await bot.add_cog(_commands, guilds=[discord.Object(id=guild_id)])
-    bot.loop.create_task(_commands.clear_connections_loop())
+    await bot.add_cog(Commands(bot), guilds=[discord.Object(id=guild_id)])
+

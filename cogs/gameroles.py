@@ -10,6 +10,10 @@ from api.misc import get_pseudo_random_color, get_app_id, zone_Moscow, get_domin
 class GameRoles(BaseCogMixin, ConnectionMixin):
     HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
+    def __init__(self, bot):
+        super(GameRoles, self).__init__(bot)
+        bot.loop.create_task(self.remove_unused_activities_loop())
+
     async def remove_unused_activities_loop(self) -> None:
         while True:
             await self.delete_unused_roles()
@@ -118,6 +122,5 @@ class GameRoles(BaseCogMixin, ConnectionMixin):
 
 
 async def setup(bot):
-    gameroles = GameRoles(bot)
-    await bot.add_cog(gameroles)
-    bot.loop.create_task(gameroles.remove_unused_activities_loop())
+    await bot.add_cog(GameRoles(bot))
+

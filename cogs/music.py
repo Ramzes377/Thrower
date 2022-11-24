@@ -121,9 +121,14 @@ class Music(MusicBase):
 
         player.queue.clear()
 
+        try:
+            await self._msg.delete()
+            self._msg = None
+        except:
+            pass
+
         await player.stop()
         await ctx.voice_client.disconnect(force=True)
-        await ctx.send('*⃣ | Disconnected.', delete_after=30)
 
     @app_commands.command(description='Очередь исполнения')
     async def queue(self, interaction: discord.Interaction) -> None:
