@@ -5,7 +5,7 @@ import discord
 from api.core.logger.log_detail import get_leaders_list, get_activities_list, get_prescence_list
 
 from api.tools.mixins import ConnectionMixin
-from api.tools.utils import fmt, dt_from_str
+from api.tools.misc import fmt, dt_from_str
 
 
 def format_date(s: str) -> str:

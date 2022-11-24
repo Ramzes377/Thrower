@@ -3,6 +3,7 @@ import datetime
 from hashlib import sha3_224
 from itertools import chain
 from random import randint
+from functools import lru_cache
 
 import sqlparse
 
@@ -110,6 +111,7 @@ def _hash(string: str) -> int:
     return int(str(sha3_224(string.encode(encoding='utf8')).hexdigest()), 16) % 10 ** 10
 
 
+@lru_cache(maxsize=1)
 def is_leap_year(year: int) -> bool:
     if year % 400 == 0:
         return True

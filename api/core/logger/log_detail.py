@@ -1,7 +1,7 @@
 import datetime
 import sqlite3
 
-from api.tools.utils import now
+from api.tools.misc import now
 
 connection = sqlite3.connect('logger-details.db')
 cursor = connection.cursor()

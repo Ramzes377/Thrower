@@ -1,6 +1,6 @@
 import pytest
 
-from api.tools.utils import query_identifiers
+from api.tools.misc import query_identifiers
 
 
 @pytest.mark.parametrize('query, expected',

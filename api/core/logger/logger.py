@@ -7,7 +7,7 @@ from api.core.logger.log_detail import leadership_begin, leadership_end, member_
     register_detailed_log, get_detailed_msgs, log_activity_begin, log_activity_end
 from api.core.logger.views import LoggerView
 from api.tools.mixins import ConnectionMixin
-from api.tools.utils import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now, code_block
+from api.tools.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
 
 
 def log_joined_member(message_id: int, member_id: int, t0: datetime.datetime = now()):
@@ -41,25 +41,30 @@ class Logger(ConnectionMixin):
         register_logger_views(bot)
 
     async def log_activity(self, before: discord.Member, after: discord.Member, channel: discord.VoiceChannel):
-        app_id, is_real = get_app_id(after)
+        before_app_id, before_is_real = get_app_id(before)
+        after_app_id, after_is_real = get_app_id(after)
 
-        if before is not None and user_is_playing(before):
-            msg_id = await self.get_channel_message_id(channel.id)
-            log_activity_end(msg_id, before.activity.application_id, before.activity.start.astimezone(zone_Moscow), now())
+        after_familiar = user_is_playing(after) and after_is_real
+        before_familiar = before is not None and user_is_playing(before) and before_is_real
 
-        if not user_is_playing(after) or not is_real:
+        if not before_familiar and not after_familiar:
             return
 
-        role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
-        msg = await self.update_activity_icon(app_id, channel.id)
-        log_activity_begin(msg.id, app_id, after.activity.start.astimezone(zone_Moscow))
-        try:
-            await self.execute_sql(
-                f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({channel.id}, {role_id})")
-            if msg:
-                await self.add_activity(msg, role_id)
-        except:  # record already exist not duplicate session activities
-            pass
+        if after_familiar:
+            msg = await self.update_activity_icon(after_app_id, channel.id)
+            log_activity_begin(msg.id, after_app_id, after.activity.start.astimezone(zone_Moscow))
+            role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {after_app_id}")
+            try:
+                await self.execute_sql(
+                    f"INSERT INTO SessionActivities (channel_id, role_id) VALUES ({channel.id}, {role_id})")
+                if msg:
+                    await self.add_activity(msg, role_id)
+            except:  # record already exist not duplicate session activities
+                pass
+
+        if before_familiar:
+            msg_id = await self.get_channel_message_id(channel.id)
+            log_activity_end(msg_id, before_app_id, before.activity.start.astimezone(zone_Moscow), now())
 
     async def update_activity_icon(self, app_id: int, channel_id: discord.VoiceChannel):
         icon_data = await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}",
@@ -182,14 +187,18 @@ class Logger(ConnectionMixin):
                     DELETE FROM SessionActivities WHERE channel_id = {channel.id}'''
             )
 
-    async def log_member_abandon(self, member_id: int, channel_id: int):
-        message_id = await self.get_channel_message_id(channel_id)
-        if message_id:
-            member_leave(message_id, member_id, now())
+    async def log_member_join(self, user: discord.Member, channel: discord.VoiceChannel):
+        try:
+            msg_id = await self.get_channel_message_id(channel_id=channel.id)
+            log_joined_member(msg_id, user.id)
+            await self.execute_sql(
+                f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
+            # add new member to logging message
+            await self.update_embed_members(channel=channel)
+        except:
+            pass
 
-    def _custom_context(self, interaction: discord.Interaction, command_name: str) -> type:
-        guild = self.bot.guilds[0]
-        command = type('Command', tuple(), {'name': command_name})
-        ctx = type('Context', tuple(), {'guild': guild, 'author': guild.get_member(interaction.user.id),
-                                        'command': command, 'voice_client': None, 'channel': interaction.channel,
-                                        'me': interaction.client.user})
+    async def log_member_abandon(self, user: discord.Member, channel: discord.VoiceChannel):
+        message_id = await self.get_channel_message_id(channel.id)
+        if message_id:
+            member_leave(message_id, user.id, now())

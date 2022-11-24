@@ -8,7 +8,7 @@ import psycopg2
 from discord.ext import commands
 from asyncio_extras import async_contextmanager
 
-from api.tools.utils import get_category, flatten, query_identifiers
+from api.tools.misc import get_category, flatten, query_identifiers
 
 db_response_types: TypeAlias = int | float | str
 

@@ -2,8 +2,8 @@ import asyncio
 
 import discord
 
-from api.core.logger.logger import Logger, log_joined_member
-from api.tools.utils import get_category, default_role_perms, leader_role_perms, bots_ids
+from api.core.logger.logger import Logger
+from api.tools.misc import get_category, default_role_perms, leader_role_perms, bots_ids
 from api.tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
@@ -13,14 +13,14 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
-        self.logger_instance = Logger(bot)
+        self.logger = Logger(bot)
 
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, after: discord.Member):
         channel = await self.get_user_channel(after.id)
         if channel is not None:
             ChannelsManager.channel_flags[channel.id] = 'A'
-            await self.logger_instance.log_activity(before, after, channel)
+            await self.logger.log_activity(before, after, channel)
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()
@@ -37,7 +37,11 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
                             ON CONFLICT (user_id) DO UPDATE SET name = {new_name}""")
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
+                                    after: discord.VoiceState):
+        if before.channel == after.channel:  # handling only channel changing, not mute or deaf member
+            return
+
         channel = await self.get_user_channel(member.id)
         user_join_create_channel = after.channel == self.bot.create_channel
         user_join_to_foreign = not (channel and after.channel == channel)
@@ -75,7 +79,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         # send user to his channel
         await user.move_to(user_channel)
         # send session message
-        await self.logger_instance.session_begin(user, user_channel)
+        await self.logger.session_begin(user, user_channel)
 
     async def create_channel(self, user: discord.Member):
         channel_name = await self.get_user_sess_name(user)
@@ -89,19 +93,21 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     async def join_to_foreign(self, user: discord.Member,
                               user_channel: discord.VoiceChannel,
-                              before_channel: discord.VoiceChannel,
-                              foreign_channel: discord.VoiceChannel):
+                              prev_channel: discord.VoiceChannel,
+                              cur_channel: discord.VoiceChannel):
         # User haven't channel and try to join to channel of another user
         user_have_channel = user_channel is not None
-        user_stay_guild = foreign_channel is not None
+        user_join_channel = cur_channel is not None
+        user_quit_channel = prev_channel is not None
+
+        if user_quit_channel:
+            await self.logger.log_member_abandon(user, prev_channel)
+
+        if user_join_channel:
+            await self.logger.log_member_join(user, cur_channel)
+
         if user_have_channel:
             await self.leader_leave(user, user_channel)
-        if user_stay_guild:
-            await self.add_user_to_session(user, foreign_channel)
-            msg_id = await self.logger_instance.get_channel_message_id(channel_id=foreign_channel.id)
-            log_joined_member(msg_id, user.id)
-        else:
-            await self.logger_instance.log_member_abandon(user.id, before_channel.id)
 
     async def transfer_channel(self, user: discord.Member, channel: discord.VoiceChannel):
         try:
@@ -111,8 +117,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
             await self.execute_sql(
                 f"UPDATE CreatedSessions SET user_id = {new_leader.id} WHERE channel_id = {channel.id}")
-            await self.logger_instance.log_activity(None, new_leader, channel)
-            await self.logger_instance.change_leader(user, new_leader, channel.id)
+            await self.logger.log_activity(None, new_leader, channel)
+            await self.logger.change_leader(user, new_leader, channel.id)
             ChannelsManager.channel_flags[channel.id] = 'T'
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)
@@ -121,17 +127,8 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         user_channel_empty = len(channel.members) == 0
         await self.end_session(channel) if user_channel_empty else await self.transfer_channel(leader, channel)
 
-    async def add_user_to_session(self, user: discord.Member, channel: discord.VoiceChannel):
-        try:
-            await self.execute_sql(
-                f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
-            # add new member to logging message
-            await self.logger_instance.update_embed_members(channel=channel)
-        except:
-            pass
-
     async def end_session(self, channel: discord.VoiceChannel):
-        await self.logger_instance.session_over(channel)
+        await self.logger.session_over(channel)
         await channel.delete()
 
 

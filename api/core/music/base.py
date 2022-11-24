@@ -20,9 +20,9 @@ class MusicBase(BaseCogMixin):
             await self.ensure_voice(ctx)
         return guild_check
 
-    async def cog_command_error(self, ctx, error):
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         if isinstance(error, commands.CommandInvokeError):
-            await ctx.send(error.original, delete_after=60)
+            await interaction.response.send_message(error.original, delete_after=60)
 
     async def ensure_voice(self, ctx):
         """ This check ensures that the bot and command author are in the same voicechannel. """
@@ -35,9 +35,9 @@ class MusicBase(BaseCogMixin):
         player = self.bot.lavalink.player_manager.create(ctx.guild.id)
 
         if not ctx.author.voice or not ctx.author.voice.channel:
-            raise commands.CommandInvokeError('Join a voicechannel first.')
+            raise discord.app_commands.AppCommandError('Join a voicechannel first.')
 
-        need_vc = ctx.command.name not in ('preferences', 'queue', 'sync')
+        need_vc = ctx.command.name not in ('favorite', 'queue', 'sync')
         if not need_vc:
             return
 
@@ -49,6 +49,6 @@ class MusicBase(BaseCogMixin):
             except discord.errors.ClientException:
                 pass
         elif v_client.channel.id != ctx.author.voice.channel.id:
-            raise commands.CommandInvokeError('You need to be in my voicechannel.')
+            raise discord.app_commands.AppCommandError('You need to be in my voicechannel.')
 
 

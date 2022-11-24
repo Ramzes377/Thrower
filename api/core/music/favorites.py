@@ -1,6 +1,6 @@
 import sqlite3
 
-connection = sqlite3.connect('../../../favorites.db')
+connection = sqlite3.connect('favorites.db')
 cursor = connection.cursor()
 
 create_table_query = """

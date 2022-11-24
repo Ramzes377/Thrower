@@ -5,7 +5,7 @@ import discord
 import aiopg
 
 from discord.ext import commands
-from api.tools.utils import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
+from api.tools.misc import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
 from api.tools.init_db import create_tables
 
 try:
@@ -52,12 +52,16 @@ async def on_ready():
         print('Error on startup: ', e)
 
 
-async def load_cogs():
-    #await bot.load_extension(f'cogs.music')
+@bot.tree.error
+async def on_command_error(ctx, error):
+    pass
 
-    for filename in reversed(os.listdir('cogs')):
-        if filename.endswith('.py'):
-            await bot.load_extension(f'cogs.{filename[:-3]}')
+
+async def load_cogs():
+    await bot.load_extension(f'cogs.music')
+    # for filename in reversed(os.listdir('cogs')):
+    #     if filename.endswith('.py'):
+    #         await bot.load_extension(f'cogs.{filename[:-3]}')
 
 
 bot.run(token)

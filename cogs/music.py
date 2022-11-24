@@ -8,7 +8,7 @@ from discord.ext import commands
 from api.core.music.base import MusicBase
 from api.core.music.favorites import write_music_query, mru_queries
 from api.core.music.views import create_dropdown, PlayerButtonsView
-from api.tools.utils import guild_id, code_block
+from api.tools.misc import guild_id, code_block
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
