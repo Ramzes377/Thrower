@@ -47,6 +47,7 @@ async def on_ready():
 
         await load_cogs()
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
+        await clear_unregistered_messages_on_startup(bot)
         print('Bot have been started!')
     except Exception as e:
         print('Error on startup: ', e)
@@ -64,4 +65,4 @@ async def load_cogs():
 
 
 bot.run(token)
-bot.loop.create_task(clear_unregistered_messages_on_startup(bot))
+
