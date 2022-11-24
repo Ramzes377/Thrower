@@ -2,8 +2,8 @@ import asyncio
 
 import discord
 
-from api.tools.mixins import BaseCogMixin, commands
-from api.tools.misc import command_id, another_bots_prefixes, bots_ids
+from api.mixins import BaseCogMixin, commands
+from api.misc import command_id, another_bots_prefixes, bots_ids
 
 
 def message_belongs_bot(author_id: int) -> bool:

@@ -6,8 +6,8 @@ from discord.ext import commands
 
 from time import time
 
-from api.tools.mixins import BaseCogMixin, DiscordFeaturesMixin
-from api.tools.misc import get_app_id, user_is_playing, guild_id
+from api.mixins import BaseCogMixin, DiscordFeaturesMixin
+from api.misc import get_app_id, user_is_playing, guild_id
 
 
 class Commands(BaseCogMixin, DiscordFeaturesMixin):

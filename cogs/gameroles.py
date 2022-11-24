@@ -3,8 +3,8 @@ import datetime
 import discord
 import re
 
-from api.tools.mixins import BaseCogMixin, commands, ConnectionMixin
-from api.tools.misc import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
+from api.mixins import BaseCogMixin, commands, ConnectionMixin
+from api.misc import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
 
 
 class GameRoles(BaseCogMixin, ConnectionMixin):

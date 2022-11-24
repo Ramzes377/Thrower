@@ -3,7 +3,7 @@ import lavalink
 from discord.ext import commands
 
 from api.core.music.voiceclient import LavalinkVoiceClient
-from api.tools.mixins import BaseCogMixin
+from api.mixins import BaseCogMixin
 
 
 class MusicBase(BaseCogMixin):
