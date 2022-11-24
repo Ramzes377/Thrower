@@ -58,10 +58,9 @@ async def on_command_error(ctx, error):
 
 
 async def load_cogs():
-    await bot.load_extension(f'cogs.music')
-    # for filename in reversed(os.listdir('cogs')):
-    #     if filename.endswith('.py'):
-    #         await bot.load_extension(f'cogs.{filename[:-3]}')
+    for filename in reversed(os.listdir('cogs')):
+        if filename.endswith('.py'):
+            await bot.load_extension(f'cogs.{filename[:-3]}')
 
 
 bot.run(token)
