@@ -80,13 +80,17 @@ class DiscordFeaturesMixin(ConnectionMixin):
             sess_name = f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
         else:
             have_default = await self.execute_sql(f'SELECT name FROM UserDefaultSessionName WHERE user_id = {user.id}')
-            sess_name = have_default if have_default and have_default else f"{user.display_name}'s channel"
+            sess_name = have_default if have_default else f"{user.display_name}'s channel"
         return sess_name
 
-    async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel, overwrites=None) -> None:
+    async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,
+                                         overwrites=None) -> None:
         channel_name = await self.get_user_sess_name(user)
         category = get_category(user)
         try:
-            await asyncio.wait_for(channel.edit(name=channel_name, category=category, overwrites=overwrites), timeout=5.0)
+            await asyncio.wait_for(
+                channel.edit(name=channel_name, category=category, overwrites=overwrites),
+                timeout=5.0
+            )
         except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :('
             await channel.edit(category=category)

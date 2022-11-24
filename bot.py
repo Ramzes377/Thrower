@@ -6,7 +6,7 @@ import aiopg
 
 from discord.ext import commands
 from api.misc import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
-from api.init_db import create_tables
+from api.init_db import init_tables
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -18,39 +18,36 @@ bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=Fa
 bot.db = None
 
 
-async def clear_unregistered_messages_on_startup(bot):
+async def clear_unregistered_messages(bot):
     guild = bot.guilds[0]
     exclude = [bot.logger_channel, bot.request_channel]
     pub_text_channels = (channel for channel in guild.channels if
                          channel.type.name == 'text' and channel not in exclude)
     for channel in pub_text_channels:
         deleted = await channel.purge(limit=100, check=lambda msg: msg.author == bot.user)
-        print(f'Delete {len(deleted)} messages from {channel}!')
+        n = len(deleted)
+        if n > 0:
+            print(f'Delete {len(deleted)} messages from {channel}!')
 
 
 @bot.event
 async def on_ready():
-    try:
-        bot.db = await aiopg.create_pool(dsn)
+    bot.db = await aiopg.create_pool(dsn)
 
-        async with bot.db.acquire() as conn:
-            async with conn.cursor() as cur:
-                await create_tables(cur)
+    await init_tables(bot.db)
 
-        bot.create_channel = bot.get_channel(create_channel_id)
-        bot.logger_channel = bot.get_channel(logger_id)
-        bot.request_channel = bot.get_channel(role_request_id)
-        bot.commands_channel = bot.get_channel(command_id)
+    bot.create_channel = bot.get_channel(create_channel_id)
+    bot.logger_channel = bot.get_channel(logger_id)
+    bot.request_channel = bot.get_channel(role_request_id)
+    bot.commands_channel = bot.get_channel(command_id)
 
-        for category in categories:
-            categories[category] = bot.get_channel(categories[category])
+    for category in categories:
+        categories[category] = bot.get_channel(categories[category])  # rewrite categories dict
 
-        await load_cogs()
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
-        await clear_unregistered_messages_on_startup(bot)
-        print('Bot have been started!')
-    except Exception as e:
-        print('Error on startup: ', e)
+    await load_cogs()
+    await clear_unregistered_messages(bot)
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
+    print('Bot have been started!')
 
 
 @bot.tree.error
@@ -65,4 +62,3 @@ async def load_cogs():
 
 
 bot.run(token)
-

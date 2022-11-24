@@ -1,5 +1,3 @@
-import datetime
-
 import discord
 from random import choice
 
@@ -8,23 +6,6 @@ from api.core.logger.log_detail import leadership_begin, leadership_end, member_
 from api.core.logger.views import LoggerView
 from api.mixins import ConnectionMixin
 from api.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
-
-
-def log_joined_member(message_id: int, member_id: int, t0: datetime.datetime = now()):
-    member_join(message_id, member_id, t0)
-
-
-def begin_leadership(msg_id: int, member_id: int, t0: datetime.datetime = now()):
-    leadership_begin(msg_id, member_id, t0)
-
-
-def end_leadership(msg_id: int, member_id: int, t0: datetime.datetime = now()):
-    leadership_end(msg_id, member_id, t0)
-
-
-def change_leader(msg_id: int, prev_leader_id: int, new_leader_id: int, t0: datetime.datetime = now()):
-    end_leadership(msg_id, prev_leader_id, t0)
-    begin_leadership(msg_id, new_leader_id, t0)
 
 
 def register_logger_views(bot):
@@ -51,7 +32,7 @@ class Logger(ConnectionMixin):
             return
 
         if after_familiar:
-            msg = await self.update_activity_icon(after_app_id, channel.id)
+            msg = await self.update_activity_icon(channel.id, after_app_id)
             log_activity_begin(msg.id, after_app_id, after.activity.start.astimezone(zone_Moscow))
             role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {after_app_id}")
             try:
@@ -66,7 +47,7 @@ class Logger(ConnectionMixin):
             msg_id = await self.get_channel_message_id(channel.id)
             log_activity_end(msg_id, before_app_id, before.activity.start.astimezone(zone_Moscow), now())
 
-    async def update_activity_icon(self, app_id: int, channel_id: discord.VoiceChannel):
+    async def update_activity_icon(self, channel_id: int, app_id: int):
         icon_data = await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}",
                                            f'SELECT icon_url FROM ActivitiesINFO WHERE app_id = {app_id}')
         if icon_data:
@@ -100,8 +81,9 @@ class Logger(ConnectionMixin):
         )
         await self.log_activity(None, creator, channel)
         register_detailed_log(msg.id)
-        begin_leadership(msg.id, creator.id)
-        log_joined_member(msg.id, creator.id)
+        start_time = msg.created_at.astimezone(zone_Moscow)
+        leadership_begin(msg.id, creator.id, start_time)
+        member_join(msg.id, creator.id, start_time)
 
     async def get_channel_message_id(self, channel_id: int):
         return await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}")
@@ -114,7 +96,9 @@ class Logger(ConnectionMixin):
             embed = msg.embeds[0]
             embed.set_field_at(2, name='Текущий лидер', value=leader.mention)
             await msg.edit(embed=embed)
-            change_leader(msg.id, prev_leader.id, leader.id)
+            t0 = now()
+            leadership_end(msg.id, prev_leader.id, t0)
+            leadership_begin(msg.id, leader.id, t0)
         except discord.errors.NotFound:
             pass
 
@@ -171,7 +155,7 @@ class Logger(ConnectionMixin):
                     embed.set_thumbnail(url=thumbnail_url)
                 embed.set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
                 leader_id = int(msg.embeds[0].fields[2].value[2:-1])
-                end_leadership(message_id, leader_id, end_time)
+                leadership_end(message_id, leader_id, end_time)
                 member_leave(message_id, leader_id, end_time)
                 await msg.edit(embed=embed)
                 await self.update_embed_members(channel)
@@ -190,7 +174,7 @@ class Logger(ConnectionMixin):
     async def log_member_join(self, user: discord.Member, channel: discord.VoiceChannel):
         try:
             msg_id = await self.get_channel_message_id(channel_id=channel.id)
-            log_joined_member(msg_id, user.id)
+            member_join(msg_id, user.id, now())
             await self.execute_sql(
                 f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
             # add new member to logging message
