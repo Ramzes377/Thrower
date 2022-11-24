@@ -100,7 +100,7 @@ def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
 
 
 def fmt(dt: datetime.datetime) -> str:
-    return dt.strftime('%H:%M:%S - %d-%m-%Y')
+    return dt.strftime('%H:%M %d.%m.%Y')
 
 
 def dt_from_str(s: str) -> datetime.datetime:

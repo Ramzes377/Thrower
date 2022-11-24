@@ -8,6 +8,7 @@ create_tables_query = [
     """CREATE TABLE IF NOT EXISTS DetailedLog
         (
             message_id bigint NOT NULL,
+            channel_id bigint NOT NULL,
             PRIMARY KEY (message_id)
         )
     """,
@@ -49,8 +50,8 @@ for query in create_tables_query:
 connection.commit()
 
 
-def register_detailed_log(message_id: int):
-    cursor.execute(f"""INSERT INTO DetailedLog (message_id) VALUES ({message_id}) ON CONFLICT DO NOTHING""")
+def register_detailed_log(message_id: int, channel_id: int) -> None:
+    cursor.execute(f"""INSERT INTO DetailedLog (message_id, channel_id) VALUES ({message_id}, {channel_id}) ON CONFLICT DO NOTHING""")
     connection.commit()
 
 
@@ -93,6 +94,11 @@ def member_leave(message_id: int, member_id: int, end: datetime.datetime):
     cursor.execute(f"""UPDATE MemberPresence SET end = '{end.strftime('%Y-%m-%d %H:%M:%S')}'
                             WHERE message_id = {message_id} and member_id = {member_id} and end is NULL""")
     connection.commit()
+
+
+def message_from_channel(channel_id: int):
+    cursor.execute(f"""SELECT message_id FROM DetailedLog WHERE channel_id = {channel_id}""")
+    return cursor.fetchone()
 
 
 def get_detailed_msgs():

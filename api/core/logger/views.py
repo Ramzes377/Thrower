@@ -1,5 +1,9 @@
 from typing import Callable, Generator
+import io
 
+from discord.ext import commands
+from jinja2 import FileSystemLoader, Environment
+from table2ascii import table2ascii as t2a, PresetStyle
 import discord
 
 from api.core.logger.log_detail import get_leaders_list, get_activities_list, get_prescence_list
@@ -7,14 +11,37 @@ from api.core.logger.log_detail import get_leaders_list, get_activities_list, ge
 from api.mixins import ConnectionMixin
 from api.misc import fmt, dt_from_str
 
+loader = FileSystemLoader('api/core/logger/templates')
+env = Environment(loader=loader)
+template = env.get_template('template.html')
+
 
 def format_date(s: str) -> str:
     return fmt(dt_from_str(s))
 
 
-def format_members(getter: Callable, message_id: int) -> Generator:
-    return ((f"<@{l[0]}>", format_date(l[1]), format_date(l[2]) if l[2] is not None else "#" * 10) for l in
-            getter(message_id))
+def html_as_bytes(title, f_col, data):
+    html = template.render(title=title, f_column=f_col, data=data)
+    return io.BytesIO(html.encode('utf-8'))
+
+
+def format_members(getter: Callable, bot: commands.Bot, message_id: int, header: str, col: str) -> Generator:
+    data = []
+    body = []
+    for user_id, begin, end in getter(message_id):
+        user = bot.guilds[0].get_member(user_id)
+        name = f'''<a href="https://discordapp.com/users/{user_id}/"> {user.display_name} </a>'''
+        begin = format_date(begin)
+        end = '-' if end is None else format_date(end)
+        data.append((name, begin, end))
+        body.append((user.display_name, begin, end))
+
+    as_str = t2a(
+        header=[col, "Время начала", "Время окончания"],
+        body=body,
+        style=PresetStyle.thin_compact
+    )
+    return header + as_str, data
 
 
 def create_embed(title: str, first_column: str):
@@ -36,30 +63,59 @@ class LoggerView(discord.ui.View, ConnectionMixin):
         self.bot = bot
 
     async def format_activities(self, message_id: int) -> str:
-        res = []
+        data = []
+        body = []
         for id, begin, end in get_activities_list(message_id):
             role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {id}")
-            end = format_date(end) if end else '#' * 10
-            res.append((f'<@&{role_id}>' if role_id else 'Deleted role', format_date(begin), end))
-        return res
+            role = self.bot.guilds[0].get_role(role_id)
+            name = role.name
+            if role.display_icon:
+                name = f'<a>{name}  <img src={role.display_icon} height="60"></a>'
+            begin = format_date(begin)
+            end = '-' if end is None else format_date(end)
+            data.append((name, begin, end))
 
-    @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership')
+        as_str = t2a(
+            header=["Активность", "Время начала", "Время окончания"],
+            body=body,
+            style=PresetStyle.thin_compact
+        )
+
+        return 'Активности сессии\n' + as_str, data
+
+    @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership', )
     async def leadership(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        embed = create_embed(title='Лидеры сессии', first_column='Лидер')
-        for member_id, begin_date, end_date in format_members(get_leaders_list, interaction.message.id):
-            set_embed_row(embed, member_id, begin_date, end_date)
-        await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+        header = 'Лидеры сессии\n'
+        col_name = 'Лидер'
+        as_str, data = format_members(get_leaders_list, self.bot, interaction.message.id, header, col_name)
+        if len(as_str) <= 2000:
+            await interaction.response.send_message(f"```{as_str}```", delete_after=30)
+        else:
+            bts = html_as_bytes(title=header, f_col=col_name, data=data)
+            await interaction.response.send_message(file=discord.File(bts, filename='leaders.html'), delete_after=30)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
     async def activities(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        embed = create_embed(title='Активности сессии', first_column='Активность')
-        for activity_id, begin_date, end_date in await self.format_activities(interaction.message.id):
-            set_embed_row(embed, activity_id, begin_date, end_date)
-        await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+        # bts = html_as_bytes(title='Активности сессии', f_col='Активность',
+        #                     data=await self.format_activities(interaction.message.id))
+        # await interaction.response.send_message(file=discord.File(bts, filename='activities.html'), delete_after=30)
+        as_str, data = await self.format_activities(interaction.message.id)
+        if len(as_str) <= 2000:
+            await interaction.response.send_message(f"```{as_str}```", delete_after=30)
+        else:
+            bts = html_as_bytes(title='Активности сессии', f_col='Активность', data=data)
+            await interaction.response.send_message(file=discord.File(bts, filename='leaders.html'), delete_after=30)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        embed = create_embed(title='Участники сессии', first_column='Участник')
-        for member_id, begin_date, end_date in format_members(get_prescence_list, interaction.message.id):
-            set_embed_row(embed, member_id, begin_date, end_date)
-        await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+        # bts = html_as_bytes(title='Участники сессии', f_col='Участник',
+        #                     data=format_members(get_prescence_list, self.bot, interaction.message.id))
+        # await interaction.response.send_message(file=discord.File(bts, filename='prescence.html'), delete_after=30)
+        header = 'Участники сессии\n'
+        col_name = 'Участник'
+        as_str, data = format_members(get_prescence_list, self.bot, interaction.message.id, header, col_name)
+        if len(as_str) <= 2000:
+            await interaction.response.send_message(f"```{as_str}```", delete_after=30)
+        else:
+            bts = html_as_bytes(title=header, f_col=col_name, data=data)
+            await interaction.response.send_message(file=discord.File(bts, filename='leaders.html'), delete_after=30)
