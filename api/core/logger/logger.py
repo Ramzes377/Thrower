@@ -6,8 +6,8 @@ from random import choice
 from api.core.logger.log_detail import leadership_begin, leadership_end, member_join, member_leave, \
     register_detailed_log, get_detailed_msgs, log_activity_begin, log_activity_end
 from api.core.logger.views import LoggerView
-from api.tools.mixins import ConnectionMixin
-from api.tools.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
+from api.mixins import ConnectionMixin
+from api.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
 
 
 def log_joined_member(message_id: int, member_id: int, t0: datetime.datetime = now()):

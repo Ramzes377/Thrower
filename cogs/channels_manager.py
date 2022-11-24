@@ -3,8 +3,8 @@ import asyncio
 import discord
 
 from api.core.logger.logger import Logger
-from api.tools.misc import get_category, default_role_perms, leader_role_perms, bots_ids
-from api.tools.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
+from api.misc import get_category, default_role_perms, leader_role_perms, bots_ids
+from api.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
