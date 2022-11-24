@@ -1,0 +1,12 @@
+token *your_value_here*
+database_url *your_value_here*
+
+guild_id *your_value_here*
+
+create_channel_id *your_value_here*
+logger_id *your_value_here*
+role_request_id *your_value_here*
+command_id *your_value_here*
+
+idle_category *your_value_here*
+playing_category *your_value_here*
