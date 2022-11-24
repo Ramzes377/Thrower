@@ -14,6 +14,7 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
         self.logger = Logger(bot)
+        self.bot.loop.create_task(self.startup_handler())
 
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, after: discord.Member):
@@ -50,9 +51,20 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
         elif user_join_to_foreign:
             await self.join_to_foreign(member, channel, before.channel, after.channel)
 
-    async def handle_created_channels(self):
+    async def startup_handler(self):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
+
+        members = self.bot.create_channel.members
+        if members:
+            user = members[0]
+            channel = await self.create_channel(user)
+            for member in members:
+                try:
+                    await member.move_to(channel)
+                except:
+                    pass
+
         guild = self.bot.guilds[0]
         while True:
             db_channels = await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True)
@@ -133,6 +145,5 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
 
 async def setup(bot: commands.Bot):
-    manager = ChannelsManager(bot)
-    await bot.add_cog(manager)
-    bot.loop.create_task(manager.handle_created_channels())
+    await bot.add_cog(ChannelsManager(bot))
+

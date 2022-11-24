@@ -6,10 +6,10 @@ cursor = connection.cursor()
 
 create_tables_query = [
     """CREATE TABLE IF NOT EXISTS DetailedLog
-                            (
-                                message_id bigint NOT NULL,
-                                PRIMARY KEY (message_id)
-                            )
+        (
+            message_id bigint NOT NULL,
+            PRIMARY KEY (message_id)
+        )
     """,
     """
     CREATE TABLE IF NOT EXISTS Leadership

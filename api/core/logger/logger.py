@@ -184,5 +184,4 @@ class Logger(ConnectionMixin):
 
     async def log_member_abandon(self, user: discord.Member, channel: discord.VoiceChannel):
         message_id = await self.get_channel_message_id(channel.id)
-        if message_id:
-            member_leave(message_id, user.id, now())
+        member_leave(message_id, user.id, now())
