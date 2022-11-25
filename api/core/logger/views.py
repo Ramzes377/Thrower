@@ -8,7 +8,7 @@ import discord
 
 from api.core.logger.log_detail import get_leaders_list, get_activities_list, get_prescence_list
 
-from api.mixins import ConnectionMixin
+from api.mixins import ExecuteMixin
 from api.misc import fmt, dt_from_str
 
 loader = FileSystemLoader('api/core/logger/templates')
@@ -44,7 +44,7 @@ def format_members(getter: Callable, bot: commands.Bot, message_id: int, header:
     return header + as_str, data
 
 
-class LoggerView(discord.ui.View, ConnectionMixin):
+class LoggerView(discord.ui.View, ExecuteMixin):
     def __init__(self, bot) -> None:
         super().__init__(timeout=None)
         self.bot = bot

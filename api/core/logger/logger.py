@@ -4,7 +4,7 @@ from random import choice
 from api.core.logger.log_detail import leadership_begin, leadership_end, member_join, member_leave, \
     register_detailed_log, get_detailed_msgs, log_activity_begin, log_activity_end, message_from_channel
 from api.core.logger.views import LoggerView
-from api.mixins import ConnectionMixin
+from api.mixins import ExecuteMixin
 from api.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
 
 
@@ -13,7 +13,7 @@ def register_logger_views(bot):
         bot.add_view(LoggerView(bot), message_id=msg_id)
 
 
-class Logger(ConnectionMixin):
+class Logger(ExecuteMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
 
     def __init__(self, bot):

@@ -1,13 +1,15 @@
 import asyncio
 import datetime
+
+import aiohttp
 import discord
 import re
 
-from api.mixins import BaseCogMixin, commands, ConnectionMixin
+from api.mixins import BaseCogMixin, commands, ExecuteMixin
 from api.misc import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
 
 
-class GameRoles(BaseCogMixin, ConnectionMixin):
+class GameRoles(BaseCogMixin, ExecuteMixin):
     HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
     def __init__(self, bot):
@@ -80,8 +82,11 @@ class GameRoles(BaseCogMixin, ConnectionMixin):
         name, thumbnail_url = activity_info
         cutted_name = re.compile('[^a-zA-Z0-9]').sub('', name)[:32]
         thumbnail_url = thumbnail_url[:-10]
-        async with self.url_request(thumbnail_url) as response:
-            content = await response.read()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(thumbnail_url) as response:
+                content = await response.read()
+        # async with self.url_request(thumbnail_url) as response:
+        #     content = await response.read()
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
