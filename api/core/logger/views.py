@@ -61,6 +61,7 @@ class LoggerView(discord.ui.View, ConnectionMixin):
             begin = format_date(begin)
             end = '-' if end is None else format_date(end)
             data.append((name, begin, end))
+            body.append((role.name, begin, end))
 
         as_str = t2a(
             header=["Активность", "Время начала", "Время окончания"],
