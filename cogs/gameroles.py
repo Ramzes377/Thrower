@@ -66,7 +66,10 @@ class GameRoles(BaseCogMixin, ExecuteMixin):
         if created_role:  # role already exist
             role = guild.get_role(created_role)  # get role
             if role and role not in user.roles:  # check user have these role
-                await user.add_roles(role)
+                try:
+                    await user.add_roles(role)
+                except discord.errors.Forbidden:
+                    pass
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)

@@ -44,7 +44,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])  # rewrite categories dict
 
-    await load_cogs()
+    await load_cogs(music=False)
     await clear_unregistered_messages(bot)
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')

@@ -22,6 +22,8 @@ class Logger(ExecuteMixin):
         register_logger_views(bot)
 
     async def log_activity(self, before: discord.Member, after: discord.Member, channel: discord.VoiceChannel):
+        member_id = after.id
+
         before_app_id, before_is_real = get_app_id(before)
         after_app_id, after_is_real = get_app_id(after)
 
@@ -33,7 +35,7 @@ class Logger(ExecuteMixin):
 
         if after_familiar:
             msg = await self.update_activity_icon(channel.id, after_app_id)
-            log_activity_begin(msg.id, after_app_id, after.activity.start.astimezone(zone_Moscow))
+            log_activity_begin(msg.id, after_app_id, member_id, after.activity.start.astimezone(zone_Moscow))
             role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {after_app_id}")
             try:
                 await self.execute_sql(
@@ -46,7 +48,7 @@ class Logger(ExecuteMixin):
         if before_familiar:
             try:
                 msg_id = message_from_channel(channel.id)[0]
-                log_activity_end(msg_id, before_app_id, before.activity.start.astimezone(zone_Moscow), now())
+                log_activity_end(msg_id, before_app_id, member_id, before.activity.start.astimezone(zone_Moscow), now())
             except TypeError:
                 pass
 

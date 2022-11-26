@@ -3,7 +3,7 @@ import asyncio
 import discord
 
 from api.core.logger.logger import Logger
-from api.misc import get_category, default_role_perms, leader_role_perms, bots_ids
+from api.misc import get_category, default_role_perms, leader_role_perms, bots_ids, get_voice_channel
 from api.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
 
 
@@ -18,10 +18,13 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, after: discord.Member):
+        voice_channel = get_voice_channel(after)
+        if voice_channel is not None:   # logging activities from ANY user in these channel
+            await self.logger.log_activity(before, after, voice_channel)
+
         channel = await self.get_user_channel(after.id)
         if channel is not None:
             ChannelsManager.channel_flags[channel.id] = 'A'
-            await self.logger.log_activity(before, after, channel)
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()

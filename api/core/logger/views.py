@@ -52,19 +52,21 @@ class LoggerView(discord.ui.View, ExecuteMixin):
     async def format_activities(self, message_id: int) -> str:
         data = []
         body = []
-        for id, begin, end in get_activities_list(message_id):
-            role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {id}")
+        for app_id, member_id, begin, end in get_activities_list(message_id):
+            role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
             role = self.bot.guilds[0].get_role(role_id)
+            user = self.bot.guilds[0].get_member(member_id)
+            member_repr = f'''<a href="https://discordapp.com/users/{user.id}/"> {user.display_name} </a>'''
             name = role.name
             if role.display_icon:
                 name = f'<a>{name}  <img src={role.display_icon} height="60"></a>'
             begin = format_date(begin)
             end = '-' if end is None else format_date(end)
-            data.append((name, begin, end))
-            body.append((role.name, begin, end))
+            data.append((name, member_repr, begin, end))
+            body.append((role.name, user.display_name, begin, end))
 
         as_str = t2a(
-            header=["Активность", "Время начала", "Время окончания"],
+            header=["Активность", "Участник", "Время начала", "Время окончания"],
             body=body,
             style=PresetStyle.thin_compact
         )

@@ -73,11 +73,15 @@ def query_identifiers(query: str) -> bool:
     return many_identifiers
 
 
-def get_category(user: discord.member.Member) -> discord.CategoryChannel:
+def get_category(user: discord.Member) -> discord.CategoryChannel:
     return categories[user.activity.type] if user.activity else categories[0]
 
 
-def user_is_playing(user: discord.member.Member) -> bool:
+def get_voice_channel(user: discord.Member):
+    return user.voice.channel if user.voice else None
+
+
+def user_is_playing(user: discord.Member) -> bool:
     return user.activity and user.activity.type == discord.ActivityType.playing
 
 
@@ -88,7 +92,7 @@ def session_id() -> tuple[int, bool]:
     return n_day_of_year, is_leap_year(cur_time.year)
 
 
-def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
+def get_app_id(user: discord.Member) -> tuple[int, bool]:
     try:
         app_id, is_real = user.activity.application_id, True
     except AttributeError:
