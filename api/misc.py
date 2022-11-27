@@ -1,68 +1,18 @@
-from io import BytesIO
 import datetime
+from io import BytesIO
 from hashlib import sha3_224
 from itertools import chain
 from random import randint
 from functools import lru_cache
 
 import sqlparse
-
 import zoneinfo
-
 import discord
-from PIL import Image
-from PIL.ImageStat import Stat
+from PIL import Image, ImageStat
 
-zone_Moscow = zoneinfo.ZoneInfo("Europe/Moscow")
+from api.vars import categories
 
-environ = {}
-with open('env') as f:
-    for x in f.readlines():
-        try:
-            k, v = x.split()
-            environ[k] = v
-        except ValueError:
-            pass
-
-guild_id = int(environ['guild_id'])
-
-create_channel_id = int(environ['create_channel_id'])
-logger_id = int(environ['logger_id'])
-role_request_id = int(environ['role_request_id'])
-command_id = int(environ['command_id'])
-
-bots_ids = [184405311681986560, 721772274830540833]
-another_bots_prefixes = ('/',)
-
-categories = {
-    discord.ActivityType.playing: int(environ['playing_category']),
-    discord.ActivityType.custom: int(environ['idle_category']),
-    0: int(environ['idle_category'])
-}
-
-database_URL = environ['database_url']
-user_data, db_data = database_URL[11:].split('@')
-user, password = user_data.split(':')
-db_host, db_name = db_data.split('/')
-dsn = f'dbname={db_name} user={user} password={password} host={db_host[:-5]}'
-
-token = environ['token']
-urls = ['https://youtu.be/gvTsB7GWpTc', 'https://youtu.be/Ii8850-G8S0']
-
-leader_role_perms = discord.PermissionOverwrite(kick_members=True,
-                                                mute_members=False,
-                                                deafen_members=False,
-                                                manage_channels=True,
-                                                create_instant_invite=True)
-
-default_role_perms = discord.PermissionOverwrite(connect=True,
-                                                 speak=True,
-                                                 use_voice_activation=True,
-                                                 kick_members=False,
-                                                 mute_members=False,
-                                                 deafen_members=False,
-                                                 manage_channels=False,
-                                                 create_instant_invite=True)
+tzMoscow = zoneinfo.ZoneInfo("Europe/Moscow")
 
 
 def query_identifiers(query: str) -> bool:
@@ -73,22 +23,26 @@ def query_identifiers(query: str) -> bool:
     return many_identifiers
 
 
-def get_category(user: discord.member.Member) -> discord.CategoryChannel:
+def get_category(user: discord.Member) -> discord.CategoryChannel:
     return categories[user.activity.type] if user.activity else categories[0]
 
 
-def user_is_playing(user: discord.member.Member) -> bool:
+def get_voice_channel(user: discord.Member):
+    return user.voice.channel if user.voice else None
+
+
+def user_is_playing(user: discord.Member) -> bool:
     return user.activity and user.activity.type == discord.ActivityType.playing
 
 
 def session_id() -> tuple[int, bool]:
-    cur_time = datetime.datetime.now(tz=zone_Moscow)
-    start_of_year = datetime.datetime(cur_time.year, 1, 1).astimezone(zone_Moscow)
+    cur_time = datetime.datetime.now(tz=tzMoscow)
+    start_of_year = datetime.datetime(cur_time.year, 1, 1).astimezone(tzMoscow)
     n_day_of_year = (cur_time - start_of_year).days + 1
     return n_day_of_year, is_leap_year(cur_time.year)
 
 
-def get_app_id(user: discord.member.Member) -> tuple[int, bool]:
+def get_app_id(user: discord.Member) -> tuple[int, bool]:
     try:
         app_id, is_real = user.activity.application_id, True
     except AttributeError:
@@ -131,7 +85,7 @@ def flatten(collection):
 
 
 def get_mean_color(raw_img) -> list[int, int, int]:
-    return [int(x) for x in Stat(Image.open(BytesIO(raw_img))).mean[:3]]
+    return [int(x) for x in ImageStat.Stat(Image.open(BytesIO(raw_img))).mean[:3]]
 
 
 def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] | list:
@@ -152,7 +106,7 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
 
 
 def now() -> datetime.datetime:
-    return datetime.datetime.now(tz=zone_Moscow)
+    return datetime.datetime.now(tz=tzMoscow)
 
 
 def code_block(func) -> str:

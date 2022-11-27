@@ -1,14 +1,13 @@
-from typing import Callable
 import io
+from typing import Callable
 
+import discord
 from discord.ext import commands
 from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
-import discord
 
 from api.core.logger.log_detail import get_leaders_list, get_activities_list, get_prescence_list
-
-from api.mixins import ConnectionMixin
+from api.mixins import ExecuteMixin
 from api.misc import fmt, dt_from_str
 
 loader = FileSystemLoader('api/core/logger/templates')
@@ -44,7 +43,7 @@ def format_members(getter: Callable, bot: commands.Bot, message_id: int, header:
     return header + as_str, data
 
 
-class LoggerView(discord.ui.View, ConnectionMixin):
+class LoggerView(discord.ui.View, ExecuteMixin):
     def __init__(self, bot) -> None:
         super().__init__(timeout=None)
         self.bot = bot
@@ -52,19 +51,21 @@ class LoggerView(discord.ui.View, ConnectionMixin):
     async def format_activities(self, message_id: int) -> str:
         data = []
         body = []
-        for id, begin, end in get_activities_list(message_id):
-            role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {id}")
+        for app_id, member_id, begin, end in get_activities_list(message_id):
+            role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {app_id}")
             role = self.bot.guilds[0].get_role(role_id)
+            user = self.bot.guilds[0].get_member(member_id)
+            member_repr = f'''<a href="https://discordapp.com/users/{user.id}/"> {user.display_name} </a>'''
             name = role.name
             if role.display_icon:
                 name = f'<a>{name}  <img src={role.display_icon} height="60"></a>'
             begin = format_date(begin)
             end = '-' if end is None else format_date(end)
-            data.append((name, begin, end))
-            body.append((role.name, begin, end))
+            data.append((name, member_repr, begin, end))
+            body.append((role.name, user.display_name, begin, end))
 
         as_str = t2a(
-            header=["Активность", "Время начала", "Время окончания"],
+            header=["Активность", "Участник", "Время начала", "Время окончания"],
             body=body,
             style=PresetStyle.thin_compact
         )

@@ -2,10 +2,11 @@ import discord
 from random import choice
 
 from api.core.logger.log_detail import leadership_begin, leadership_end, member_join, member_leave, \
-    register_detailed_log, get_detailed_msgs, log_activity_begin, log_activity_end, message_from_channel
+    reg_log, get_detailed_msgs, log_activity_begin, log_activity_end, message_from_channel, unreg_log
 from api.core.logger.views import LoggerView
-from api.mixins import ConnectionMixin
-from api.misc import fmt, user_is_playing, get_app_id, session_id, urls, zone_Moscow, now
+from api.mixins import ExecuteMixin
+from api.misc import fmt, user_is_playing, get_app_id, session_id, tzMoscow, now
+from api.vars import urls
 
 
 def register_logger_views(bot):
@@ -13,7 +14,7 @@ def register_logger_views(bot):
         bot.add_view(LoggerView(bot), message_id=msg_id)
 
 
-class Logger(ConnectionMixin):
+class Logger(ExecuteMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
 
     def __init__(self, bot):
@@ -22,6 +23,8 @@ class Logger(ConnectionMixin):
         register_logger_views(bot)
 
     async def log_activity(self, before: discord.Member, after: discord.Member, channel: discord.VoiceChannel):
+        member_id = after.id
+
         before_app_id, before_is_real = get_app_id(before)
         after_app_id, after_is_real = get_app_id(after)
 
@@ -33,7 +36,7 @@ class Logger(ConnectionMixin):
 
         if after_familiar:
             msg = await self.update_activity_icon(channel.id, after_app_id)
-            log_activity_begin(msg.id, after_app_id, after.activity.start.astimezone(zone_Moscow))
+            log_activity_begin(msg.id, after_app_id, member_id, after.activity.start.astimezone(tzMoscow))
             role_id = await self.execute_sql(f"SELECT role_id FROM CreatedRoles WHERE app_id = {after_app_id}")
             try:
                 await self.execute_sql(
@@ -44,11 +47,10 @@ class Logger(ConnectionMixin):
                 pass
 
         if before_familiar:
-            try:
-                msg_id = message_from_channel(channel.id)[0]
-                log_activity_end(msg_id, before_app_id, before.activity.start.astimezone(zone_Moscow), now())
-            except TypeError:
-                pass
+            msg_id = message_from_channel(channel.id)
+            if msg_id is not None:
+                log_activity_end(msg_id, before_app_id, member_id,
+                                 before.activity.start.astimezone(tzMoscow), now())
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
         icon_data = await self.execute_sql(f"SELECT message_id FROM LoggerSessions WHERE channel_id = {channel_id}",
@@ -83,15 +85,17 @@ class Logger(ConnectionMixin):
             f"INSERT INTO LoggerSessions (channel_id, creator_id, start_day, sess_repr, message_id) VALUES ({channel.id}, {creator.id}, {day_of_year}, '{sess_id}', {msg.id})"
         )
         await self.log_activity(None, creator, channel)
-        register_detailed_log(msg.id, channel.id)
-        start_time = msg.created_at.astimezone(zone_Moscow)
+        reg_log(msg.id, channel.id)
+        start_time = msg.created_at.astimezone(tzMoscow)
         leadership_begin(msg.id, creator.id, start_time)
         member_join(msg.id, creator.id, start_time)
 
     async def change_leader(self, prev_leader: discord.Member, leader: discord.Member,
                             channel_id: discord.VoiceChannel):
         try:
-            message_id = message_from_channel(channel_id)[0]
+            message_id = message_from_channel(channel_id)
+            if message_id is None:
+                raise TypeError
             msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_field_at(2, name='Текущий лидер', value=leader.mention)
@@ -134,7 +138,7 @@ class Logger(ConnectionMixin):
                 f"SELECT past_sessions_counter, current_sessions_counter FROM SessionCounters WHERE current_day = {start_day}")
             await self.execute_sql(
                 f"UPDATE SessionCounters SET current_sessions_counter = {current_sessions_counter - 1} WHERE current_day = {start_day}")
-            start_time = msg.created_at.astimezone(zone_Moscow)
+            start_time = msg.created_at.astimezone(tzMoscow)
             end_time = now()
             sess_duration = end_time - start_time
 
@@ -162,6 +166,7 @@ class Logger(ConnectionMixin):
                 await self.add_activity(msg, roles_ids)
 
             else:
+                unreg_log(msg.id)
                 await msg.delete()
         except:
             pass
@@ -173,11 +178,9 @@ class Logger(ConnectionMixin):
 
     async def log_member_join(self, user: discord.Member, channel: discord.VoiceChannel):
         try:
-            try:
-                msg_id = message_from_channel(channel.id)[0]
+            msg_id = message_from_channel(channel.id)
+            if msg_id is not None:
                 member_join(msg_id, user.id, now())
-            except TypeError:
-                pass
             await self.execute_sql(
                 f'INSERT INTO SessionMembers (channel_id, member_id) VALUES ({channel.id}, {user.id})')
             # add new member to logging message
@@ -186,9 +189,6 @@ class Logger(ConnectionMixin):
             pass
 
     async def log_member_abandon(self, user: discord.Member, channel: discord.VoiceChannel):
-        try:
-            message_id = message_from_channel(channel.id)[0]
+        message_id = message_from_channel(channel.id)
+        if message_id:
             member_leave(message_id, user.id, now())
-        except TypeError:
-            pass
-

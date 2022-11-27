@@ -2,11 +2,8 @@ import asyncio
 import re
 from typing import TypeAlias
 
-import aiohttp
 import discord
-import psycopg2
 from discord.ext import commands
-from asyncio_extras import async_contextmanager
 
 from api.misc import get_category, flatten, query_identifiers
 
@@ -20,57 +17,40 @@ class BaseCogMixin(commands.Cog):
         print(f'Cog {type(self).__name__} have been started!')
 
 
-class ConnectionMixin:
+class ExecuteMixin:
     bot = None
-
-    @async_contextmanager
-    async def get_connection(self) -> None:
-        try:
-            async with self.bot.db.acquire() as conn:
-                async with conn.cursor() as cur:
-                    yield cur
-        except psycopg2.OperationalError:
-            await self.bot.db.clear()
-            async with self.bot.db.acquire() as conn:
-                async with conn.cursor() as cur:
-                    yield cur
-
-    @async_contextmanager
-    async def url_request(self, url: str) -> None:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                yield response
 
     async def execute_sql(self, *scripts: str, fetch_all: bool = False) -> \
             list[tuple[db_response_types]] | list[db_response_types] | db_response_types:
         results = []
-        async with self.get_connection() as cur:
-            for script in scripts:
-                many_identifiers = query_identifiers(script)
-                await cur.execute(script)
-                if fetch_all:
-                    try:
-                        result = await cur.fetchall()
-                        if many_identifiers:
-                            results.append(result)
-                        else:
-                            r = flatten(result)
-                            results.extend(r) if r else results.append(r)
-                    except Exception as e:
-                        results.append(e)
-                else:
-                    try:
-                        result = await cur.fetchone()
-                        if len(scripts) > 1:
-                            results.append(result if (many_identifiers or result is None) else result[0])
-                        else:
-                            results = result if (many_identifiers or result is None) else result[0]
-                    except Exception as e:
-                        results.append(e)
+        async with self.bot.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                for script in scripts:
+                    many_identifiers = query_identifiers(script)
+                    await cur.execute(script)
+                    if fetch_all:
+                        try:
+                            result = await cur.fetchall()
+                            if many_identifiers:
+                                results.append(result)
+                            else:
+                                r = flatten(result)
+                                results.extend(r) if r else results.append(r)
+                        except Exception as e:
+                            results.append(e)
+                    else:
+                        try:
+                            result = await cur.fetchone()
+                            if len(scripts) > 1:
+                                results.append(result if (many_identifiers or result is None) else result[0])
+                            else:
+                                results = result if (many_identifiers or result is None) else result[0]
+                        except Exception as e:
+                            results.append(e)
         return results
 
 
-class DiscordFeaturesMixin(ConnectionMixin):
+class DiscordFeaturesMixin(ExecuteMixin):
     async def get_user_channel(self, user_id: int) -> discord.VoiceChannel | None:
         channel_id: int = await self.execute_sql(f"SELECT channel_id FROM CreatedSessions WHERE user_id = {user_id}")
         return self.bot.get_channel(channel_id)
