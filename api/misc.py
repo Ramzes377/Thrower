@@ -5,14 +5,12 @@ from itertools import chain
 from random import randint
 from functools import lru_cache
 
-import sqlparse
-import zoneinfo
 import discord
+import sqlparse
+
 from PIL import Image, ImageStat
 
-from api.vars import categories
-
-tzMoscow = zoneinfo.ZoneInfo("Europe/Moscow")
+from api.vars import categories, tzMoscow
 
 
 def query_identifiers(query: str) -> bool:
@@ -114,4 +112,5 @@ def code_block(func) -> str:
         wrap = '```'
         result = func(*args, **kwargs)
         return f'{wrap}{result}{wrap}'
+
     return wrapper

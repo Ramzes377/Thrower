@@ -1,4 +1,7 @@
 import discord
+from zoneinfo import ZoneInfo
+
+tzMoscow = ZoneInfo("Europe/Moscow")
 
 with open('env') as f:
     environ = dict(x.split() for x in f.readlines() if x != '\n')
