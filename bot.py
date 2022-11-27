@@ -3,10 +3,10 @@ import os
 
 import discord
 import aiopg
-
 from discord.ext import commands
-from api.misc import categories, create_channel_id, logger_id, dsn, token, role_request_id, command_id
+
 from api.init_db import init_tables
+from api.vars import set_vars, dsn, token
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -36,13 +36,7 @@ async def on_ready():
 
     await init_tables(bot.db)
 
-    bot.create_channel = bot.get_channel(create_channel_id)
-    bot.logger_channel = bot.get_channel(logger_id)
-    bot.request_channel = bot.get_channel(role_request_id)
-    bot.commands_channel = bot.get_channel(command_id)
-
-    for category in categories:
-        categories[category] = bot.get_channel(categories[category])  # rewrite categories dict
+    set_vars(bot)
 
     await load_cogs(music=False)
     await clear_unregistered_messages(bot)

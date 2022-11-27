@@ -1,13 +1,12 @@
-from typing import Callable
 import io
+from typing import Callable
 
+import discord
 from discord.ext import commands
 from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
-import discord
 
 from api.core.logger.log_detail import get_leaders_list, get_activities_list, get_prescence_list
-
 from api.mixins import ExecuteMixin
 from api.misc import fmt, dt_from_str
 

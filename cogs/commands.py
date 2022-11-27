@@ -1,21 +1,28 @@
-import asyncio
 import datetime
+
 import discord
 from discord import app_commands
-from discord.ext import commands
-
-from time import time
+from discord.ext import commands, tasks
 
 from api.mixins import BaseCogMixin, DiscordFeaturesMixin
-from api.misc import get_app_id, user_is_playing, guild_id
+from api.misc import get_app_id, user_is_playing
+from api.vars import guild_id
+
+CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
 
 class Commands(BaseCogMixin, DiscordFeaturesMixin):
-    CLEAR_CONNECTIONS_PERIOD: int = 5 * 60  # seconds
 
     def __init__(self, bot):
         super(Commands, self).__init__(bot)
-        bot.loop.create_task(self.clear_connections_loop())
+        self.clear_connections_loop.start()
+
+    @tasks.loop(seconds=CLEAR_CONNECTIONS_PERIOD)
+    async def clear_connections_loop(self):
+        try:
+            await self.bot.db.clear()
+        except AttributeError:
+            pass
 
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, _):
@@ -42,6 +49,7 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         except:
             await interaction.response.send_message('Неверный формат упоминания игровой роли!', ephemeral=True,
                                                     delete_after=30)
+            return
 
         embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
         seconds = await self.execute_sql(
@@ -92,21 +100,12 @@ class Commands(BaseCogMixin, DiscordFeaturesMixin):
         role_id, seconds = await self.get_gamerole_time(before.id, app_id)
         if not (before.activity and before.activity.start):
             return
-        sess_duration = int(time() - before.activity.start.timestamp())
+        sess_duration = int(datetime.datetime.now().timestamp() - before.activity.start.timestamp())
         await self.execute_sql(
             f"INSERT INTO UserActivities (role_id, user_id, seconds) VALUES ({role_id}, {before.id}, 0) ON CONFLICT (role_id, user_id) DO NOTHING",
             f'UPDATE UserActivities SET seconds = {seconds + sess_duration} WHERE role_id = {role_id} and user_id = {before.id}'
         )
 
-    async def clear_connections_loop(self):
-        while True:
-            try:
-                await self.bot.db.clear()
-                await asyncio.sleep(Commands.CLEAR_CONNECTIONS_PERIOD)
-            except AttributeError:
-                pass
-
 
 async def setup(bot):
     await bot.add_cog(Commands(bot), guilds=[discord.Object(id=guild_id)])
-

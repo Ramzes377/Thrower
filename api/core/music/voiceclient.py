@@ -6,12 +6,11 @@ class LavalinkVoiceClient(discord.VoiceClient):
     def __init__(self, client: discord.Client, channel: discord.abc.Connectable):
         self.client = client
         self.channel = channel
-        if hasattr(self.client, 'lavalink'):
-            self.lavalink = self.client.lavalink
-        else:
+
+        if not hasattr(self.client, 'lavalink'):
             self.client.lavalink = lavalink.Client(client.user.id)
             self.client.lavalink.add_node('host.docker.internal', 2333, 'youshallnotpass', 'eu', 'default-node')
-            self.lavalink = self.client.lavalink
+        self.lavalink = self.client.lavalink
 
     async def on_voice_server_update(self, data):
         data = {'t': 'VOICE_SERVER_UPDATE', 'd': data}

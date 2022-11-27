@@ -1,25 +1,60 @@
 import asyncio
 
 import discord
+from discord.ext import tasks
 
 from api.core.logger.logger import Logger
-from api.misc import get_category, default_role_perms, leader_role_perms, bots_ids, get_voice_channel
+from api.misc import get_category, get_voice_channel
 from api.mixins import BaseCogMixin, commands, DiscordFeaturesMixin
+from api.vars import default_role_perms, leader_role_perms, bots_ids
+
+CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
 
 
 class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
-    CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
     channel_flags = {}
 
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
         self.logger = Logger(bot)
-        self.bot.loop.create_task(self.startup_handler())
+        self.handle_created_channels.start()
+
+    @tasks.loop(seconds=CREATED_CHANNELS_HANDLE_PERIOD)
+    async def handle_created_channels(self):
+        # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
+        # or if bot was offline for some reasons then calculate possible current behavior
+
+        db_channels = await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True)
+        if db_channels[0]:
+            guild = self.bot.guilds[0]
+            for user_id, channel_id in db_channels[0]:
+                user = self.bot.get_user(user_id)
+                channel = self.bot.get_channel(channel_id)
+                user_in_own_channel = channel and user in channel.members
+                if not user_in_own_channel:
+                    cur_channel = [guild_channel for guild_channel in guild.voice_channels if
+                                   user in guild_channel.members]
+                    cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
+                    await self.join_to_foreign(user, channel, None, cur_channel)
+
+    @handle_created_channels.before_loop
+    async def distribute_create_channel(self):
+        members = self.bot.create_channel.members
+        if members:
+            user = members[0]
+            channel = await self.create_channel(user)
+            for member in members:
+                try:
+                    await member.move_to(channel)
+                except:
+                    pass
+
+        await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, after: discord.Member):
         voice_channel = get_voice_channel(after)
-        if voice_channel is not None:   # logging activities from ANY user in these channel
+        if voice_channel is not None:  # logging activities from ANY user in these channel
             await self.logger.log_activity(before, after, voice_channel)
 
         channel = await self.get_user_channel(after.id)
@@ -53,35 +88,6 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
             await self.user_try_create_channel(member, channel)
         elif user_join_to_foreign:
             await self.join_to_foreign(member, channel, before.channel, after.channel)
-
-    async def startup_handler(self):
-        # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
-        # or if bot was offline for some reasons then calculate possible current behavior
-
-        members = self.bot.create_channel.members
-        if members:
-            user = members[0]
-            channel = await self.create_channel(user)
-            for member in members:
-                try:
-                    await member.move_to(channel)
-                except:
-                    pass
-
-        guild = self.bot.guilds[0]
-        while True:
-            db_channels = await self.execute_sql("SELECT user_id, channel_id FROM CreatedSessions", fetch_all=True)
-            if db_channels[0]:
-                for user_id, channel_id in db_channels[0]:
-                    user = self.bot.get_user(user_id)
-                    channel = self.bot.get_channel(channel_id)
-                    user_in_own_channel = channel and user in channel.members
-                    if not user_in_own_channel:
-                        cur_channel = [guild_channel for guild_channel in guild.voice_channels if
-                                       user in guild_channel.members]
-                        cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
-                        await self.join_to_foreign(user, channel, None, cur_channel)
-            await asyncio.sleep(ChannelsManager.CREATED_CHANNELS_HANDLE_PERIOD)
 
     async def user_try_create_channel(self, user: discord.Member, user_channel: discord.VoiceChannel):
         user_have_channel = user_channel is not None
@@ -149,4 +155,3 @@ class ChannelsManager(BaseCogMixin, DiscordFeaturesMixin):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ChannelsManager(bot))
-

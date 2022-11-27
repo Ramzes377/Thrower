@@ -3,24 +3,25 @@ import datetime
 
 import aiohttp
 import discord
+from discord.ext import tasks
 import re
 
 from api.mixins import BaseCogMixin, commands, ExecuteMixin
-from api.misc import get_pseudo_random_color, get_app_id, zone_Moscow, get_dominant_color, user_is_playing
+from api.misc import get_pseudo_random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
+
+HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
 
 class GameRoles(BaseCogMixin, ExecuteMixin):
-    HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
-
     def __init__(self, bot):
         super(GameRoles, self).__init__(bot)
         bot.loop.create_task(self.remove_unused_activities_loop())
+        self.remove_unused_activities_loop.start()
 
+    @tasks.loop(seconds=HANDLE_UNUSED_CONTENT_PERIOD)
     async def remove_unused_activities_loop(self) -> None:
-        while True:
-            await self.delete_unused_roles()
-            await self.delete_unused_emoji()
-            await asyncio.sleep(GameRoles.HANDLE_UNUSED_CONTENT_PERIOD)
+        await self.delete_unused_roles()
+        await self.delete_unused_emoji()
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member) -> None:
@@ -85,11 +86,11 @@ class GameRoles(BaseCogMixin, ExecuteMixin):
         name, thumbnail_url = activity_info
         cutted_name = re.compile('[^a-zA-Z0-9]').sub('', name)[:32]
         thumbnail_url = thumbnail_url[:-10]
+
         async with aiohttp.ClientSession() as session:
             async with session.get(thumbnail_url) as response:
                 content = await response.read()
-        # async with self.url_request(thumbnail_url) as response:
-        #     content = await response.read()
+
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
@@ -108,7 +109,7 @@ class GameRoles(BaseCogMixin, ExecuteMixin):
         """Delete role if it cant reach greater than 1 members for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
         roles = guild.roles
-        cur_time = datetime.datetime.now(tz=zone_Moscow)
+        cur_time = datetime.datetime.now(tz=tzMoscow)
         for role in roles:
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
                 try:

@@ -1,5 +1,3 @@
-from itertools import zip_longest
-
 import discord
 from typing import Callable
 

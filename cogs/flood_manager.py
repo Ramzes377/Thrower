@@ -1,9 +1,7 @@
-import asyncio
-
 import discord
 
 from api.mixins import BaseCogMixin, commands
-from api.misc import command_id, another_bots_prefixes, bots_ids
+from api.vars import bots_ids, another_bots_prefixes, command_id
 
 
 def message_belongs_bot(author_id: int) -> bool:
@@ -23,8 +21,7 @@ class FloodManager(BaseCogMixin):
         if author == self.bot.user or message.channel.id == command_id:
             return
         if user_calling_bot(message.content) or message_belongs_bot(author.id):
-            await asyncio.sleep(FloodManager.REMOVE_DELAY)
-            await message.delete()
+            await message.delete(delay=FloodManager.REMOVE_DELAY)
 
 
 async def setup(bot):
