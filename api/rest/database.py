@@ -1,7 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-db_url = 'sqlite:///local.sqlite3'
+from api.bot.vars import database_URL
+
+db_url = database_URL
 
 engine = create_engine(db_url, echo=False, connect_args={'check_same_thread': False})
 

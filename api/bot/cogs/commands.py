@@ -19,6 +19,19 @@ class Commands(DiscordFeaturesMixin):
         await interaction.response.send_message(await self.bot.tree.sync(guild=interaction.guild),
                                                 ephemeral=True, delete_after=30)
 
+
+    @app_commands.command(description='Удаление n предшевствующих сообщений')
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def clear(self, interaction: discord.Interaction, n: int = 0) -> None:
+        await interaction.response.send_message(f'Будет удалено {n} сообщений!',
+                                                ephemeral=True, delete_after=30)
+        async for message in interaction.channel.history(limit=n):
+            try:
+                await message.delete()
+            except:
+                pass
+
+
     # @app_commands.command(description='Показывает зарегистрированное время в игре у соответствующей игровой роли!')
     # async def activity(self, interaction: discord.Interaction, role_mention: str):
     #     """
@@ -53,17 +66,6 @@ class Commands(DiscordFeaturesMixin):
     #         embed.set_thumbnail(url=icon_url)
     #     embed.set_footer(text='Великий бот - ' + self.bot.user.display_name, icon_url=self.bot.user.avatar)
     #     await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=30)
-
-    @app_commands.command(description='Удаление n предшевствующих сообщений')
-    @app_commands.checks.has_permissions(manage_messages=True)
-    async def clear(self, interaction: discord.Interaction, n: int = 0) -> None:
-        await interaction.response.send_message(f'Будет удалено {n} сообщений!',
-                                                ephemeral=True, delete_after=30)
-        async for message in interaction.channel.history(limit=n):
-            try:
-                await message.delete()
-            except:
-                pass
 
     # async def get_gamerole_time(self, user_id: int, app_id: int):
     #     return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds
