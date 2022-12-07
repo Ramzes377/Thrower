@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 
 import aiohttp
@@ -25,10 +24,11 @@ class GameRoles(BaseCogMixin):
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member) -> None:
+        print(_.activity, after.activity)
         if user_is_playing(after):
             await self.add_gamerole(after)
 
-    async def manage_roles(self, payload: discord.RawReactionActionEvent, add_flag=True) -> tuple:
+    async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple:
         user_is_bot = payload.user_id == self.bot.user.id
         emoji_id = payload.emoji.id
         if user_is_bot or not emoji_id:
@@ -42,7 +42,7 @@ class GameRoles(BaseCogMixin):
         member = guild.get_member(payload.user_id)
         role = guild.get_role(role.id)
 
-        if add_flag:
+        if add:
             await member.add_roles(role)
         else:
             await member.remove_roles(role)
@@ -51,17 +51,17 @@ class GameRoles(BaseCogMixin):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        await self.manage_roles(payload, add_flag=True)
+        await self.manage_roles(payload, add=True)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
-        await self.manage_roles(payload, add_flag=False)
+        await self.manage_roles(payload, add=False)
 
     async def add_gamerole(self, user: discord.Member) -> None:
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        db_role = self._client.get(f'v1/role/byapp/{app_id}').json()
+        db_role = self._client.get(f'v1/role/by_app/{app_id}').json()
         if self._object_exist(db_role):  # role already exist
             role = guild.get_role(db_role['id'])  # get role
             if role and role not in user.roles:  # check user have these role
@@ -72,7 +72,6 @@ class GameRoles(BaseCogMixin):
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)
-            await asyncio.sleep(10)
             self._client.post(f'v1/role/', json={'id': role.id, 'app_id': app_id})
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
@@ -97,9 +96,11 @@ class GameRoles(BaseCogMixin):
             self._client.post(f'v1/emoji/', json={'id': emoji.id, 'role_id': role.id})
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
-                await role.edit(color=discord.Colour(1).from_rgb(*dominant_color), display_icon=content)
-            finally:
+                await role.edit(display_icon=content)
+            except discord.errors.Forbidden:
                 pass
+            finally:
+                await role.edit(color=discord.Colour(1).from_rgb(*dominant_color))
             return
         await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
 

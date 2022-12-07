@@ -1,12 +1,10 @@
 import discord
-from random import choice
 from hashlib import blake2b
 
 from api.bot.logger.dbevents import dbEvents
 from api.bot.logger.views import LoggerView
 from api.bot.mixins import DiscordFeaturesMixin
 from api.bot.misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel
-from api.bot.vars import urls
 
 
 class Logger(DiscordFeaturesMixin):
@@ -26,7 +24,7 @@ class Logger(DiscordFeaturesMixin):
         sess_name = f'#{blake2b(str(channel.id).encode(), digest_size=4).hexdigest()}'
         begin = now()
         embed = discord.Embed(title=f"{creator.display_name} начал сессию {sess_name}", color=discord.Color.green())
-        embed.add_field(name='├ Сессия активна', value=f'├ [ВАЖНО!]({choice(urls)})', inline=False)
+        embed.add_field(name='├ Сессия активна', value=f' ', inline=False)
         embed.add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
         embed.add_field(name='Текущий лидер', value=f'{creator.mention}')
         embed.add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
@@ -56,7 +54,7 @@ class Logger(DiscordFeaturesMixin):
             return
 
         embed = discord.Embed(title=f"Сессия {sess_name} окончена!", color=discord.Color.red())
-        embed.description = f'├ [ВАЖНО!]({choice(urls)})'
+        embed.description = f'├ '
         embed.add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**', inline=True)
         embed.add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
         embed.add_field(name='├ Продолжительность', value=f"├ **`{str(sess_duration).split('.')[0]}`**",
@@ -100,8 +98,8 @@ class Logger(DiscordFeaturesMixin):
     async def update_activity_icon(self, channel_id: int, app_id: int):
         session = self.get_session(channel_id)
         app_info = self._client.get(f'v1/activity/{app_id}/info/').json()
-        if self._object_exist(app_info):
-            message_id, thumbnail_url = session['message_id'], app_info['icon_url']
+        if self._object_exist(session) and self._object_exist(app_info):
+            message_id, thumbnail_url = app_info['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_thumbnail(url=thumbnail_url)

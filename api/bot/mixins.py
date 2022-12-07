@@ -1,6 +1,5 @@
 import asyncio
 import re
-from typing import TypeAlias
 
 import discord
 from discord.ext import commands
@@ -9,10 +8,9 @@ from fastapi.testclient import TestClient
 from api.rest.base import app
 from api.bot.misc import get_category
 
-db_response_types: TypeAlias = int | float | str
-
 
 class BaseCogMixin(commands.Cog):
+
     def __init__(self, bot, silent=False):
         super(BaseCogMixin, self).__init__()
         self._client = TestClient(app)
@@ -21,7 +19,7 @@ class BaseCogMixin(commands.Cog):
             print(f'Cog {type(self).__name__} have been started!')
 
     def _object_exist(self, obj: dict):
-        return 'detail' not in obj
+        return obj is not None and 'detail' not in obj
 
 
 class DiscordFeaturesMixin(BaseCogMixin):
