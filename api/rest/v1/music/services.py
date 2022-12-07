@@ -9,6 +9,7 @@ class SrvFavoriteMusic(BaseService):
         return (
             self._session.query(tables.FavoriteMusic)
                 .filter_by(user_id=user_id)
+                .order_by(tables.FavoriteMusic.counter.desc())
         )
 
     def get(self, user_id: int) -> list[FavoriteMusic]:

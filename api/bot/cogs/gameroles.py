@@ -78,8 +78,9 @@ class GameRoles(BaseCogMixin):
             await user.add_roles(role)
 
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
-        activity_info = self._client.get(f'v1/activity/{app_id}/info').json()
-        if not activity_info:
+        try:
+            activity_info = self._client.get(f'v1/activity/{app_id}/info').json()
+        except AttributeError:
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
             return
         name, thumbnail_url = activity_info['app_name'], activity_info['icon_url']

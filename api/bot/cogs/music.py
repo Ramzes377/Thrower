@@ -165,10 +165,10 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorite = self._client.get(f'v1/favoritemusic/{user.id}').json()
+        favorites = ((x['title'], x['query'], x['counter']) for x in self._client.get(f'v1/favoritemusic/{user.id}').json())   # title, query, counter
         try:
             await user.send(
-                view=create_dropdown('Выберите трек для добавления в очередь', favorite, handler=self._play),
+                view=create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play),
                 delete_after=60)
         except AttributeError:
             await user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.')
