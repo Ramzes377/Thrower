@@ -7,7 +7,6 @@ with open('env') as f:
     environ = dict(x.split() for x in f.readlines() if x != '\n')
 
 guild_id = int(environ['guild_id'])
-admin_id = int(environ['admin_id'])
 create_channel_id = int(environ['create_channel_id'])
 logger_id = int(environ['logger_id'])
 role_request_id = int(environ['role_request_id'])
