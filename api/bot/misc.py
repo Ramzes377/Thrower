@@ -10,7 +10,7 @@ import sqlparse
 
 from PIL import Image, ImageStat
 
-from api.vars import categories, tzMoscow
+from api.bot.vars import categories, tzMoscow
 
 
 def query_identifiers(query: str) -> bool:
@@ -56,7 +56,7 @@ def fmt(dt: datetime.datetime) -> str:
 
 
 def dt_from_str(s: str) -> datetime.datetime:
-    return datetime.datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
 
 
 def _hash(string: str) -> int:
@@ -107,8 +107,8 @@ def now() -> datetime.datetime:
     return datetime.datetime.now(tz=tzMoscow)
 
 
-def code_block(func) -> str:
-    def wrapper(*args, **kwargs):
+def code_block(func):
+    def wrapper(*args, **kwargs) -> str:
         wrap = '```'
         result = func(*args, **kwargs)
         return f'{wrap}{result}{wrap}'

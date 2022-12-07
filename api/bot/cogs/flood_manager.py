@@ -1,7 +1,7 @@
 import discord
 
-from api.mixins import BaseCogMixin, commands
-from api.vars import bots_ids, another_bots_prefixes, command_id
+from api.bot.mixins import BaseCogMixin, commands
+from api.bot.vars import bots_ids, another_bots_prefixes, command_id
 
 
 def message_belongs_bot(author_id: int) -> bool:

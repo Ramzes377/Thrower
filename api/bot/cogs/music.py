@@ -5,10 +5,10 @@ import lavalink
 from discord import app_commands
 from discord.ext import commands
 
-from api.core.music.base import MusicBase
-from api.core.music.favorites import write_music_query, mru_queries
-from api.core.music.views import create_dropdown, PlayerButtonsView
-from api.misc import guild_id, code_block
+from api.bot.music.base import MusicBase
+from api.bot.music.views import create_dropdown, PlayerButtonsView
+from api.bot.misc import code_block
+from api.bot.vars import guild_id
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -92,13 +92,17 @@ class Music(MusicBase):
                 player.add(requester=user_id, track=track)
             embed.title = 'Плейлист добавлен в очередь!'
             embed.description = f'{results.playlist_info.name} - {len(tracks)} tracks'
-            write_music_query(results.playlist_info.name, user_id, query)
+            self._client.post('v1/favoritemusic/',
+                              json={'title': results.playlist_info.name, 'query': query,
+                                    'user_id': user_id, 'counter': 1})
         else:
             track = results.tracks[0]
             embed.title = 'Трек добавлен в очередь!'
             embed.description = f'[{track.title}]({track.uri})'
             player.add(requester=user_id, track=track)
-            write_music_query(track.title, user_id, track.uri)
+            self._client.post('v1/favoritemusic/',
+                              json={'title': track.title, 'query': track.uri,
+                                    'user_id': user_id, 'counter': 1})
 
         try:
             await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
@@ -161,7 +165,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorite = mru_queries(user.id)
+        favorite = self._client.get(f'v1/favoritemusic/{user.id}').json()
         try:
             await user.send(
                 view=create_dropdown('Выберите трек для добавления в очередь', favorite, handler=self._play),
