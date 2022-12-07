@@ -52,7 +52,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
 
         headers = [col, "Время начала", "Время окончания"]
         if activity_flag:
-            headers.insert(0, "Активность")
+            headers.insert(1, "Участник")
 
         as_str = t2a(
             header=headers,

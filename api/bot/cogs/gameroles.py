@@ -24,7 +24,6 @@ class GameRoles(BaseCogMixin):
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member) -> None:
-        print(_.activity, after.activity)
         if user_is_playing(after):
             await self.add_gamerole(after)
 
