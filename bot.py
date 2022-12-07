@@ -2,10 +2,9 @@ import asyncio
 import os
 
 import discord
-import aiopg
 from discord.ext import commands
 
-from api.bot.vars import set_vars, dsn, token
+from api.bot.vars import set_vars, token
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -31,7 +30,6 @@ async def clear_unregistered_messages(bot):
 
 @bot.event
 async def on_ready():
-    bot.db = await aiopg.create_pool(dsn)
     set_vars(bot)
     await load_cogs(music=False)
     await clear_unregistered_messages(bot)

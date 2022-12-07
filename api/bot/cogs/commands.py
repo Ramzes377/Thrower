@@ -13,17 +13,6 @@ CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
 class Commands(DiscordFeaturesMixin):
 
-    def __init__(self, bot):
-        super(Commands, self).__init__(bot)
-        self.clear_connections_loop.start()
-
-    @tasks.loop(seconds=CLEAR_CONNECTIONS_PERIOD)
-    async def clear_connections_loop(self):
-        try:
-            await self.bot.db.clear()
-        except AttributeError:
-            pass
-
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
     async def sync(self, interaction: discord.Interaction) -> None:
@@ -75,12 +64,6 @@ class Commands(DiscordFeaturesMixin):
                 await message.delete()
             except:
                 pass
-
-    @app_commands.command(description='Попытка закрытия открытых соединений к бд')
-    @app_commands.checks.has_permissions(administrator=True)
-    async def clear_connections(self, interaction: discord.Interaction):
-        await self.bot.db.clear()
-        await interaction.response.send_message(f'Очищены открытые соединения', ephemeral=True, delete_after=30)
 
     # async def get_gamerole_time(self, user_id: int, app_id: int):
     #     return await self.execute_sql(f'''SELECT cr.role_id, COALESCE(ua.seconds, 0) seconds
