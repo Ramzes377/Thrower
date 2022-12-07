@@ -31,7 +31,7 @@ async def clear_unregistered_messages(bot):
 @bot.event
 async def on_ready():
     set_vars(bot)
-    await load_cogs(music=False)
+    await load_cogs(music=True)
     await clear_unregistered_messages(bot)
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')
