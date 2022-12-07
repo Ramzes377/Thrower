@@ -24,7 +24,6 @@ class Logger(DiscordFeaturesMixin):
         sess_name = f'#{blake2b(str(channel.id).encode(), digest_size=4).hexdigest()}'
         begin = now()
         embed = discord.Embed(title=f"{creator.display_name} начал сессию {sess_name}", color=discord.Color.green())
-        embed.add_field(name='├ Сессия активна', value=f' ', inline=False)
         embed.add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
         embed.add_field(name='Текущий лидер', value=f'{creator.mention}')
         embed.add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
