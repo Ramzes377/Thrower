@@ -98,7 +98,7 @@ class Logger(DiscordFeaturesMixin):
         session = self.get_session(channel_id)
         app_info = self._client.get(f'v1/activity/{app_id}/info/').json()
         if self._object_exist(session) and self._object_exist(app_info):
-            message_id, thumbnail_url = app_info['message_id'], app_info['icon_url']
+            message_id, thumbnail_url = session['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_thumbnail(url=thumbnail_url)
