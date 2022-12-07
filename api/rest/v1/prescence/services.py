@@ -23,18 +23,22 @@ class SrvPrescence(BaseService):
                 .filter_by(channel_id=channel_id,
                            member_id=member_id)
                 .filter_by(end=None)
+                .order_by(tables.Prescence.begin.desc())
                 .first()
         )
         return member_prescence
 
     def post(self, prescencedata: Prescence) -> tables.Prescence:
+        channel_id, member_id = prescencedata['channel_id'], prescencedata['member_id']
+        member_prescence = self._member_prescence(channel_id, member_id)
+        if member_prescence:    # trying to add member that's prescence isn't closed
+            return member_prescence
         prescence = tables.Prescence(**prescencedata.dict())
         try:
             self._db_add_obj(prescence)
             return prescence
-        except:
-            pass
-        return None
+        finally:
+            return
 
     def put(self, prescencedata: Prescence | dict) -> Prescence:
         channel_id, member_id = prescencedata['channel_id'], prescencedata['member_id']
@@ -44,10 +48,11 @@ class SrvPrescence(BaseService):
 
     def get_by_msg(self, message_id: int) -> list[Prescence]:
         return (
-            self._session.query(tables.Prescence)
+            self._session
+                .query(tables.Prescence)
                 .join(tables.Session)
                 .filter(tables.Prescence.channel_id == tables.Session.channel_id)
                 .filter_by(message_id=message_id)
-                .order_by(tables.Prescence.end)
+                .order_by(tables.Prescence.begin)
                 .all()
         )

@@ -8,8 +8,8 @@ Base = declarative_base()
 member_session = sa.Table(
     "member_session",
     Base.metadata,
-    sa.Column("member_id", sa.ForeignKey("member.id")),
-    sa.Column("channel_id", sa.ForeignKey("session.channel_id")),
+    sa.Column("member_id", sa.ForeignKey("member.id"), primary_key=True),
+    sa.Column("channel_id", sa.ForeignKey("session.channel_id"), primary_key=True),
 )
 
 
