@@ -38,7 +38,7 @@ def fmt(dt: datetime.datetime) -> str:
 
 
 def dt_from_str(s: str) -> datetime.datetime:
-    return datetime.datetime(s, '%Y-%m-%dT%H:%M:%S')
+    return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
 
 
 def _hash(string: str) -> int:
