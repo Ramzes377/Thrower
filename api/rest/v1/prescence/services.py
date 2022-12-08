@@ -29,16 +29,14 @@ class SrvPrescence(BaseService):
         return member_prescence
 
     def post(self, prescencedata: Prescence) -> tables.Prescence:
-        channel_id, member_id = prescencedata['channel_id'], prescencedata['member_id']
+        channel_id, member_id = prescencedata.channel_id, prescencedata.member_id
         member_prescence = self._member_prescence(channel_id, member_id)
-        if member_prescence:    # trying to add member that's prescence isn't closed
+        if member_prescence:  # trying to add member that's prescence isn't closed
+            self._db_edit_obj(member_prescence, prescencedata)
             return member_prescence
         prescence = tables.Prescence(**prescencedata.dict())
-        try:
-            self._db_add_obj(prescence)
-            return prescence
-        finally:
-            return
+        self._db_add_obj(prescence)
+        return prescence
 
     def put(self, prescencedata: Prescence | dict) -> Prescence:
         channel_id, member_id = prescencedata['channel_id'], prescencedata['member_id']

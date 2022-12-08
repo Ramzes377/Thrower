@@ -23,6 +23,7 @@ class SrvSession(BaseService):
         return (
             self._get_sessions()
                 .filter_by(end=None)
+                .order_by(tables.Session.end.desc())
         )
 
     def get_unclosed(self):

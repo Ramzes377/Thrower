@@ -16,7 +16,7 @@ def prescence(prescencedata: Prescence, service: SrvPrescence = Depends()):
     return service.post(prescencedata)
 
 
-@router.put('/', response_model=Prescence)
+@router.put('/', response_model=Prescence | None)
 def prescence(prescencedata: Prescence | dict, service: SrvPrescence = Depends()):
     return service.put(prescencedata)
 

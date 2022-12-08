@@ -12,6 +12,7 @@ Now these functionality stays in channels_manager.py module as one of others COG
   - better inform other users about created channel (rename created channel to current activity name and change channel category)
   - gathering user's activity time to providing spent time in game
 - music module using lavalink player API
+- restful API around discord db abstractions 
 ## Want to use this project?
 
 Spin up the containers:

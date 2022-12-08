@@ -28,7 +28,6 @@ class DiscordFeaturesMixin(BaseCogMixin):
         session = self._client.get(f'v1/session/{channel_id}').json()
         if self._object_exist(session):
             return session
-        print(f"Can't find session {channel_id}")
         return None
 
     def get_user_channel(self, user_id: int) -> discord.VoiceChannel | None:
