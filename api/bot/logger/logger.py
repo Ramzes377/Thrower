@@ -91,7 +91,6 @@ class Logger(DiscordFeaturesMixin):
 
     async def update_embed_members(self, session_id: int):
         try:
-            print('in')
             members: list[dict] = self._client.get(f'v1/session/{session_id}/members/').json()
             session = self.get_session(session_id)
             message = await self.bot.logger_channel.fetch_message(session['message_id'])
@@ -101,7 +100,6 @@ class Logger(DiscordFeaturesMixin):
                                inline=False)
             await message.edit(embed=embed)
         except Exception as e:
-            print(e)
             pass
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
