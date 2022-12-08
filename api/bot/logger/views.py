@@ -23,11 +23,14 @@ def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]]) -> i
 
 
 async def _response_handle(interaction, string, data, header, column):
-    if len(string) <= 2000:
-        await interaction.response.send_message(f"```{string}```", delete_after=30)
-    else:
-        bts = html_as_bytes(title=header, f_col=column, data=data)
-        await interaction.response.send_message(file=discord.File(bts, filename=f'{header}.html'), delete_after=30)
+    try:
+        if len(string) <= 2000:
+            await interaction.response.send_message(f"```{string}```", delete_after=30)
+        else:
+            bts = html_as_bytes(title=header, f_col=column, data=data)
+            await interaction.response.send_message(file=discord.File(bts, filename=f'{header}.html'), delete_after=30)
+    except discord.errors.NotFound:
+        pass
 
 
 class LoggerView(discord.ui.View, BaseCogMixin):
