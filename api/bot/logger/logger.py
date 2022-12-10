@@ -28,7 +28,7 @@ class Logger(DiscordFeaturesMixin):
         name = f'#{blake2b(str(channel.id).encode(), digest_size=4).hexdigest()}'
 
         embed = (
-            discord.Embed(title=f"{creator.display_name} начал сессию {name}", color=discord.Color.green())
+            discord.Embed(title=f"Начата сессия {name}", color=discord.Color.green())
                 .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
                 .add_field(name='Текущий лидер', value=creator.mention)
                 .add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
@@ -58,19 +58,22 @@ class Logger(DiscordFeaturesMixin):
             self.events.session_update(channel_id=channel_id, end=now())
             return
 
-        embed = discord.Embed(title=f"Сессия {sess_name} окончена!", color=discord.Color.red())
-        embed.description = f'├ '
-        embed.add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**', inline=True)
-        embed.add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
-        embed.add_field(name='├ Продолжительность', value=f"├ **`{str(sess_duration).split('.')[0]}`**",
-                        inline=False)
-        embed.add_field(name='├ Участники', value='└ ', inline=False)
-        thumbnail_url = msg.embeds[0].thumbnail.url
-        if thumbnail_url:
-            embed.set_thumbnail(url=thumbnail_url)
-        embed.set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
+        duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
+        members_field = '└ ' + ', '.join(
+            f'<@{member["id"]}>' for member in self._client.get(f'v1/session/{channel_id}/members/').json()
+        )
+
+        embed = (
+            discord.Embed(title=f"Сессия {sess_name} окончена!", color=discord.Color.red())
+                .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
+                .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
+                .add_field(name='├ Продолжительность', value=duration_field, inline=False)
+                .add_field(name='├ Участники', value=members_field, inline=False)
+                .set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
+                .set_thumbnail(url=msg.embeds[0].thumbnail.url)
+        )
+
         await msg.edit(embed=embed)
-        await self.update_embed_members(channel_id)
         self._client.post(f'v1/leadership',
                           json={'channel_id': channel_id, 'member_id': None, 'end': end.strftime('%Y-%m-%dT%H:%M:%S')})
         self.events.session_update(channel_id=channel_id, end=now())
@@ -83,7 +86,7 @@ class Logger(DiscordFeaturesMixin):
 
             msg = await self.bot.logger_channel.fetch_message(session['message_id'])
             embed = msg.embeds[0]
-            embed.set_field_at(2, name='Текущий лидер', value=f'<@{leader_id}>')
+            embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
             await msg.edit(embed=embed)
             self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
         except (discord.errors.NotFound, TypeError):
@@ -125,11 +128,11 @@ class Logger(DiscordFeaturesMixin):
         after_familiar = user_is_playing(after) and after_is_real
         before_familiar = before is not None and user_is_playing(before) and before_is_real
 
-        if not before_familiar and not after_familiar:
-            return
-
         if after_familiar:
-            begin = after.activity.start.astimezone(tzMoscow)
+            try:
+                begin = after.activity.start.astimezone(tzMoscow)
+            except AttributeError:
+                begin = now()
             channel_id = voice_channel.id if voice_channel else None
             self.events.member_activity(channel_id, after_app_id, member_id=after.id, id=after_app_id, begin=begin,
                                         end=None)

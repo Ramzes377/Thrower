@@ -2,6 +2,7 @@ import datetime
 
 import aiohttp
 import discord
+import pydantic
 from discord.ext import tasks, commands
 import re
 
@@ -60,7 +61,10 @@ class GameRoles(BaseCogMixin):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        db_role = self._client.get(f'v1/role/by_app/{app_id}').json()
+        try:
+            db_role = self._client.get(f'v1/role/by_app/{app_id}').json()
+        except pydantic.error_wrappers.ValidationError:
+            db_role = None
         if self._object_exist(db_role):  # role already exist
             role = guild.get_role(db_role['id'])  # get role
             if role and role not in user.roles:  # check user have these role

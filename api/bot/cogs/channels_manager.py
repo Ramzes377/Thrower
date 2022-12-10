@@ -26,17 +26,14 @@ class ChannelsManager(DiscordFeaturesMixin):
         guild = self.bot.guilds[0]
         sessions = self._client.get('v1/session/unclosed/').json()
         for session in sessions:
-            user = self.bot.get_user(session['leader_id'])
+            member = guild.get_member(session['leader_id'])
             channel = self.bot.get_channel(session['channel_id'])
-            user_in_own_channel = channel and user in channel.members
+            user_in_own_channel = channel and member in channel.members
             if not user_in_own_channel:
-                cur_channel = [guild_channel for guild_channel in guild.voice_channels if
-                               user in guild_channel.members]
-                cur_channel = cur_channel[0] if len(cur_channel) > 0 else None
-                await self.join_to_foreign(user, channel, None, cur_channel)
+                await self.join_to_foreign(member, channel, None, member.voice)
 
     @handle_created_channels.before_loop
-    async def distribute_created_channel(self):
+    async def distribute_create_channel_members(self):
         members = self.bot.create_channel.members
         if members:
             user = members[0]
