@@ -13,7 +13,7 @@ class SrvFavoriteMusic(BaseService):
         )
 
     def get(self, user_id: int) -> list[FavoriteMusic]:
-        return self._get(user_id).all()
+        return self._get(user_id).limit(20).all()
 
     def _get_record(self, user_id: int, query: str) -> FavoriteMusic:
         return (

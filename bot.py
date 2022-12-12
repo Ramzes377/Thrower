@@ -39,16 +39,19 @@ async def on_ready():
 
 @bot.tree.error
 async def on_command_error(ctx, error):
+    print(ctx, error)
     pass
 
 
 async def load_cogs(music=False):
+    cogs_path = 'api/bot/cogs'
+    cogs_path_dotted = cogs_path.replace('/', '.')
     exclude = ['music.py']
     if music:
-        await bot.load_extension(f'api.bot.cogs.music')
+        await bot.load_extension(f'{cogs_path_dotted}.music')
     else:
-        for filename in reversed(os.listdir('api/bot/cogs')):
+        for filename in reversed(os.listdir(cogs_path)):
             if filename.endswith('.py') and filename.lower() not in exclude:
-                await bot.load_extension(f'api.bot.cogs.{filename[:-3]}')
+                await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
 
 bot.run(token)

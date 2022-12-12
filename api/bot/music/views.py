@@ -1,8 +1,8 @@
 import discord
-from typing import Callable
+from typing import Callable, Generator
 
 
-def create_dropdown(placeholder: str, select_options: list, handler: Callable):
+def create_dropdown(placeholder: str, select_options: Generator, handler: Callable):
     dropdown = Dropdown(placeholder, select_options, handler)
     view = discord.ui.View()
     view.add_item(dropdown)
@@ -10,21 +10,19 @@ def create_dropdown(placeholder: str, select_options: list, handler: Callable):
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, placeholder: str, select_options: list, handler: Callable) -> None:
+    def __init__(self, placeholder: str, select_options: Generator, handler: Callable) -> None:
         self._play = handler
         self._map = {}
         options = []
         for title, query, _ in select_options:
             options.append(discord.SelectOption(label=title))
             self._map[title] = query
-        if not options:
-            raise AttributeError
         super().__init__(placeholder=placeholder, max_values=None, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        for val in self.values:
-            await interaction.response.send_message(f'{val} будет добавлена в очередь!')
-            await self._play(interaction, query=self._map[val])
+        for title in self.values:
+            await interaction.response.send_message(f'{title} будет добавлена в очередь!', delete_after=15)
+            await self._play(interaction, query=self._map[title])
 
 
 class PlayerButtonsView(discord.ui.View):

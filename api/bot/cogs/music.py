@@ -165,11 +165,12 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = ((x['title'], x['query'], x['counter']) for x in self._client.get(f'v1/favoritemusic/{user.id}').json())   # title, query, counter
+        favorites = ((x['title'], x['query'], x['counter']) for x in
+                     self._client.get(f'v1/favoritemusic/{user.id}').json())
+        # title, query, counter
         try:
-            await user.send(
-                view=create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play),
-                delete_after=60)
+            view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)
+            await user.send(view=view, delete_after=60)
         except AttributeError:
             await user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.')
 
@@ -180,9 +181,8 @@ class Music(MusicBase):
     async def _pause(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(self._guild_id)
         self._paused = not self._paused
-        await interaction.response.send_message(
-            f'Воспроизведение {"приостановлено" if self._paused else "вознобновлено"}!',
-            ephemeral=False, delete_after=15)
+        status = "приостановлено" if self._paused else "вознобновлено"
+        await interaction.response.send_message(f'Воспроизведение {status}!', ephemeral=False, delete_after=15)
         await player.set_pause(self._paused)
         await self.update_msg()
 
