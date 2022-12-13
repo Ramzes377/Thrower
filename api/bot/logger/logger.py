@@ -18,7 +18,7 @@ class Logger(DiscordFeaturesMixin):
         self.register_logger_views()
 
     def register_logger_views(self):
-        sessions: list[dict] = self._client.get(f'v1/session/all/').json()
+        sessions: list[dict] = await self.request('session/all/')
         for session in sessions:
             self.bot.add_view(LoggerView(self.bot), message_id=session['message_id'])
 
@@ -36,9 +36,9 @@ class Logger(DiscordFeaturesMixin):
         )
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
-        self.events.session_update(creator_id=creator.id, channel_id=channel.id, message_id=msg.id, begin=begin,
+        await self.events.session_update(creator_id=creator.id, channel_id=channel.id, message_id=msg.id, begin=begin,
                                    name=name)
-        self.events.session_prescence(channel_id=channel.id, member_id=creator.id, begin=begin)
+        await self.events.session_prescence(channel_id=channel.id, member_id=creator.id, begin=begin)
         await self.log_activity(None, creator)
 
     async def session_over(self, channel_id: int):
@@ -55,12 +55,12 @@ class Logger(DiscordFeaturesMixin):
 
         if sess_duration.seconds < Logger.MIN_SESS_DURATION:
             await msg.delete()
-            self.events.session_update(channel_id=channel_id, end=now())
+            await self.events.session_update(channel_id=channel_id, end=now())
             return
 
         duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
         members_field = '└ ' + ', '.join(
-            f'<@{member["id"]}>' for member in self._client.get(f'v1/session/{channel_id}/members/').json()
+            f'<@{member["id"]}>' for member in await self.request(f'v1/session/{channel_id}/members/')
         )
 
         embed = (
@@ -74,9 +74,9 @@ class Logger(DiscordFeaturesMixin):
         )
 
         await msg.edit(embed=embed)
-        self._client.post(f'v1/leadership',
-                          json={'channel_id': channel_id, 'member_id': None, 'end': end.strftime('%Y-%m-%dT%H:%M:%S')})
-        self.events.session_update(channel_id=channel_id, end=now())
+        json = {'channel_id': channel_id, 'member_id': None, 'end': end.strftime('%Y-%m-%dT%H:%M:%S')}
+        await self.request('leadership', 'post', json=json)
+        await self.events.session_update(channel_id=channel_id, end=now())
 
     async def update_leader(self, channel_id: int, leader_id: int):
         try:
@@ -88,14 +88,14 @@ class Logger(DiscordFeaturesMixin):
             embed = msg.embeds[0]
             embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
             await msg.edit(embed=embed)
-            self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
+            await self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
         except (discord.errors.NotFound, TypeError):
             pass
 
     async def update_embed_members(self, session_id: int):
         try:
-            members: list[dict] = self._client.get(f'v1/session/{session_id}/members/').json()
-            session = self.get_session(session_id)
+            members: list[dict] = await self.request(f'session/{session_id}/members/')
+            session = await self.get_session(session_id)
             message = await self.bot.logger_channel.fetch_message(session['message_id'])
             embed = message.embeds[0]
             embed.set_field_at(2, name='├ Участники',
@@ -106,8 +106,8 @@ class Logger(DiscordFeaturesMixin):
             pass
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
-        session = self.get_session(channel_id)
-        app_info = self._client.get(f'v1/activity/{app_id}/info/').json()
+        session = await self.get_session(channel_id)
+        app_info = await self.request(f'activity/{app_id}/info/')
         if self._object_exist(session) and self._object_exist(app_info):
             message_id, thumbnail_url = session['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
@@ -115,7 +115,7 @@ class Logger(DiscordFeaturesMixin):
             embed.set_thumbnail(url=thumbnail_url)
             await msg.edit(embed=embed)
 
-            emoji = self._client.get(f'v1/activity/{app_id}/emoji/').json()
+            emoji = await self.request(f'activity/{app_id}/emoji/')
             if self._object_exist(emoji):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
@@ -134,21 +134,22 @@ class Logger(DiscordFeaturesMixin):
             except AttributeError:
                 begin = now()
             channel_id = voice_channel.id if voice_channel else None
-            self.events.member_activity(channel_id, after_app_id, member_id=after.id, id=after_app_id, begin=begin,
+            await self.events.member_activity(channel_id, after_app_id, member_id=after.id, id=after_app_id,
+                                              begin=begin,
                                         end=None)
             if voice_channel is not None:  # logging activities from ANY user in these channel
                 await self.update_activity_icon(voice_channel.id, after_app_id)
 
         if before_familiar:
-            self.events.member_activity(None, None, member_id=before.id, id=before_app_id, end=now())
+            await self.events.member_activity(None, None, member_id=before.id, id=before_app_id, end=now())
 
     async def log_member_join(self, user_id: int, channel_id: int):
         try:
-            self._client.post(f'v1/session/{channel_id}/members/{user_id}')
+            await self.request(f'session/{channel_id}/members/{user_id}', 'post')
             await self.update_embed_members(channel_id)  # add new member to logging message
         except PendingRollbackError:
             pass
-        self.events.session_prescence(channel_id=channel_id, member_id=user_id, begin=now())
+        await self.events.session_prescence(channel_id=channel_id, member_id=user_id, begin=now())
 
     async def log_member_abandon(self, user_id: int, channel_id: int):
-        self.events.session_prescence(member_id=user_id, channel_id=channel_id, end=now())
+        await self.events.session_prescence(member_id=user_id, channel_id=channel_id, end=now())

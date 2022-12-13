@@ -34,7 +34,7 @@ class GameRoles(BaseCogMixin):
         if user_is_bot or not emoji_id:
             return
 
-        role = self._client.get(f'v1/emoji/{emoji_id}/role')
+        role = await self.request(f'emoji/{emoji_id}/role')
         if not self._object_exist(role):
             return
 
@@ -62,7 +62,7 @@ class GameRoles(BaseCogMixin):
         role_name = user.activity.name
         guild = user.guild
         try:
-            db_role = self._client.get(f'v1/role/by_app/{app_id}').json()
+            db_role = await self.request(f'role/by_app/{app_id}')
         except pydantic.error_wrappers.ValidationError:
             db_role = None
         if self._object_exist(db_role):  # role already exist
@@ -75,13 +75,13 @@ class GameRoles(BaseCogMixin):
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)
-            self._client.post(f'v1/role/', json={'id': role.id, 'app_id': app_id})
+            await self.request(f'role/', 'post', json={'id': role.id, 'app_id': app_id})
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
 
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         try:
-            activity_info = self._client.get(f'v1/activity/{app_id}/info').json()
+            activity_info = await self.request(f'activity/{app_id}/info')
         except AttributeError:
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
             return
@@ -96,7 +96,7 @@ class GameRoles(BaseCogMixin):
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
-            self._client.post(f'v1/emoji/', json={'id': emoji.id, 'role_id': role.id})
+            await self.request('emoji/', 'post', json={'id': emoji.id, 'role_id': role.id})
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
                 await role.edit(display_icon=content)

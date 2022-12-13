@@ -54,4 +54,5 @@ async def load_cogs(music=False):
             if filename.endswith('.py') and filename.lower() not in exclude:
                 await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
 
+
 bot.run(token)

@@ -14,4 +14,4 @@ def home():
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run('api.rest.base:app', reload=True)
+    uvicorn.run('api.rest.base:app', host='127.0.0.1', port=8000, reload=True)

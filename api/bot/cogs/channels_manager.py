@@ -24,7 +24,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
         guild = self.bot.guilds[0]
-        sessions = self._client.get('v1/session/unclosed/').json()
+        sessions = await self.request('session/unclosed/')
         for session in sessions:
             member = guild.get_member(session['leader_id'])
             channel = self.bot.get_channel(session['channel_id'])
@@ -49,7 +49,7 @@ class ChannelsManager(DiscordFeaturesMixin):
     @commands.Cog.listener()
     async def on_presence_update(self, before: discord.Member, after: discord.Member):
         await self.logger.log_activity(before, after)
-        channel = self.get_user_channel(after.id)
+        channel = await self.get_user_channel(after.id)
         if channel is not None:
             ChannelsManager.channel_flags[channel.id] = 'A'
             await self.edit_channel_name_category(after, channel)
@@ -61,8 +61,8 @@ class ChannelsManager(DiscordFeaturesMixin):
         channel_state = ChannelsManager.channel_flags.pop(after.id, None)
         need_save = channel_state not in ('T', 'A')
         if need_save and before.name != after.name:
-            session = self._client.get(f'v1/session/{after.id}').json()
-            self._client.put(f'v1/user/{session["leader_id"]}', json={'default_sess_name': after.name})
+            session = await self.request(f'session/{after.id}')
+            await self.request(f'user/{session["leader_id"]}', 'put', json={'default_sess_name': after.name})
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,

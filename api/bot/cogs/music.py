@@ -31,10 +31,6 @@ class Music(MusicBase):
         self._paused = False
         lavalink.add_event_hook(self.events_handler)
 
-    @commands.command()
-    async def sync(self, ctx: commands.Context) -> None:
-        print(await ctx.bot.tree.sync(guild=ctx.guild))
-
     async def events_handler(self, event: lavalink.events.Event):
         if isinstance(event, lavalink.events.QueueEndEvent):
             guild_id = event.player.guild_id
@@ -92,17 +88,17 @@ class Music(MusicBase):
                 player.add(requester=user_id, track=track)
             embed.title = 'Плейлист добавлен в очередь!'
             embed.description = f'{results.playlist_info.name} - {len(tracks)} tracks'
-            self._client.post('v1/favoritemusic/',
-                              json={'title': results.playlist_info.name, 'query': query,
-                                    'user_id': user_id, 'counter': 1})
+            json = {'title': results.playlist_info.name, 'query': query,
+                    'user_id': user_id, 'counter': 1}
         else:
             track = results.tracks[0]
             embed.title = 'Трек добавлен в очередь!'
             embed.description = f'[{track.title}]({track.uri})'
             player.add(requester=user_id, track=track)
-            self._client.post('v1/favoritemusic/',
-                              json={'title': track.title, 'query': track.uri,
-                                    'user_id': user_id, 'counter': 1})
+            json = {'title': track.title, 'query': track.uri,
+                    'user_id': user_id, 'counter': 1}
+
+        await self.request(f'favoritemusic/', 'post', json=json)
 
         try:
             await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
@@ -165,8 +161,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = ((x['title'], x['query'], x['counter']) for x in
-                     self._client.get(f'v1/favoritemusic/{user.id}').json())
+        favorites = ((x['title'], x['query'], x['counter']) for x in await self.request(f'favoritemusic/{user.id}'))
         # title, query, counter
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)

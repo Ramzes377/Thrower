@@ -48,7 +48,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
                 data.append((url, begin, end))
                 body.append((user.display_name, begin, end))
             else:
-                activity = self._client.get(f'v1/activity/{row["id"]}/info/').json()
+                activity = await self.request('/activity/{row["id"]}/info/')
                 name = activity['app_name']
                 data.append((name, url, begin, end))
                 body.append((name, user.display_name, begin, end))
@@ -67,20 +67,20 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership', )
     async def leadership(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         header, column = 'Лидеры сессии', 'Лидер'
-        leadership = self._client.get(f'v1/session/{interaction.message.id}/leadership').json()
+        leadership = await self.request(f'session/{interaction.message.id}/leadership')
         as_str, data = self.format_data(leadership, header, column)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
     async def activities(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         header, column = 'Активности сессии', 'Активность'
-        activities = self._client.get(f'v1/session/activities/by_msg/{interaction.message.id}').json()
+        activities = await self.request(f'v1/session/activities/by_msg/{interaction.message.id}')
         as_str, data = self.format_data(activities, header, column, activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         header, column = 'Участники сессии', 'Участник'
-        prescence = self._client.get(f'v1/prescence/by_msg/{interaction.message.id}').json()
+        prescence = await self.request(f'v1/prescence/by_msg/{interaction.message.id}')
         as_str, data = self.format_data(prescence, header, column)
         await _response_handle(interaction, as_str, data, header, column)
