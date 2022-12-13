@@ -54,8 +54,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
         if user.activity and user.activity.type == discord.ActivityType.playing:
             sess_name = f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
         else:
-            response = await self.request(f'user/{user.id}')
-            member = response.json()
+            member = await self.request(f'user/{user.id}')
             if 'detail' not in member and member.get('default_sess_name'):
                 sess_name = member['default_sess_name']
             else:
@@ -64,7 +63,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
 
     async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,
                                          overwrites=None) -> None:
-        channel_name = self.get_user_sess_name(user)
+        channel_name = await self.get_user_sess_name(user)
         category = get_category(user)
         try:
             await asyncio.wait_for(

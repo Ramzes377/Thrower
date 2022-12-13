@@ -71,7 +71,7 @@ class ChannelsManager(DiscordFeaturesMixin):
             # handling only channel changing, not mute or deaf member
             # and previous channel is not create channel
             return
-        channel = self.get_user_channel(member.id)
+        channel = await self.get_user_channel(member.id)
         user_join_create_channel = after.channel == self.bot.create_channel
         user_join_to_foreign = not (channel and after.channel == channel)  # user join not to own channel
 
@@ -91,7 +91,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         await self.logger.session_begin(user.id, user_channel)  # send session message
 
     async def create_channel(self, user: discord.Member) -> discord.VoiceChannel:
-        channel_name = self.get_user_sess_name(user)
+        channel_name = await self.get_user_sess_name(user)
         category = get_category(user)
         permissions = {user.guild.default_role: default_role_perms, user: leader_role_perms}
         channel = await user.guild.create_voice_channel(channel_name, category=category, overwrites=permissions)

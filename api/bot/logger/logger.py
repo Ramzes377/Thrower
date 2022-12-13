@@ -15,9 +15,9 @@ class Logger(DiscordFeaturesMixin):
     def __init__(self, bot):
         super(Logger, self).__init__(bot, silent=True)
         self.events = dbEvents(bot)
-        self.register_logger_views()
+        self.bot.loop.create_task(self.register_logger_views())
 
-    def register_logger_views(self):
+    async def register_logger_views(self):
         sessions: list[dict] = await self.request('session/all/')
         for session in sessions:
             self.bot.add_view(LoggerView(self.bot), message_id=session['message_id'])
@@ -42,7 +42,7 @@ class Logger(DiscordFeaturesMixin):
         await self.log_activity(None, creator)
 
     async def session_over(self, channel_id: int):
-        session = self.get_session(channel_id)
+        session = await self.get_session(channel_id)
         if session is None:
             return
 
@@ -60,7 +60,7 @@ class Logger(DiscordFeaturesMixin):
 
         duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
         members_field = '└ ' + ', '.join(
-            f'<@{member["id"]}>' for member in await self.request(f'v1/session/{channel_id}/members/')
+            f'<@{member["id"]}>' for member in await self.request(f'session/{channel_id}/members/')
         )
 
         embed = (
@@ -80,7 +80,7 @@ class Logger(DiscordFeaturesMixin):
 
     async def update_leader(self, channel_id: int, leader_id: int):
         try:
-            session = self.get_session(channel_id)
+            session = await self.get_session(channel_id)
             if not self._object_exist(session):
                 return
 

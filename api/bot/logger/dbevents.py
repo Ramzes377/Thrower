@@ -7,17 +7,17 @@ from api.bot.mixins import BaseCogMixin
 
 
 class dbEvents(BaseCogMixin):
-    def __init__(self, bot):
-        super(dbEvents, self).__init__(bot, silent=True)
-        for member in bot.guilds[0].members:
-            self.bot.loop.create_task(self._add_member(member))
-
     async def _add_member(self, member: discord.Member):
         data = {'id': member.id, 'name': member.display_name, 'default_sess_name': None}
         try:
             await self.request('user', 'post', json=data)
         except Exception as e:
             pass
+
+    def __init__(self, bot):
+        super(dbEvents, self).__init__(bot, silent=True)
+        for member in bot.guilds[0].members:
+            self.bot.loop.create_task(self._add_member(member))
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
