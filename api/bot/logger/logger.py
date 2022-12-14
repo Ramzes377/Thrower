@@ -37,7 +37,7 @@ class Logger(DiscordFeaturesMixin):
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
         await self.events.session_update(creator_id=creator.id, channel_id=channel.id, message_id=msg.id, begin=begin,
-                                   name=name)
+                                         name=name)
         await self.events.session_prescence(channel_id=channel.id, member_id=creator.id, begin=begin)
         await self.log_activity(None, creator)
 
@@ -60,7 +60,7 @@ class Logger(DiscordFeaturesMixin):
 
         duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
         members_field = '└ ' + ', '.join(
-            f'<@{member["id"]}>' for member in await self.request(f'session/{channel_id}/members/')
+            f'<@{member["id"]}>' for member in await self.request(f'session/{channel_id}/members')
         )
 
         embed = (
@@ -75,7 +75,7 @@ class Logger(DiscordFeaturesMixin):
 
         await msg.edit(embed=embed)
         json = {'channel_id': channel_id, 'member_id': None, 'end': end.strftime('%Y-%m-%dT%H:%M:%S')}
-        await self.request('leadership', 'post', json=json)
+        await self.request('leadership/', 'post', json=json)
         await self.events.session_update(channel_id=channel_id, end=now())
 
     async def update_leader(self, channel_id: int, leader_id: int):
@@ -94,7 +94,7 @@ class Logger(DiscordFeaturesMixin):
 
     async def update_embed_members(self, session_id: int):
         try:
-            members: list[dict] = await self.request(f'session/{session_id}/members/')
+            members: list[dict] = await self.request(f'session/{session_id}/members')
             session = await self.get_session(session_id)
             message = await self.bot.logger_channel.fetch_message(session['message_id'])
             embed = message.embeds[0]
@@ -107,7 +107,7 @@ class Logger(DiscordFeaturesMixin):
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
         session = await self.get_session(channel_id)
-        app_info = await self.request(f'activity/{app_id}/info/')
+        app_info = await self.request(f'activity/{app_id}/info')
         if self._object_exist(session) and self._object_exist(app_info):
             message_id, thumbnail_url = session['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
@@ -115,7 +115,7 @@ class Logger(DiscordFeaturesMixin):
             embed.set_thumbnail(url=thumbnail_url)
             await msg.edit(embed=embed)
 
-            emoji = await self.request(f'activity/{app_id}/emoji/')
+            emoji = await self.request(f'activity/{app_id}/emoji')
             if self._object_exist(emoji):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
@@ -136,7 +136,7 @@ class Logger(DiscordFeaturesMixin):
             channel_id = voice_channel.id if voice_channel else None
             await self.events.member_activity(channel_id, after_app_id, member_id=after.id, id=after_app_id,
                                               begin=begin,
-                                        end=None)
+                                              end=None)
             if voice_channel is not None:  # logging activities from ANY user in these channel
                 await self.update_activity_icon(voice_channel.id, after_app_id)
 

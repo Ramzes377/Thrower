@@ -49,7 +49,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
                 data.append((url, begin, end))
                 body.append((user.display_name, begin, end))
             else:
-                activity = await self.request(f'/activity/{row["id"]}/info/')
+                activity = await self.request(f'/activity/{row["id"]}/info')
                 name = activity['app_name']
                 data.append((name, url, begin, end))
                 body.append((name, user.display_name, begin, end))

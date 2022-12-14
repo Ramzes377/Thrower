@@ -30,7 +30,8 @@ class ChannelsManager(DiscordFeaturesMixin):
             channel = self.bot.get_channel(session['channel_id'])
             user_in_own_channel = channel and member in channel.members
             if not user_in_own_channel:
-                await self.join_to_foreign(member, channel, None, member.voice)
+                voice_channel = member.voice.channel if member.voice else None
+                await self.join_to_foreign(member, channel, None, voice_channel)
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self):

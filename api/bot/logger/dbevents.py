@@ -10,7 +10,7 @@ class dbEvents(BaseCogMixin):
     async def _add_member(self, member: discord.Member):
         data = {'id': member.id, 'name': member.display_name, 'default_sess_name': None}
         try:
-            await self.request('user', 'post', json=data)
+            await self.request('user/', 'post', json=data)
         except Exception as e:
             pass
 
@@ -29,13 +29,13 @@ class dbEvents(BaseCogMixin):
 
         if create_channel:
             data['leader_id'] = data['creator_id']
-            await self.request('session', 'post', json=data)
+            await self.request('session/', 'post', json=data)
             data['member_id'], *_ = rm_keys(data, 'leader_id', 'creator_id', 'message_id')
-            await self.request('leadership', 'post', json=data)
+            await self.request('leadership/', 'post', json=data)
         else:  # change leader or end session
             leader_change = data.get('member_id') and data.get('end')
             if leader_change:
-                await self.request('leadership', 'post', json=data)
+                await self.request('leadership/', 'post', json=data)
                 data['leader_id'], *_ = rm_keys(data, 'member_id', 'end')
             channel_id = data.pop('channel_id')
             session = await self.request(f'session/{channel_id}')
@@ -45,7 +45,7 @@ class dbEvents(BaseCogMixin):
     async def session_prescence(self, **prescencedata):
         prescence = sqllize(prescencedata)
         method = 'put' if prescence.get('end') else 'post'  # update/create
-        await self.request('prescence', method, json=prescence)
+        await self.request('prescence/', method, json=prescence)
         if method == 'post':
             channel_id = prescencedata["channel_id"]
             member_id = prescencedata["member_id"]
@@ -60,6 +60,6 @@ class dbEvents(BaseCogMixin):
         activity = sqllize(activitydata)
         method = 'put' if activity.get('end') else 'post'  # update/create
         try:
-            await self.request(f'activity', method, json=activity)
+            await self.request(f'activity/', method, json=activity)
         except Exception as e:
             pass
