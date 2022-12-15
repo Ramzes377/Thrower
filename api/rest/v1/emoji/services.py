@@ -11,7 +11,6 @@ class SrvEmoji(BaseService):
                 .filter_by(emoji_id=emoji_id)
         )
 
-
     def get(self, emoji_id: int) -> Emoji:
         return self._get(emoji_id).first()
 

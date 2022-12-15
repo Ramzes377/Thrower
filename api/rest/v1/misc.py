@@ -1,17 +1,21 @@
 import datetime
 from typing import Hashable, Generator
 
-import aiohttp
+from httpx import AsyncClient
+
+from api.rest.run import app, base_url
 
 
-async def request(url: str, data: dict = None, method: str = 'get'):
-    # example deprecated
-    # await request('/session/', data, method='post')
-    async with aiohttp.ClientSession('base_url') as session:
-        _method = getattr(session, method)
-        async with _method(url, json=data) as resp:
-            response = await resp.json()
-    return response
+def exist(obj: dict):
+    return obj is not None and 'detail' not in obj
+
+
+async def request(url: str, method: str = 'get', json=None):
+    async with AsyncClient(app=app, base_url=base_url) as client:
+        handler = getattr(client, method)
+        response = await handler(url) if method == 'get' else await handler(url, json=json)
+    db_object = response.json()
+    return db_object if exist(db_object) else None
 
 
 def sqllize(dct):
@@ -28,5 +32,5 @@ def desqllize(obj):
     return d
 
 
-def rm_keys(dct: dict, *keys: tuple[Hashable]) -> Generator:
+def rm_keys(dct: dict, *keys: Hashable) -> Generator:
     return (dct.pop(key) for key in keys)

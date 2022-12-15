@@ -45,11 +45,11 @@ default_role_perms = discord.PermissionOverwrite(
 )
 
 
-def set_vars(bot):
-    bot.create_channel = bot.get_channel(create_channel_id)
-    bot.logger_channel = bot.get_channel(logger_id)
-    bot.request_channel = bot.get_channel(role_request_id)
-    bot.commands_channel = bot.get_channel(command_id)
+def set_vars(client):
+    client.create_channel = client.get_channel(create_channel_id)
+    client.logger_channel = client.get_channel(logger_id)
+    client.request_channel = client.get_channel(role_request_id)
+    client.commands_channel = client.get_channel(command_id)
 
     for category in categories:
-        categories[category] = bot.get_channel(categories[category])  # rewrite categories dict
+        categories[category] = client.get_channel(categories[category])  # rewrite categories dict

@@ -8,21 +8,24 @@ from api.bot.vars import set_vars, token
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-except:
+finally:
     pass
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
-bot.db = None
+bot.create_channel = None
+bot.logger_channel = None
+bot.request_channel = None
+bot.commands_channel = None
 
 
-async def clear_unregistered_messages(bot):
-    guild = bot.guilds[0]
-    exclude = [bot.logger_channel, bot.request_channel]
+async def clear_unregistered_messages(client):
+    guild = client.guilds[0]
+    exclude = [client.logger_channel, client.request_channel]
     pub_text_channels = (channel for channel in guild.channels if
                          channel.type.name == 'text' and channel not in exclude)
     for channel in pub_text_channels:
-        deleted = await channel.purge(limit=100, check=lambda msg: msg.author == bot.user)
+        deleted = await channel.purge(limit=100, check=lambda msg: msg.author == client.user)
         n = len(deleted)
         if n > 0:
             print(f'Delete {len(deleted)} messages from {channel}!')
@@ -31,7 +34,7 @@ async def clear_unregistered_messages(bot):
 @bot.event
 async def on_ready():
     set_vars(bot)
-    await load_cogs(music=False)
+    await load_cogs(music=True)
     await clear_unregistered_messages(bot)
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')

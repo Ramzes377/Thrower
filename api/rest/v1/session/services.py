@@ -81,13 +81,11 @@ class SrvSession(BaseService):
                 .join(tables.Member)
                 .join(tables.Session, tables.Member.sessions)
                 .filter(tables.Session.begin <= tables.Activity.begin,
-                        or_(tables.Session.end == None, tables.Session.end >= tables.Activity.end))
-                # activity "inside" session
+                        or_(tables.Session.end == None, tables.Session.end >= tables.Activity.end)) # activity "inside" session
                 .join(tables.Prescence, tables.Session.channel_id.label("sess_id"))  # get all session prescence
                 .filter(tables.Member.id == tables.Prescence.member_id)
                 .filter(tables.Prescence.begin <= tables.Activity.begin,
-                        or_(tables.Prescence.end == None, tables.Prescence.end >= tables.Activity.end))
-                # fetch only activity that "inside" prescence
+                        or_(tables.Prescence.end == None, tables.Prescence.end >= tables.Activity.end)) # fetch only activity that "inside" prescence
                 .order_by(tables.Activity.begin)
         )
 

@@ -17,8 +17,8 @@ def session(session_id: int, sessdata: Session, service: SrvSession = Depends())
 
 
 @router.post('/', response_model=Session)
-def session(session: Session, service: SrvSession = Depends()):
-    return service.post(session)
+def session(sessdata: Session, service: SrvSession = Depends()):
+    return service.post(sessdata)
 
 
 @router.get('/{session_id}/members', response_model=list[Member])

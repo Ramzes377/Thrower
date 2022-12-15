@@ -4,7 +4,6 @@ from fastapi import Depends, APIRouter
 
 from api.bot.vars import tzMoscow
 from .services import SrvActivities
-from .. import tables
 from ..schemas import Activity, Role, ActivityInfo, Emoji
 
 router = APIRouter(prefix='/activity', tags=['activity'])

@@ -17,10 +17,6 @@ class BaseService:
     def post(self, *args, **kwargs):
         pass
 
-    @abstractmethod
-    def put(self, *args, **kwargs):
-        pass
-
     def _db_add_obj(self, obj):
         try:
             self._session.add(obj)

@@ -2,12 +2,12 @@ import datetime
 
 import aiohttp
 import discord
-import pydantic
 from discord.ext import tasks, commands
 import re
 
 from api.bot.mixins import BaseCogMixin
 from api.bot.misc import get_pseudo_random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
+from api.rest.v1.misc import request
 
 HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
@@ -28,14 +28,14 @@ class GameRoles(BaseCogMixin):
         if user_is_playing(after):
             await self.add_gamerole(after)
 
-    async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple:
+    async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple | None:
         user_is_bot = payload.user_id == self.bot.user.id
         emoji_id = payload.emoji.id
         if user_is_bot or not emoji_id:
             return
 
-        role = await self.request(f'emoji/{emoji_id}/role')
-        if not self._object_exist(role):
+        role = await request(f'emoji/{emoji_id}/role')
+        if not role:
             return
 
         guild = self.bot.get_guild(payload.guild_id)
@@ -61,11 +61,8 @@ class GameRoles(BaseCogMixin):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        try:
-            db_role = await self.request(f'role/by_app/{app_id}')
-        except pydantic.error_wrappers.ValidationError:
-            db_role = None
-        if self._object_exist(db_role):  # role already exist
+        db_role = await request(f'role/by_app/{app_id}')
+        if db_role:  # role already exist
             role = guild.get_role(db_role['id'])  # get role
             if role and role not in user.roles:  # check user have these role
                 try:
@@ -75,13 +72,13 @@ class GameRoles(BaseCogMixin):
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)
-            await self.request(f'role/', 'post', json={'id': role.id, 'app_id': app_id})
+            await request(f'role/', 'post', json={'id': role.id, 'app_id': app_id})
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
 
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         try:
-            activity_info = await self.request(f'activity/{app_id}/info')
+            activity_info = await request(f'activity/{app_id}/info')
         except AttributeError:
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
             return
@@ -96,7 +93,7 @@ class GameRoles(BaseCogMixin):
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
-            await self.request('emoji/', 'post', json={'id': emoji.id, 'role_id': role.id})
+            await request('emoji/', 'post', json={'id': emoji.id, 'role_id': role.id})
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
                 await role.edit(display_icon=content)
@@ -121,7 +118,7 @@ class GameRoles(BaseCogMixin):
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
                 try:
                     await role.delete()
-                except:
+                finally:
                     pass
 
     # async def delete_unused_emoji(self) -> None:

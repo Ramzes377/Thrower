@@ -6,7 +6,7 @@ from api.bot.mixins import BaseCogMixin
 
 
 class LavalinkVoiceClient(discord.VoiceClient):
-    def __init__(self, client: discord.Client, channel: discord.abc.Connectable):
+    def __init__(self, client: discord.Client, channel: discord.VoiceChannel | discord.StageChannel):
         self.client = client
         self.channel = channel
 
@@ -54,12 +54,12 @@ class MusicBase(BaseCogMixin):
         if isinstance(error, commands.CommandInvokeError):
             await interaction.response.send_message(error.original, delete_after=60)
 
-    async def ensure_voice(self, ctx):
+    async def ensure_voice(self, ctx: commands.Context | type):
         """ This check ensures that the bot and command author are in the same voicechannel. """
 
         try:
             await ctx.message.delete(delay=5)
-        except:
+        finally:
             pass
 
         player = self.bot.lavalink.player_manager.create(ctx.guild.id)

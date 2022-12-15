@@ -5,10 +5,13 @@ import lavalink
 from discord import app_commands
 from discord.ext import commands
 
+
+from api.bot.music.playerview import create_dropdown, PlayerButtonsView
 from api.bot.music.base import MusicBase
-from api.bot.music.views import create_dropdown, PlayerButtonsView
 from api.bot.misc import code_block
 from api.bot.vars import guild_id
+from api.rest.v1.misc import request
+
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -39,7 +42,7 @@ class Music(MusicBase):
             try:
                 await self._msg.delete()
                 self._msg = None
-            except:
+            finally:
                 pass
 
             await guild.voice_client.disconnect(force=True)
@@ -98,7 +101,7 @@ class Music(MusicBase):
             json = {'title': track.title, 'query': track.uri,
                     'user_id': user_id, 'counter': 1}
 
-        await self.request(f'favoritemusic/', 'post', json=json)
+        await request(f'favoritemusic/', 'post', json=json)
 
         try:
             await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
@@ -114,17 +117,19 @@ class Music(MusicBase):
         ctx: commands.Context = await self.bot.get_context(interaction)
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
         if not ctx.voice_client:
-            return await ctx.send('Not connected.', delete_after=30)
+            await ctx.send('Not connected.', delete_after=30)
+            return
 
         if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
-            return await ctx.send('You\'re not in my voicechannel!', delete_after=30)
+            await ctx.send('You\'re not in my voicechannel!', delete_after=30)
+            return
 
         player.queue.clear()
 
         try:
             await self._msg.delete()
             self._msg = None
-        except:
+        finally:
             pass
 
         await player.stop()
@@ -161,7 +166,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = ((x['title'], x['query'], x['counter']) for x in await self.request(f'favoritemusic/{user.id}'))
+        favorites = ((x['title'], x['query'], x['counter']) for x in await request(f'favoritemusic/{user.id}'))
         # title, query, counter
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)

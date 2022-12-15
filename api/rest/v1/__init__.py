@@ -9,7 +9,6 @@ from api.rest.v1.role import router as role_router
 from api.rest.v1.emoji import router as emoji_router
 from api.rest.v1.music import router as music_router
 
-
 router = APIRouter(prefix='/v1')
 router.include_router(sess_router)
 router.include_router(user_router)

@@ -1,24 +1,19 @@
-import datetime
-
 import discord
 from discord import app_commands
-from discord.ext import commands, tasks
 
-from api.bot.mixins import BaseCogMixin, DiscordFeaturesMixin
-from api.bot.misc import get_app_id, user_is_playing, now
-from api.bot.vars import guild_id, tzMoscow
+from api.bot.mixins import BaseCogMixin
+from api.bot.vars import guild_id
 
 CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
 
-class Commands(DiscordFeaturesMixin):
+class Commands(BaseCogMixin):
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
     async def sync(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(await self.bot.tree.sync(guild=interaction.guild),
                                                 ephemeral=True, delete_after=30)
-
 
     @app_commands.command(description='Удаление n предшевствующих сообщений')
     @app_commands.checks.has_permissions(manage_messages=True)
@@ -28,9 +23,8 @@ class Commands(DiscordFeaturesMixin):
         async for message in interaction.channel.history(limit=n):
             try:
                 await message.delete()
-            except:
+            finally:
                 pass
-
 
     # @app_commands.command(description='Показывает зарегистрированное время в игре у соответствующей игровой роли!')
     # async def activity(self, interaction: discord.Interaction, role_mention: str):

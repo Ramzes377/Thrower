@@ -3,10 +3,9 @@ import re
 
 import discord
 from discord.ext import commands
-from httpx import AsyncClient
 
-from api.rest.base import app
 from api.bot.misc import get_category
+from api.rest.v1.misc import request
 from api.rest.v1.schemas import Session
 
 
@@ -14,39 +13,22 @@ class BaseCogMixin(commands.Cog):
 
     def __init__(self, bot, silent=False):
         super(BaseCogMixin, self).__init__()
-        base = "http://127.0.0.1:8000"
-        api_ver = "v1"
-        self._base_url = f'{base}/{api_ver}/'
         self.bot = bot
-        if not silent:
+        if not silent:  # silent mod usually use for sub-cog modules
             print(f'Cog {type(self).__name__} have been started!')
-
-    def _object_exist(self, obj: dict):
-        return obj is not None and 'detail' not in obj
-
-    async def request(self, url: str, method: str = 'get', json=None):
-        async with AsyncClient(app=app, base_url=self._base_url) as client:
-            handler = getattr(client, method)
-            if method == 'get':
-                response = await handler(url)
-                return response.json()
-            else:
-                json = json or {}
-                response = await handler(url, json=json)
-                return response
 
 
 class DiscordFeaturesMixin(BaseCogMixin):
 
     async def get_session(self, channel_id: int) -> Session | None:
-        session = await self.request(f'session/{channel_id}')
-        if self._object_exist(session):
+        session = await request(f'session/{channel_id}')
+        if session:
             return session
         return None
 
     async def get_user_channel(self, user_id: int) -> discord.VoiceChannel | None:
-        session = await self.request(f'session/by_leader/{user_id}')
-        if self._object_exist(session):
+        session = await request(f'session/by_leader/{user_id}')
+        if session:
             return self.bot.get_channel(session['channel_id'])
         return None
 
@@ -54,7 +36,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
         if user.activity and user.activity.type == discord.ActivityType.playing:
             sess_name = f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
         else:
-            member = await self.request(f'user/{user.id}')
+            member = await request(f'user/{user.id}')
             if 'detail' not in member and member.get('default_sess_name'):
                 sess_name = member['default_sess_name']
             else:

@@ -5,7 +5,7 @@ from api.bot.vars import bots_ids, another_bots_prefixes, command_id
 
 
 def message_belongs_bot(author_id: int) -> bool:
-    return any(author_id == id for id in bots_ids)
+    return any(author_id == bot_id for bot_id in bots_ids)
 
 
 def user_calling_bot(content: str) -> bool:

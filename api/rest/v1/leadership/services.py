@@ -1,5 +1,5 @@
 from api.rest.v1 import tables
-from api.rest.v1.misc import desqllize, rm_keys
+from api.rest.v1.misc import desqllize
 from api.rest.v1.schemas import Leadership
 
 from api.rest.v1.base_service import BaseService
@@ -18,7 +18,7 @@ class SrvLeadership(BaseService):
     def get_all(self, session_id: int) -> list[Leadership]:
         return self._sess_leadership(session_id).all()
 
-    def get_current(self, sess_id: int) -> Leadership:
+    def current_leader(self, sess_id: int) -> Leadership:
         return self._sess_leadership(sess_id).limit(1).first()
 
     def post(self, leadershipdata: Leadership | dict) -> tables.Leadership:
@@ -29,7 +29,7 @@ class SrvLeadership(BaseService):
             channel_id = leadershipdata['channel_id']
             data = leadershipdata
 
-        current_leader = self.get_current(channel_id)
+        current_leader = self.current_leader(channel_id)
         if current_leader:
             data = desqllize(leadershipdata)
             new_leader_id = data.pop('member_id')
@@ -44,7 +44,7 @@ class SrvLeadership(BaseService):
         self._db_add_obj(leadership)
         return leadership
 
-    def get_by_message(self, msg_id: int) -> list[Leadership]:
+    def get(self, msg_id: int) -> list[Leadership]:
         leadership = (
             self._session
                 .query(tables.Leadership)
