@@ -10,24 +10,24 @@ from api.bot.misc import fmt, dt_from_str
 
 loader = FileSystemLoader(os.getcwd() + '/api/bot/logger/templates')
 env = Environment(loader=loader)
-template = env.get_template('template.html')
 
 
 def fmt_date(s: str) -> str:
     return fmt(dt_from_str(s)) if s else '-'
 
 
-def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]]) -> io.BytesIO:
+def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]], tmplt_path: str) -> io.BytesIO:
+    template = env.get_template(tmplt_path)
     html = template.render(title=title, f_column=f_col, data=data)
     return io.BytesIO(html.encode('utf-8'))
 
 
-async def _response_handle(interaction, string, data, header, column):
+async def _response_handle(interaction, string, data, header, column, tmplt_path='leaders.prescence_template.html'):
     try:
         if len(string) <= 2000:
             await interaction.response.send_message(f"```{string}```", delete_after=30)
         else:
-            bts = html_as_bytes(title=header, f_col=column, data=data)
+            bts = html_as_bytes(title=header, f_col=column, data=data, tmplt_path=tmplt_path)
             await interaction.response.send_message(file=discord.File(bts, filename=f'{header}.html'), delete_after=30)
     except discord.errors.NotFound:
         pass
@@ -39,7 +39,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
         BaseCogMixin.__init__(self, bot, silent=True)
 
     async def format_data(self, response: list[dict], header: str, col: str, activity_flag: bool = False) -> tuple[str,
-                                                                                                                   list]:
+    list]:
         data, body = [], []
         for row in response:
             user_id, begin, end = row['member_id'], fmt_date(row['begin']), fmt_date(row['end'])
@@ -66,21 +66,21 @@ class LoggerView(discord.ui.View, BaseCogMixin):
         return f'\t\t{header}\n' + as_str, data
 
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership', )
-    async def leadership(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    async def leadership(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Лидеры сессии', 'Лидер'
         leadership = await self.request(f'session/{interaction.message.id}/leadership')
         as_str, data = await self.format_data(leadership, header, column)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
-    async def activities(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    async def activities(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Активности сессии', 'Активность'
         activities = await self.request(f'session/activities/by_msg/{interaction.message.id}')
         as_str, data = await self.format_data(activities, header, column, activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
-    async def prescence(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+    async def prescence(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Участники сессии', 'Участник'
         prescence = await self.request(f'prescence/by_msg/{interaction.message.id}')
         as_str, data = await self.format_data(prescence, header, column)
