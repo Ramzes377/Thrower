@@ -4,7 +4,7 @@ import os
 import discord
 from discord.ext import commands
 
-from api.bot.vars import set_vars, token
+from api.bot.vars import set_vars, token, guild_id
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -33,6 +33,7 @@ async def on_ready():
     set_vars(bot)
     await load_cogs(music=False)
     await clear_unregistered_messages(bot)
+    await bot.tree.sync(guild=discord.Object(id=guild_id))
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')
 

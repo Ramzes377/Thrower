@@ -11,7 +11,7 @@ class dbEvents(BaseCogMixin):
         data = {'id': member.id, 'name': member.display_name, 'default_sess_name': None}
         try:
             await self.request('user/', 'post', json=data)
-        except Exception as e:
+        finally:
             pass
 
     def __init__(self, bot):

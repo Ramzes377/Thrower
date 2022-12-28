@@ -15,10 +15,10 @@ url_rx = re.compile(r'https?://(?:www\.)?.+')
 
 @code_block
 def queue_repr(queue: list, current: str) -> str:
-    others = '\n'.join((f"{i}. {x.title}" for i, x in enumerate(queue[:9], start=2)))
-    result = f'1. {current}\n{others}'
+    others = '\n'.join((f"{i:3}. {x.title}" for i, x in enumerate(queue[:9], start=2)))
+    result = f'{1:3}. {current}\n{others}'
     remains = len(queue) - 9
-    ending = '' if remains < 0 else f'\nи еще ({remains}) трека ...'
+    ending = '' if remains < 0 else f'\nи еще ({remains}) ...'
     return f'{result}{ending}'
 
 
@@ -129,6 +129,7 @@ class Music(MusicBase):
 
         await player.stop()
         await ctx.voice_client.disconnect(force=True)
+        await interaction.response.send_message('Принудительно завершено исполнение!', ephemeral=False, delete_after=30)
 
     @app_commands.command(description='Очередь исполнения')
     async def queue(self, interaction: discord.Interaction) -> None:
@@ -199,12 +200,16 @@ class Music(MusicBase):
             return
 
         current_track = player.current.title
+        thumbnail_url = f"http://img.youtube.com/vi/{player.current.identifier}/0.jpg"
+        requester = f'<@{player.current.requester}>'
         status = ':musical_note: Играет :musical_note:' if not self._paused else ':pause_button: Пауза :pause_button:'
         if self._msg:
             # when we calling it and message already exists then we expect to change ONLY current track or playing status
             embed = self._msg.embeds[0]
             embed.set_field_at(0, name='Текущий трек', value=current_track)
             embed.set_field_at(1, name='Статус', value=status, inline=False)
+            embed.set_field_at(2, name='Поставил', value=requester, inline=False)
+            embed.set_thumbnail(url=thumbnail_url)
             try:
                 await self._msg.edit(embed=embed)
             except discord.errors.NotFound:  # message were deleted for some reason, just recreate it
@@ -215,7 +220,9 @@ class Music(MusicBase):
         embed = (discord.Embed(color=discord.Color.blurple())
                  .add_field(name='Текущий трек', value=current_track)
                  .add_field(name='Статус', value=status, inline=False)
-                 .set_footer(text='Великий бот - ' + self.bot.user.display_name, icon_url=self.bot.user.avatar))
+                 .add_field(name='Поставил', value=requester, inline=False)
+                 .set_thumbnail(url=thumbnail_url)
+                 .set_footer(text=f'Великий бот - {self.bot.user.display_name}', icon_url=self.bot.user.avatar))
         self._msg = await self._text_channel.send(embed=embed,
                                                   view=PlayerButtonsView(self._pause, self._skip,
                                                                          self._queue, self._favorite))

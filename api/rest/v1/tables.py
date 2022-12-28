@@ -17,6 +17,8 @@ class Member(Base):
     __tablename__ = 'member'
 
     id = sa.Column(sa.Integer, primary_key=True)
+    id_index = sa.Index("user_idx", "id", unique=True)
+
     name = sa.Column(sa.String(length=255))
     default_sess_name = sa.Column(sa.String(length=255), default=None)
 
@@ -31,6 +33,8 @@ class Session(Base):
     __tablename__ = 'session'
 
     channel_id = sa.Column(sa.Integer, primary_key=True)
+    channel_index = sa.Index("channel_idx", "channel_id", unique=True)
+
     creator_id = sa.Column(sa.Integer)
     leader_id = sa.Column(sa.Integer)
     message_id = sa.Column(sa.Integer)
@@ -48,6 +52,8 @@ class Prescence(Base):
 
     channel_id = sa.Column(sa.Integer, sa.ForeignKey('session.channel_id'), primary_key=True)
     member_id = sa.Column(sa.Integer, sa.ForeignKey("member.id"), primary_key=True)
+    prescence_index = sa.Index("prescence_index", "channel_id", 'member_id')
+
     begin = sa.Column(sa.DateTime, primary_key=True)
     end = sa.Column(sa.DateTime, nullable=True)
 
