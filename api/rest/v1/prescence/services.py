@@ -34,7 +34,7 @@ class SrvPrescence(BaseService):
         if member_prescence:  # trying to add member that's prescence isn't closed
             self._db_edit_obj(member_prescence, prescencedata)
             return member_prescence
-        prescence = tables.Prescence(**prescencedata.dict())
+        prescence = tables.Prescence(**prescencedata.dict())   # type: ignore
         self._db_add_obj(prescence)
         return prescence
 

@@ -8,9 +8,8 @@ class SrvEmoji(BaseService):
     def _get(self, emoji_id: int) -> Emoji:
         return (
             self._session.query(tables.Emoji)
-                .filter_by(emoji_id=emoji_id)
+            .filter_by(id=emoji_id)
         )
-
 
     def get(self, emoji_id: int) -> Emoji:
         return self._get(emoji_id).first()
@@ -23,7 +22,7 @@ class SrvEmoji(BaseService):
     def get_role(self, emoji_id: int) -> Role:
         return (
             self._get(emoji_id)
-                .join(tables.Role)
-                .filter(tables.Emoji.role_id == tables.Role.id)
-                .first()
+            .join(tables.Role)
+            .filter(tables.Emoji.role_id == tables.Role.id)
+            .first()
         )

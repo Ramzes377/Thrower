@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func
 
 from api.rest.v1 import tables
 from api.rest.v1.base_service import BaseService
@@ -22,8 +22,8 @@ class SrvSession(BaseService):
     def _unclosed(self):
         return (
             self._get_sessions()
-                .filter_by(end=None)
-                .order_by(tables.Session.begin.desc())
+            .filter_by(end=None)
+            .order_by(tables.Session.begin.desc())
         )
 
     def get_unclosed(self):
@@ -45,7 +45,7 @@ class SrvSession(BaseService):
         return session
 
     def post(self, sessdata: Session, *args, **kwargs) -> tables.Session:
-        sess = tables.Session(**sessdata.dict())
+        sess = tables.Session(**sessdata.dict())  # type: ignore
         self._db_add_obj(sess)
         return sess
 
@@ -76,19 +76,23 @@ class SrvSession(BaseService):
         return session.leadership
 
     def _activities(self):
+        # prescence during begin or end of activity
         return (
             self._session.query(tables.Activity)
-                .join(tables.Member)
-                .join(tables.Session, tables.Member.sessions)
-                .filter(tables.Session.begin <= tables.Activity.begin,
-                        or_(tables.Session.end == None, tables.Session.end >= tables.Activity.end))
-                # activity "inside" session
-                .join(tables.Prescence, tables.Session.channel_id.label("sess_id"))  # get all session prescence
-                .filter(tables.Member.id == tables.Prescence.member_id)
-                .filter(tables.Prescence.begin <= tables.Activity.begin,
-                        or_(tables.Prescence.end == None, tables.Prescence.end >= tables.Activity.end))
-                # fetch only activity that "inside" prescence
-                .order_by(tables.Activity.begin)
+            .join(tables.Member)
+            .join(tables.Session, tables.Member.sessions)
+            .join(tables.Prescence,
+                  and_(tables.Prescence.member_id == tables.Member.id,
+                       tables.Prescence.channel_id == tables.Session.channel_id,
+                       or_(tables.Activity.begin.between(tables.Prescence.begin,
+                                                         func.coalesce(tables.Prescence.end, func.date('now',
+                                                                                                       'start of month',
+                                                                                                       '+1 month'))),
+                           tables.Activity.end.between(tables.Prescence.begin,
+                                                       func.coalesce(tables.Prescence.end, func.date('now',
+                                                                                                     'start of month',
+                                                                                                     '+1 month'))))))
+            .order_by(tables.Activity.begin)
         )
 
     def get_activities(self, channel_id: int) -> list[Activity]:

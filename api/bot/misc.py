@@ -75,5 +75,4 @@ def code_block(func):
         wrap = '```'
         result = func(*args, **kwargs)
         return f'{wrap}{result}{wrap}'
-
     return wrapper

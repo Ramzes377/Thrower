@@ -1,7 +1,7 @@
 from fastapi import Depends, APIRouter
 
 from .services import SrvRole
-from ..schemas import Role, Emoji
+from ..schemas import Role, Emoji, ActivityInfo
 
 router = APIRouter(prefix='/role', tags=['role'])
 
@@ -16,6 +16,11 @@ def role(role_id: int, service: SrvRole = Depends()):
     return service.get_emoji(role_id)
 
 
+@router.get('/{role_id}/info/', response_model=ActivityInfo)
+def role(role_id: int, service: SrvRole = Depends()):
+    return service.get_info(role_id)
+
+
 @router.post('/', response_model=Role)
 def role(roledata: Role, service: SrvRole = Depends()):
     return service.post(roledata)
@@ -24,3 +29,9 @@ def role(roledata: Role, service: SrvRole = Depends()):
 @router.get('/by_app/{app_id}', response_model=Role)
 def role(app_id: int, service: SrvRole = Depends()):
     return service.get_by_app(app_id)
+
+
+@router.delete('/{role_id}')
+def role(role_id: int, service: SrvRole = Depends()):
+    return service.delete(role_id)
+

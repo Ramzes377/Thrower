@@ -30,6 +30,9 @@ class BaseCogMixin(commands.Cog):
             if method == 'get':
                 response = await handler(url)
                 return response.json()
+            elif method == 'delete':
+                response = await client.request('delete', url)
+                return response.json()
             else:
                 json = json or {}
                 response = await handler(url, json=json)

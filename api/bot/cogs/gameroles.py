@@ -2,7 +2,6 @@ import datetime
 
 import aiohttp
 import discord
-import pydantic
 from discord.ext import tasks, commands
 import re
 
@@ -61,13 +60,10 @@ class GameRoles(BaseCogMixin):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        try:
-            db_role = await self.request(f'role/by_app/{app_id}')
-        except pydantic.error_wrappers.ValidationError:
-            db_role = None
+        db_role = await self.request(f'role/by_app/{app_id}')
         if self._object_exist(db_role):  # role already exist
             role = guild.get_role(db_role['id'])  # get role
-            if role and role not in user.roles:  # check user have these role
+            if role and role not in user.roles:  # check user have this role
                 try:
                     await user.add_roles(role)
                 except discord.errors.Forbidden:
@@ -81,7 +77,7 @@ class GameRoles(BaseCogMixin):
 
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         try:
-            activity_info = await self.request(f'activity/{app_id}/info')
+            activity_info = await self.request(f'activityinfo/{app_id}')
         except AttributeError:
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
             return
@@ -104,8 +100,8 @@ class GameRoles(BaseCogMixin):
                 pass
             finally:
                 await role.edit(color=discord.Colour(1).from_rgb(*dominant_color))
-            return
-        await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
+        else:
+            await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
 
     async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
         emoji = self.bot.get_emoji(emoji_id)
@@ -113,7 +109,7 @@ class GameRoles(BaseCogMixin):
         await msg.add_reaction(emoji)
 
     async def delete_unused_roles(self) -> None:
-        """Delete role if it cant reach greater than 1 members for 60 days from creation moment"""
+        """Delete role if it cant reach greater than 1 member for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
         roles = guild.roles
         cur_time = datetime.datetime.now(tz=tzMoscow)
@@ -121,6 +117,7 @@ class GameRoles(BaseCogMixin):
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
                 try:
                     await role.delete()
+                    await self.request(f'role/{role.id}', 'delete')
                 except:
                     pass
 

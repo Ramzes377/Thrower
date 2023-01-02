@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from sqlalchemy.exc import PendingRollbackError
 
 from api.rest.v1.misc import sqllize, rm_keys
 from api.bot.mixins import BaseCogMixin
@@ -51,7 +50,7 @@ class dbEvents(BaseCogMixin):
             member_id = prescencedata["member_id"]
             try:
                 await self.request(f'session/{channel_id}/members/{member_id}', 'post')
-            except PendingRollbackError:
+            except:
                 pass
 
     async def member_activity(self, channel_id: int, app_id: int, **activitydata):
@@ -61,5 +60,5 @@ class dbEvents(BaseCogMixin):
         method = 'put' if activity.get('end') else 'post'  # update/create
         try:
             await self.request(f'activity/', method, json=activity)
-        except Exception as e:
+        except:
             pass

@@ -4,7 +4,7 @@ from fastapi import Depends, APIRouter
 
 from api.bot.vars import tzMoscow
 from .services import SrvActivities
-from ..schemas import Activity, Role, ActivityInfo, Emoji, IngameSeconds
+from ..schemas import Activity, Role, ActivityInfo, Emoji
 
 router = APIRouter(prefix='/activity', tags=['activity'])
 
@@ -45,21 +45,3 @@ def activies(begin: datetime = datetime.fromordinal(1), end: datetime = None, se
     return service.get_all(begin, end)
 
 
-@router.get('/user/{user_id}', response_model=list[Activity])
-def user_app_sessions(user_id: int, service: SrvActivities = Depends()):
-    return service.user_app_sessions(user_id)
-
-
-@router.get('/user/{user_id}/{app_id}', response_model=list[Activity])
-def user_concrete_app_sessions(user_id: int, app_id: int, service: SrvActivities = Depends()):
-    return service.user_concrete_app_sessions(user_id, app_id)
-
-
-@router.get('/user/{user_id}/ingame/', response_model=list[IngameSeconds]) #
-def user_all_game_time(user_id: int, service: SrvActivities = Depends()):
-    return service.user_ingame_seconds(user_id)
-
-
-@router.get('/user/{user_id}/ingame/{role_id}', response_model=IngameSeconds | None) #
-def user_concrete_game_time(user_id: int, role_id: int, service: SrvActivities = Depends()):
-    return service.user_concrete_game_seconds(user_id, role_id)

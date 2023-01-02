@@ -8,15 +8,17 @@ from api.bot.vars import set_vars, token, guild_id
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-except:
+finally:
     pass
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
 bot.db = None
+bot.request_channel = None
+bot.logger_channel = None
 
 
-async def clear_unregistered_messages(bot):
+async def clear_unregistered_messages():
     guild = bot.guilds[0]
     exclude = [bot.logger_channel, bot.request_channel]
     pub_text_channels = (channel for channel in guild.channels if
@@ -32,7 +34,7 @@ async def clear_unregistered_messages(bot):
 async def on_ready():
     set_vars(bot)
     await load_cogs(music=False)
-    await clear_unregistered_messages(bot)
+    await clear_unregistered_messages()
     await bot.tree.sync(guild=discord.Object(id=guild_id))
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')

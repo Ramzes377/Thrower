@@ -1,8 +1,8 @@
 from pydantic import BaseModel
 from pydantic_sqlalchemy import sqlalchemy_to_pydantic
 
-from api.rest.v1.tables import Member, Session, Activity, Prescence, Leadership, Role, Emoji, ActivityInfo, FavoriteMusic
-
+from api.rest.v1.tables import Member, Session, Activity, Prescence, Leadership, Role, Emoji, ActivityInfo, \
+    FavoriteMusic
 
 Role = sqlalchemy_to_pydantic(Role)
 Emoji = sqlalchemy_to_pydantic(Emoji)
@@ -18,3 +18,7 @@ FavoriteMusic = sqlalchemy_to_pydantic(FavoriteMusic)
 class IngameSeconds(BaseModel):
     app_id: int
     seconds: int
+
+
+class DurationActivity(Activity):
+    duration: int

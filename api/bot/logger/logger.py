@@ -1,8 +1,6 @@
 import discord
 from hashlib import blake2b
 
-from sqlalchemy.exc import PendingRollbackError
-
 from api.bot.logger.dbevents import dbEvents
 from api.bot.logger.views import LoggerView
 from api.bot.mixins import DiscordFeaturesMixin
@@ -29,10 +27,10 @@ class Logger(DiscordFeaturesMixin):
 
         embed = (
             discord.Embed(title=f"Начата сессия {name}", color=discord.Color.green())
-                .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
-                .add_field(name='Текущий лидер', value=creator.mention)
-                .add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
-                .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
+            .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
+            .add_field(name='Текущий лидер', value=creator.mention)
+            .add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
+            .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
         )
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
@@ -65,12 +63,12 @@ class Logger(DiscordFeaturesMixin):
 
         embed = (
             discord.Embed(title=f"Сессия {sess_name} окончена!", color=discord.Color.red())
-                .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
-                .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
-                .add_field(name='├ Продолжительность', value=duration_field, inline=False)
-                .add_field(name='├ Участники', value=members_field, inline=False)
-                .set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
-                .set_thumbnail(url=msg.embeds[0].thumbnail.url)
+            .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
+            .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
+            .add_field(name='├ Продолжительность', value=duration_field, inline=False)
+            .add_field(name='├ Участники', value=members_field, inline=False)
+            .set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
+            .set_thumbnail(url=msg.embeds[0].thumbnail.url)
         )
 
         await msg.edit(embed=embed)
@@ -89,7 +87,7 @@ class Logger(DiscordFeaturesMixin):
             embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
             await msg.edit(embed=embed)
             await self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
-        except (discord.errors.NotFound, TypeError):
+        finally:
             pass
 
     async def update_embed_members(self, session_id: int):
@@ -102,7 +100,7 @@ class Logger(DiscordFeaturesMixin):
                                value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
                                inline=False)
             await message.edit(embed=embed)
-        except Exception as e:
+        finally:
             pass
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
@@ -147,9 +145,8 @@ class Logger(DiscordFeaturesMixin):
         try:
             await self.request(f'session/{channel_id}/members/{user_id}', 'post')
             await self.update_embed_members(channel_id)  # add new member to logging message
-        except PendingRollbackError:
-            pass
-        await self.events.session_prescence(channel_id=channel_id, member_id=user_id, begin=now())
+        finally:
+            await self.events.session_prescence(channel_id=channel_id, member_id=user_id, begin=now())
 
     async def log_member_abandon(self, user_id: int, channel_id: int):
         await self.events.session_prescence(member_id=user_id, channel_id=channel_id, end=now())
