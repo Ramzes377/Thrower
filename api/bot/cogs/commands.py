@@ -49,7 +49,7 @@ class Commands(DiscordFeaturesMixin):
 
         embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
 
-        data = await self.request(f'/activity/user/{interaction.user.id}/ingame/{role.id}')
+        data = await self.request(f'user/{interaction.user.id}/activities/duration/{role.id}')
         if self._object_exist(data):
             ingame_time = datetime.timedelta(seconds=data['seconds'])
             embed.add_field(name='В игре вы провели', value=f"{str(ingame_time).split('.')[0]}", inline=False)
