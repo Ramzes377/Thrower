@@ -2,11 +2,10 @@ import datetime
 
 import discord
 from discord import app_commands
-from discord.ext import commands, tasks
 
-from api.bot.mixins import BaseCogMixin, DiscordFeaturesMixin
-from api.bot.misc import get_app_id, user_is_playing, now
-from api.bot.vars import guild_id, tzMoscow
+from api.bot.mixins import DiscordFeaturesMixin
+from api.bot.vars import guild_id
+
 
 CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
@@ -16,7 +15,6 @@ class Commands(DiscordFeaturesMixin):
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
     async def sync(self, interaction: discord.Interaction) -> None:
-        print('here')
         await interaction.response.send_message(await self.bot.tree.sync(guild=interaction.guild),
                                                 ephemeral=True, delete_after=30)
 
