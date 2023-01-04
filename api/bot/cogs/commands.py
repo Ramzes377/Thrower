@@ -33,11 +33,6 @@ class Commands(DiscordFeaturesMixin):
 
     @app_commands.command(description='Показывает зарегистрированное время в игре у соответствующей игровой роли!')
     async def played(self, interaction: discord.Interaction, role_mention: str):
-        """
-         Дает пользователю зарегистрированное время в игре у соответствующей игре роли! Введите /activity @роль
-         Если вам необходимо отображение количества проведённого времени в игре,
-         то для этого необходимо чтобы было включено отображение игровой активности в настройках Discord.
-        """
         guild = self.bot.guilds[0]
         try:
             role_id = int(role_mention[3:-1])
@@ -47,12 +42,12 @@ class Commands(DiscordFeaturesMixin):
                                                     delete_after=30)
             return
 
-        embed = discord.Embed(title=f"Обработан ваш запрос по игре {role.name}", color=role.color)
+        embed = discord.Embed(title=f"Запрос по игре {role.name}", color=role.color)
 
         data = await self.request(f'user/{interaction.user.id}/activities/duration/{role.id}')
         if self._object_exist(data):
             ingame_time = datetime.timedelta(seconds=data['seconds'])
-            embed.add_field(name='В игре вы провели', value=f"{str(ingame_time).split('.')[0]}", inline=False)
+            embed.add_field(name='Зарегистрировано в игре ', value=f"{str(ingame_time).split('.')[0]}", inline=False)
         else:
             embed.add_field(name='Вы не играли в эту игру или Discord не смог это обнаружить',
                             value='Если вам нужна эта функция,'
