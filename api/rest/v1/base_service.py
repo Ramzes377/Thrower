@@ -1,6 +1,5 @@
 from abc import abstractmethod
 
-import sqlalchemy.exc
 from fastapi import Depends
 from api.rest.database import Session, get_session
 
@@ -25,8 +24,8 @@ class BaseService:
         try:
             self._session.add(obj)
             self._session.commit()
-        except sqlalchemy.exc.IntegrityError:   # object already exist
-            pass
+        except:
+            self._session.rollback()
 
     def _db_edit_obj(self, obj, data):
         if not obj:
