@@ -17,7 +17,7 @@ Now these functionality stays in channels_manager.py module as one of others COG
 
 Spin up the containers:
 
-set enviroment variables into env file in root directory
+set enviroment variables into .env file in root directory
 
 ```sh
 $ docker-compose up -d --build
