@@ -6,7 +6,8 @@ from discord.ext import tasks
 from api.bot.logger.logger import Logger
 from api.bot.misc import get_category
 from api.bot.mixins import commands, DiscordFeaturesMixin
-from api.bot.vars import default_role_perms, leader_role_perms, bots_ids
+from settings import bots_ids
+from bot import default_role_perms, leader_role_perms
 
 CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
 
@@ -38,7 +39,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         members = self.bot.create_channel.members
         if members:
             user = members[0]
-            channel = await self.create_channel(user)
+            channel = await self.make_channel(user)
             for member in members:
                 try:
                     await member.move_to(channel)
@@ -64,6 +65,8 @@ class ChannelsManager(DiscordFeaturesMixin):
         if need_save and before.name != after.name:
             session = await self.request(f'session/{after.id}')
             await self.request(f'user/{session["leader_id"]}', 'put', json={'default_sess_name': after.name})
+            await self.request(f'session/{after.id}', 'put', json={'name': after.name})
+            await self.logger.update_sess_name(session['message_id'], after.name)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
@@ -87,15 +90,16 @@ class ChannelsManager(DiscordFeaturesMixin):
             await user.move_to(user_channel)
             return
 
-        user_channel = await self.create_channel(user)
+        user_channel = await self.make_channel(user)
         await user.move_to(user_channel)  # send user to his channel
         await self.logger.session_begin(user.id, user_channel)  # send session message
 
-    async def create_channel(self, user: discord.Member) -> discord.VoiceChannel:
+    async def make_channel(self, user: discord.Member) -> tuple[discord.VoiceChannel, str]:
         channel_name = await self.get_user_sess_name(user)
-        category = get_category(user)
-        permissions = {user.guild.default_role: default_role_perms, user: leader_role_perms}
-        channel = await user.guild.create_voice_channel(channel_name, category=category, overwrites=permissions)
+        permissions = {user: leader_role_perms, user.guild.default_role: default_role_perms}
+        channel = await user.guild.create_voice_channel(channel_name,
+                                                        category=get_category(user),
+                                                        overwrites=permissions)
         return channel
 
     async def join_to_foreign(self, user: discord.Member,

@@ -14,7 +14,7 @@ services:
   main_app:
     build: .
     container_name: discord_bot
-    command: python bot.py
+    command: python startup.py
     volumes:
       - .:/usr/src/app
     depends_on:

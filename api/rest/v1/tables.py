@@ -26,7 +26,7 @@ class Member(Base):
                             backref=backref('members', lazy='dynamic'),
                             lazy='dynamic')
     activities = relationship("Activity", lazy='dynamic')
-    prescences = relationship("Prescence", back_populates="member")
+    prescences = relationship("Prescence")
 
 
 class Session(Base, BaseTimePeriod):
@@ -49,7 +49,6 @@ class Leadership(Base, LeadershipLike):
 
 class Prescence(Base, LeadershipLike):
     __tablename__ = 'prescence'
-    member = relationship("Member", back_populates="prescences")
 
 
 class ActivityInfo(Base):

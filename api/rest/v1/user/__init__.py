@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import Depends, APIRouter
 
-from api.bot.vars import tzMoscow
+from settings import tzMoscow
 from ..schemas import Member, Session, IngameSeconds, DurationActivity
 from .services import SrvUser
 
@@ -26,7 +26,7 @@ def user(user_id: int, userdata: Member | dict, service: SrvUser = Depends()):
 
 @router.get('/all/', response_model=list[Member])
 def users(service: SrvUser = Depends()):
-    return service.get_all()
+    return service.all()
 
 
 @router.get('/{user_id}/sessions', response_model=list[Session])

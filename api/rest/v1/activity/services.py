@@ -24,7 +24,7 @@ class SrvActivities(BaseService):
 
     def post(self, activitydata: Activity) -> tables.Activity:
         activity = tables.Activity(**activitydata.dict())   # type: ignore
-        self._db_add_obj(activity)
+        self.add_object(activity)
         return activity
 
     def put(self, activityedit: Activity | dict) -> Activity:
@@ -36,7 +36,7 @@ class SrvActivities(BaseService):
             .order_by(tables.Activity.begin.desc())
             .first()
         )
-        self._db_edit_obj(activity, activityedit)
+        self.edit_object(activity, activityedit)
         return activity
 
     def get_info(self, app_id: int) -> ActivityInfo:

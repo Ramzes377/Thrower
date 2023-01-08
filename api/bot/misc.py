@@ -2,16 +2,18 @@ import datetime
 from io import BytesIO
 from hashlib import sha3_224
 from random import randint
+from hashlib import blake2b
 
 import discord
-
 from PIL import Image
 
-from api.bot.vars import categories, tzMoscow
+from settings import tzMoscow
+from bot import categories
 
 
 def get_category(user: discord.Member) -> discord.CategoryChannel:
-    return categories[user.activity.type] if user.activity else categories[0]
+    activity_type = user.activity.type if user.activity else None
+    return categories.get(activity_type, categories[None])
 
 
 def get_voice_channel(user: discord.Member):
@@ -20,6 +22,10 @@ def get_voice_channel(user: discord.Member):
 
 def user_is_playing(user: discord.Member) -> bool:
     return user.activity and user.activity.type == discord.ActivityType.playing
+
+
+def name_sess(sess_id: int):
+    return f'#{blake2b(str(sess_id).encode(), digest_size=4).hexdigest()}'
 
 
 def get_app_id(user: discord.Member) -> tuple[int, bool]:
@@ -34,7 +40,7 @@ def get_app_id(user: discord.Member) -> tuple[int, bool]:
 
 
 def fmt(dt: datetime.datetime) -> str:
-    return dt.strftime('%H:%M %d/%m')
+    return dt.strftime('%H:%M %d.%m.%y')
 
 
 def dt_from_str(s: str) -> datetime.datetime:

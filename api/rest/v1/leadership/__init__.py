@@ -8,7 +8,7 @@ router = APIRouter(prefix='/leadership', tags=['leadership'])
 
 @router.get('/{session_id}', response_model=list[Leadership])
 def leadership(session_id: int, service: SrvLeadership = Depends()):
-    return service.get_all(session_id)
+    return service.get(session_id)
 
 
 @router.post('/', response_model=Leadership)
@@ -18,9 +18,9 @@ def leadership(leadershipdata: Leadership | dict, service: SrvLeadership = Depen
 
 @router.get('/{session_id}/leader/', response_model=Leadership)
 def current_leader(session_id: int, service: SrvLeadership = Depends()):
-    return service.get_current(session_id)
+    return service.current(session_id)
 
 
-@router.get('/by_msg/{msg_id}', response_model=list[Leadership])
-def leadership(msg_id: int, service: SrvLeadership = Depends()):
-    return service.get_by_message(msg_id)
+@router.get('/by_msg/{message_id}', response_model=list[Leadership])
+def leadership(message_id: int, service: SrvLeadership = Depends()):
+    return service.get(message_id=message_id)

@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from api.bot.vars import database_URL
+from settings import database_URL
 
 db_url = database_URL
 

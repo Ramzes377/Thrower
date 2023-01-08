@@ -21,7 +21,7 @@ class BaseCogMixin(commands.Cog):
         if not silent:
             print(f'Cog {type(self).__name__} have been started!')
 
-    def _object_exist(self, obj: dict):
+    def exist(self, obj: dict):
         return obj is not None and 'detail' not in obj
 
     async def request(self, url: str, method: str = 'get', json=None):
@@ -43,25 +43,26 @@ class DiscordFeaturesMixin(BaseCogMixin):
 
     async def get_session(self, channel_id: int) -> Session | None:
         session = await self.request(f'session/{channel_id}')
-        if self._object_exist(session):
+        if self.exist(session):
             return session
         return None
 
     async def get_user_channel(self, user_id: int) -> discord.VoiceChannel | None:
-        session = await self.request(f'session/by_leader/{user_id}')
-        if self._object_exist(session):
+        session = await self.request(f'session/unclosed/{user_id}')
+        if self.exist(session):
             return self.bot.get_channel(session['channel_id'])
         return None
 
     async def get_user_sess_name(self, user: discord.member.Member) -> str:
-        if user.activity and user.activity.type == discord.ActivityType.playing:
+        if user.activity and user.activity.type is discord.ActivityType.playing:
             sess_name = f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
         else:
             member = await self.request(f'user/{user.id}')
-            if 'detail' not in member and member.get('default_sess_name'):
+            if self.exist(member) and member.get('default_sess_name'):
                 sess_name = member['default_sess_name']
             else:
-                sess_name = f"{user.display_name}'s channel"
+                session = await self.request(f'session/unclosed/{user.id}')
+                sess_name = session['name'] if self.exist(session) else f"Сессия {user.display_name}'а"
         return sess_name
 
     async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,

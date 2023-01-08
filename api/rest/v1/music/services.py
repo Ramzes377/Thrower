@@ -25,9 +25,9 @@ class SrvFavoriteMusic(BaseService):
     def post(self, data: FavoriteMusic) -> tables.FavoriteMusic:
         record = self._get_record(data.user_id, data.query)
         if record:
-            self._db_edit_obj(record, {'counter': record.counter + 1})
+            self.edit_object(record, {'counter': record.counter + 1})
             return record
 
         favorite_music = tables.FavoriteMusic(**data.dict())
-        self._db_add_obj(favorite_music)
+        self.add_object(favorite_music)
         return favorite_music

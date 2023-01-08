@@ -1,5 +1,4 @@
 import discord
-from hashlib import blake2b
 
 from api.bot.logger.dbevents import dbEvents
 from api.bot.logger.views import LoggerView
@@ -23,10 +22,10 @@ class Logger(DiscordFeaturesMixin):
     async def session_begin(self, creator_id: int, channel: discord.VoiceChannel):
         begin = now()
         creator = channel.guild.get_member(creator_id)
-        name = f'#{blake2b(str(channel.id).encode(), digest_size=4).hexdigest()}'
+        name = channel.name
 
         embed = (
-            discord.Embed(title=f"Начата сессия {name}", color=discord.Color.green())
+            discord.Embed(title=f"Активен сеанс: {name}", color=discord.Color.green())
             .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
             .add_field(name='Текущий лидер', value=creator.mention)
             .add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
@@ -45,7 +44,10 @@ class Logger(DiscordFeaturesMixin):
             return
 
         sess_name, msg_id = session['name'], session['message_id']
-        msg = await self.bot.logger_channel.fetch_message(msg_id)
+        try:
+            msg = await self.bot.logger_channel.fetch_message(msg_id)
+        except:
+            return
 
         begin = msg.created_at.astimezone(tzMoscow)
         end = now()
@@ -62,7 +64,7 @@ class Logger(DiscordFeaturesMixin):
         )
 
         embed = (
-            discord.Embed(title=f"Сессия {sess_name} окончена!", color=discord.Color.red())
+            discord.Embed(title=f"Сеанс {sess_name} окончен!", color=discord.Color.red())
             .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
             .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
             .add_field(name='├ Продолжительность', value=duration_field, inline=False)
@@ -76,10 +78,17 @@ class Logger(DiscordFeaturesMixin):
         await self.request('leadership/', 'post', json=json)
         await self.events.session_update(channel_id=channel_id, end=now())
 
+    async def update_sess_name(self, msg_id: int, name: str):
+        msg = await self.bot.logger_channel.fetch_message(msg_id)
+        dct = msg.embeds[0].to_dict()
+        dct['title'] = f"Активен сеанс: {name}"
+        embed = discord.Embed.from_dict(dct)
+        await msg.edit(embed=embed)
+
     async def update_leader(self, channel_id: int, leader_id: int):
         try:
             session = await self.get_session(channel_id)
-            if not self._object_exist(session):
+            if not self.exist(session):
                 return
 
             msg = await self.bot.logger_channel.fetch_message(session['message_id'])
@@ -92,7 +101,7 @@ class Logger(DiscordFeaturesMixin):
 
     async def update_embed_members(self, session_id: int):
         try:
-            members: list[dict] = await self.request(f'session/{session_id}/members')
+            members = await self.request(f'session/{session_id}/members')
             session = await self.get_session(session_id)
             message = await self.bot.logger_channel.fetch_message(session['message_id'])
             embed = message.embeds[0]
@@ -106,7 +115,7 @@ class Logger(DiscordFeaturesMixin):
     async def update_activity_icon(self, channel_id: int, app_id: int):
         session = await self.get_session(channel_id)
         app_info = await self.request(f'activity/{app_id}/info')
-        if self._object_exist(session) and self._object_exist(app_info):
+        if self.exist(session) and self.exist(app_info):
             message_id, thumbnail_url = session['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
@@ -114,7 +123,7 @@ class Logger(DiscordFeaturesMixin):
             await msg.edit(embed=embed)
 
             emoji = await self.request(f'activity/{app_id}/emoji')
-            if self._object_exist(emoji):
+            if self.exist(emoji):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
     async def log_activity(self, before: discord.Member, after: discord.Member):

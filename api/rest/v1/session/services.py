@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy import or_, and_, func
 
@@ -7,60 +9,59 @@ from api.rest.v1.schemas import Member, Session, Activity, Prescence, Leadership
 
 
 class SrvSession(BaseService):
-    def _get(self, channel_id: int) -> Session:
-        session = self._session.query(tables.Session).filter_by(channel_id=channel_id).first()
+
+    def get(self, channel_id: int = None, leader_id: int = None, message_id: int = None) -> Session:
+        session = None
+
+        if channel_id is not None:
+            session = self._session.query(tables.Session).filter_by(channel_id=channel_id).first()
+        elif message_id is not None:
+            session = self._session.query(tables.Session).filter_by(message_id=message_id).first()
+        elif leader_id is not None:
+            session = self._unclosed().filter_by(leader_id=leader_id).first()
+
         if not session:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        return session
 
-    def _get_sessions(self):
-        return self._session.query(tables.Session)
-
-    def get_all(self) -> list[Session]:
-        return self._get_sessions().all()
-
-    def _unclosed(self):
-        return (
-            self._get_sessions()
-            .filter_by(end=None)
-            .order_by(tables.Session.begin.desc())
-        )
-
-    def get_unclosed(self):
-        return self._unclosed().all()
-
-    def get(self, channel_id: int) -> Session:
-        return self._get(channel_id)
-
-    def get_by_msgid(self, message_id: int) -> Session:
-        session = self._session.query(tables.Session).filter_by(message_id=message_id).first()
-        if not session:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        return session
-
-    def get_by_leader(self, leader_id: int) -> Session:
-        session = self._unclosed().filter_by(leader_id=leader_id).first()
-        if not session:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
         return session
 
     def post(self, sessdata: Session, *args, **kwargs) -> tables.Session:
         sess = tables.Session(**sessdata.dict())  # type: ignore
-        self._db_add_obj(sess)
+        self.add_object(sess)
         return sess
 
     def put(self, channel_id: int, sessdata: Session) -> Session:
-        session = self._get(channel_id)
-        self._db_edit_obj(session, sessdata)
+        session = self.get(channel_id=channel_id)
+        self.edit_object(session, sessdata)
         return session
 
-    def get_prescence(self, channel_id: int) -> list[Prescence]:
+    def all(self, begin: datetime, end: datetime) -> list[Session]:
+        return (
+            self._session.query(tables.Session)
+            .filter(tables.Session.begin.between(begin, end))
+            .all()
+        )
+
+    def unclosed(self):
+        return self._unclosed().all()
+
+    def prescence(self, channel_id: int) -> list[Prescence]:
         session = self.get(channel_id)
         return session.prescence
 
-    def get_members(self, channel_id: int) -> list[Member]:
+    def members(self, channel_id: int) -> list[Member]:
         session = self.get(channel_id)
         return session.members.all()
+
+    def leadership(self, message_id: int) -> list[Leadership]:
+        session = self.get(message_id=message_id)
+        return session.leadership
+
+    def activities(self, channel_id: int) -> list[Activity]:
+        return self._activities().filter_by(channel_id=channel_id).all()
+
+    def activities_by_msg(self, message_id: int) -> list[Activity]:
+        return self._activities().filter(tables.Session.message_id == message_id).all()
 
     def add_member(self, channel_id: int, user_id: int) -> tables.Member:
         user = self._session.query(tables.Member).filter_by(id=user_id).first()
@@ -68,12 +69,15 @@ class SrvSession(BaseService):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
         session = self.get(channel_id)
         session.members.append(user)
-        self._db_add_obj(session)
+        self.add_object(session)
         return user
 
-    def get_leadership(self, message_id: int) -> list[Leadership]:
-        session = self.get_by_msgid(message_id)
-        return session.leadership
+    def _unclosed(self):
+        return (
+            self._session.query(tables.Session)
+            .filter_by(end=None)
+            .order_by(tables.Session.begin.desc())
+        )
 
     def _activities(self):
         # prescence during begin or end of activity
@@ -94,9 +98,3 @@ class SrvSession(BaseService):
                                                                                                      '+1 month'))))))
             .order_by(tables.Activity.begin)
         )
-
-    def get_activities(self, channel_id: int) -> list[Activity]:
-        return self._activities().filter_by(channel_id=channel_id).all()
-
-    def get_activities_by_msg(self, msg_id: int) -> list[Activity]:
-        return self._activities().filter(tables.Session.message_id == msg_id).all()

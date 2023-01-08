@@ -5,7 +5,7 @@ from api.rest.v1.base_service import BaseService
 
 
 class SrvEmoji(BaseService):
-    def _get(self, emoji_id: int) -> Emoji:
+    def _get(self, emoji_id: int):
         return (
             self._session.query(tables.Emoji)
             .filter_by(id=emoji_id)
@@ -16,7 +16,7 @@ class SrvEmoji(BaseService):
 
     def post(self, emojidata: Emoji) -> tables.Emoji:
         emoji = tables.Emoji(**emojidata.dict())
-        self._db_add_obj(emoji)
+        self.add_object(emoji)
         return emoji
 
     def get_role(self, emoji_id: int) -> Role:

@@ -17,10 +17,10 @@ def prescence(prescencedata: Prescence, service: SrvPrescence = Depends()):
 
 
 @router.put('/', response_model=Prescence | None)
-def prescence(prescencedata: Prescence | dict, service: SrvPrescence = Depends()):
+def prescence(prescencedata: dict, service: SrvPrescence = Depends()):
     return service.put(prescencedata)
 
 
 @router.get('/by_msg/{message_id}', response_model=list[Prescence])
 def prescence(message_id: int, service: SrvPrescence = Depends()):
-    return service.get_by_msg(message_id)
+    return service.get(message_id=message_id)

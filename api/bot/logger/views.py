@@ -75,7 +75,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
     async def activities(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Активности сессии', 'Активность'
-        activities = await self.request(f'session/activities/by_msg/{interaction.message.id}')
+        activities = await self.request(f'session/by_msg/{interaction.message.id}/activities')
         as_str, data = await self.format_data(activities, header, column, activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column)
 

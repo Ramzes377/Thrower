@@ -1,9 +1,9 @@
 import datetime
+import re
 
 import aiohttp
 import discord
 from discord.ext import tasks, commands
-import re
 
 from api.bot.mixins import BaseCogMixin
 from api.bot.misc import get_pseudo_random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
@@ -34,7 +34,7 @@ class GameRoles(BaseCogMixin):
             return
 
         role = await self.request(f'emoji/{emoji_id}/role')
-        if not self._object_exist(role):
+        if not self.exist(role):
             return
 
         guild = self.bot.get_guild(payload.guild_id)
@@ -61,7 +61,7 @@ class GameRoles(BaseCogMixin):
         role_name = user.activity.name
         guild = user.guild
         db_role = await self.request(f'role/by_app/{app_id}')
-        if self._object_exist(db_role):  # role already exist
+        if self.exist(db_role):  # role already exist
             role = guild.get_role(db_role['id'])  # get role
             if role and role not in user.roles:  # check user have this role
                 try:

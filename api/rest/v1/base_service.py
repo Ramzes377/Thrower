@@ -1,5 +1,3 @@
-from abc import abstractmethod
-
 from fastapi import Depends
 from api.rest.database import Session, get_session
 
@@ -8,26 +6,23 @@ class BaseService:
     def __init__(self, session: Session = Depends(get_session)):
         self._session = session
 
-    @abstractmethod
     def get(self, *args, **kwargs):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def post(self, *args, **kwargs):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def put(self, *args, **kwargs):
-        pass
+        raise NotImplementedError
 
-    def _db_add_obj(self, obj):
+    def add_object(self, obj):
         try:
             self._session.add(obj)
             self._session.commit()
         except:
             self._session.rollback()
 
-    def _db_edit_obj(self, obj, data):
+    def edit_object(self, obj, data):
         if not obj:
             return
         iterable = data.items() if isinstance(data, dict) else data

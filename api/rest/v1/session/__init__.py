@@ -1,7 +1,10 @@
+from datetime import datetime
+
 from fastapi import Depends, APIRouter
 
-from ..schemas import Session, Member, Prescence, Activity, Leadership
+from settings import tzMoscow
 from .services import SrvSession
+from ..schemas import Session, Member, Prescence, Activity, Leadership
 
 router = APIRouter(prefix='/session', tags=['session'])
 
@@ -12,7 +15,7 @@ def session(session_id: int, service: SrvSession = Depends()):
 
 
 @router.put('/{session_id}', response_model=Session)
-def session(session_id: int, sessdata: Session, service: SrvSession = Depends()):
+def session(session_id: int, sessdata: Session | dict, service: SrvSession = Depends()):
     return service.put(session_id, sessdata)
 
 
@@ -21,9 +24,15 @@ def session(session: Session, service: SrvSession = Depends()):
     return service.post(session)
 
 
+@router.get('/all/', response_model=list[Session])
+def sessions(begin: datetime = datetime.fromordinal(1), end: datetime = None, service: SrvSession = Depends()):
+    end = datetime.now(tz=tzMoscow) if end is None else end
+    return service.all(begin, end)
+
+
 @router.get('/{session_id}/members', response_model=list[Member])
 def session_users(session_id: int, service: SrvSession = Depends()):
-    return service.get_members(session_id)
+    return service.members(session_id)
 
 
 @router.post('/{session_id}/members/{user_id}', response_model=Member)
@@ -33,39 +42,34 @@ def session_users(session_id: int, user_id: int, service: SrvSession = Depends()
 
 @router.get('/{session_id}/prescence', response_model=list[Prescence])
 def session_prescence(session_id: int, service: SrvSession = Depends()):
-    return service.get_prescence(session_id)
+    return service.prescence(session_id)
 
 
 @router.get('/{session_id}/activities', response_model=list[Activity])
 def session_activities(session_id: int, service: SrvSession = Depends()):
-    return service.get_activities(session_id)
+    return service.activities(session_id)
 
 
 @router.get('/{message_id}/leadership', response_model=list[Leadership])
 def session_leadership(message_id: int, service: SrvSession = Depends()):
-    return service.get_leadership(message_id)
+    return service.leadership(message_id)
 
 
 @router.get('/by_msg/{message_id}', response_model=Session)
 def session(message_id: int, service: SrvSession = Depends()):
-    return service.get_by_msgid(message_id)
+    return service.get(message_id=message_id)
 
 
-@router.get('/by_leader/{leader_id}', response_model=Session)
-def session(leader_id: int, service: SrvSession = Depends()):
-    return service.get_by_leader(leader_id)
+@router.get('/by_msg/{message_id}/activities', response_model=list[Activity])
+def session_activities(message_id: int, service: SrvSession = Depends()):
+    return service.activities_by_msg(message_id)
 
 
 @router.get('/unclosed/', response_model=list[Session])
 def get_unclosed(service: SrvSession = Depends()):
-    return service.get_unclosed()
+    return service.unclosed()
 
 
-@router.get('/all/', response_model=list[Session])
-def sessions(service: SrvSession = Depends()):
-    return service.get_all()
-
-
-@router.get('/activities/by_msg/{msg_id}', response_model=list[Activity])
-def session_activities(msg_id: int, service: SrvSession = Depends()):
-    return service.get_activities_by_msg(msg_id)
+@router.get('/unclosed/{leader_id}', response_model=Session)
+def session(leader_id: int, service: SrvSession = Depends()):
+    return service.get(leader_id=leader_id)

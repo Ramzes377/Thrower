@@ -4,8 +4,7 @@ import discord
 from discord import app_commands
 
 from api.bot.mixins import DiscordFeaturesMixin
-from api.bot.vars import guild_id
-
+from settings import envs
 
 CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
@@ -43,7 +42,7 @@ class Commands(DiscordFeaturesMixin):
         embed = discord.Embed(title=f"Запрос по игре {role.name}", color=role.color)
 
         data = await self.request(f'user/{interaction.user.id}/activities/duration/{role.id}')
-        if self._object_exist(data):
+        if self.exist(data):
             ingame_time = datetime.timedelta(seconds=data['seconds'])
             embed.add_field(name='Зарегистрировано в игре ', value=f"{str(ingame_time).split('.')[0]}", inline=False)
         else:
@@ -57,4 +56,5 @@ class Commands(DiscordFeaturesMixin):
 
 
 async def setup(bot):
-    await bot.add_cog(Commands(bot), guilds=[discord.Object(id=guild_id)])
+    guild = discord.Object(id=envs['guild_id'])
+    await bot.add_cog(Commands(bot), guilds=[guild])
