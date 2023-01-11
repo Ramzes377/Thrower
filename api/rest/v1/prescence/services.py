@@ -1,52 +1,49 @@
-from fastapi import HTTPException, status
-
 from api.rest.v1 import tables
-from api.rest.v1.misc import desqllize
-from api.rest.v1.base_service import BaseService
-from api.rest.v1.schemas import Prescence
+from ..misc import desqllize
+from ..service import CreateReadUpdate
+from ..schemas import Prescence
+from ..base_specification import Specification
+from ..specifications import SessionID, UserID, Unclosed
 
 
-class SrvPrescence(BaseService):
-    def get(self, channel_id: int = None, message_id: int = None) -> list[Prescence]:
-        prescences = None
+def unsclosed_user_session(channel_id: int, member_id: int):
+    return SessionID(channel_id) & UserID(member_id) & Unclosed(None)
 
-        if channel_id is not None:
-            prescences = self._session.query(tables.Prescence).filter_by(channel_id=channel_id).all()
-        if message_id is not None:
-            prescences = (
-                self._session.query(tables.Prescence)
-                .join(tables.Session, tables.Session.channel_id == tables.Prescence.channel_id)
-                .filter_by(message_id=message_id)
-                .order_by(tables.Prescence.begin)
-                .all()
-            )
 
-        if not prescences:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        return prescences
+class SrvPrescence(CreateReadUpdate):
+    table = tables.Prescence
 
-    def _member_prescence(self, channel_id: int, member_id: int) -> Prescence:
+    def get(self, specification: Specification) -> list[Prescence]:
+        return (
+            self._base_query
+            .join(tables.Session, tables.Session.channel_id == self.table.channel_id)
+            .filter_by(**specification())
+            .order_by(self.table.begin)
+            .all()
+        )
+
+    def _member_prescence(self, specification: Specification) -> Prescence:
         return (
             self._session.query(tables.Prescence)
-            .filter_by(channel_id=channel_id,
-                       member_id=member_id)
-            .filter_by(end=None)
+            .filter_by(**specification())
             .order_by(tables.Prescence.begin.desc())
             .first()
         )
 
-    def post(self, prescencedata: Prescence) -> tables.Prescence:
-        channel_id, member_id = prescencedata.channel_id, prescencedata.member_id
-        member_prescence = self._member_prescence(channel_id, member_id)
+    def post(self, prescence: Prescence) -> tables.Prescence:
+        channel_id, member_id = prescence.channel_id, prescence.member_id
+        specification = unsclosed_user_session(channel_id, member_id)
+        member_prescence = self._member_prescence(specification)
         if member_prescence:  # trying to add member that's prescence isn't closed
-            self.edit_object(member_prescence, prescencedata)
+            self.update(member_prescence, prescence)
             return member_prescence
-        prescence = tables.Prescence(**prescencedata.dict())  # type: ignore
-        self.add_object(prescence)
+        prescence = tables.Prescence(**prescence.dict())  # type: ignore
+        self.create(prescence)
         return prescence
 
-    def put(self, prescencedata: Prescence | dict) -> Prescence:
-        channel_id, member_id = prescencedata['channel_id'], prescencedata['member_id']
-        member_prescence = self._member_prescence(channel_id, member_id)
-        self.edit_object(member_prescence, desqllize(prescencedata))
+    def patch(self, prescence: Prescence | dict, *args) -> Prescence:
+        channel_id, member_id = prescence['channel_id'], prescence['member_id']
+        specification = unsclosed_user_session(channel_id, member_id)
+        member_prescence = self._member_prescence(specification)
+        self.update(member_prescence, desqllize(prescence))
         return member_prescence

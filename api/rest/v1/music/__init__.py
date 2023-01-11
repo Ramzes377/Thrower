@@ -1,14 +1,16 @@
 from fastapi import Depends, APIRouter
 
-from api.rest.v1.music.services import SrvFavoriteMusic
+from .services import SrvFavoriteMusic
+from .specifications import UserID
+from ..dependencies import query_amount
 from ..schemas import FavoriteMusic
 
 router = APIRouter(prefix='/favoritemusic', tags=['favoritemusic'])
 
 
 @router.get('/{user_id}', response_model=list[FavoriteMusic])
-def get(user_id: int, service: SrvFavoriteMusic = Depends()):
-    return service.get(user_id)
+def get(user_id: UserID = Depends(), limit=Depends(query_amount), service: SrvFavoriteMusic = Depends()):
+    return service.get(user_id, amount=limit)
 
 
 @router.post('/', response_model=FavoriteMusic)

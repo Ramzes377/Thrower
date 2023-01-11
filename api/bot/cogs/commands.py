@@ -33,7 +33,7 @@ class Commands(DiscordFeaturesMixin):
         guild = self.bot.guilds[0]
         try:
             role_id = int(role_mention[3:-1])
-            role = guild.get_role(role_id)
+            role = guild.role(role_id)
         except:
             await interaction.response.send_message('Неверный формат упоминания игровой роли!', ephemeral=True,
                                                     delete_after=30)

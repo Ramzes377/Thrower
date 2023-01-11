@@ -124,7 +124,7 @@ class Logger(DiscordFeaturesMixin):
 
             emoji = await self.request(f'activity/{app_id}/emoji')
             if self.exist(emoji):
-                await msg.add_reaction(self.bot.get_emoji(emoji['id']))
+                await msg.add_reaction(self.bot.emoji(emoji['id']))
 
     async def log_activity(self, before: discord.Member, after: discord.Member):
         voice_channel = get_voice_channel(after)

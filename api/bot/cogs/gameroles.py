@@ -39,7 +39,7 @@ class GameRoles(BaseCogMixin):
 
         guild = self.bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
-        role = guild.get_role(role.id)
+        role = guild.role(role.id)
 
         if add:
             await member.add_roles(role)
@@ -104,7 +104,7 @@ class GameRoles(BaseCogMixin):
             await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
 
     async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
-        emoji = self.bot.get_emoji(emoji_id)
+        emoji = self.bot.emoji(emoji_id)
         msg = await self.bot.request_channel.send(f'[{app_name}]')
         await msg.add_reaction(emoji)
 

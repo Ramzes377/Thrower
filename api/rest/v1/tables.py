@@ -1,5 +1,5 @@
-from sqlalchemy import Table, Column, Integer, ForeignKey, Text
-from sqlalchemy.orm import declarative_base, relationship, backref
+from sqlalchemy import Table, Column, Integer, ForeignKey, Text, func, and_, or_
+from sqlalchemy.orm import declarative_base, relationship, backref, foreign, remote
 
 from api.rest.database import engine
 from api.rest.v1.tables_mixins import BaseTimePeriod, PrimaryBegin, LeadershipLike
@@ -14,6 +14,23 @@ member_session = Table(
 )
 
 
+class Activity(Base, PrimaryBegin):
+    __tablename__ = 'activity'
+
+    id = Column(Integer, ForeignKey('activityinfo.app_id'), primary_key=True, index=True)
+    member_id = Column(Integer, ForeignKey('member.id'), primary_key=True, index=True)
+
+    info = relationship("ActivityInfo")
+
+
+class Leadership(Base, LeadershipLike):
+    __tablename__ = 'leadership'
+
+
+class Prescence(Base, LeadershipLike):
+    __tablename__ = 'prescence'
+
+
 class Member(Base):
     __tablename__ = 'member'
 
@@ -23,7 +40,7 @@ class Member(Base):
     default_sess_name = Column(Text, default=None)
 
     sessions = relationship("Session", secondary=member_session,
-                            backref=backref('members', lazy='dynamic'),
+                            backref=backref('members'),
                             lazy='dynamic')
     activities = relationship("Activity", lazy='dynamic')
     prescences = relationship("Prescence")
@@ -41,14 +58,28 @@ class Session(Base, BaseTimePeriod):
 
     prescence = relationship("Prescence")
     leadership = relationship("Leadership")
-
-
-class Leadership(Base, LeadershipLike):
-    __tablename__ = 'leadership'
-
-
-class Prescence(Base, LeadershipLike):
-    __tablename__ = 'prescence'
+    activities = relationship('Activity',
+                              innerjoin=True, lazy=True,
+                              viewonly=True, uselist=True,
+                              primaryjoin=
+                              and_(foreign(channel_id) == remote(member_session.c.channel_id),
+                                   remote(member_session.c.member_id) == remote(Member.id),
+                                   remote(Member.id) == remote(Activity.member_id),
+                                   remote(Prescence.member_id) == remote(Member.id),
+                                   foreign(channel_id) == remote(Prescence.channel_id),
+                                   or_(
+                                       Activity.begin.between(
+                                           Prescence.begin,
+                                           func.coalesce(
+                                               Prescence.end,
+                                               func.date('now', 'start of month', '+1 month'))),
+                                       Activity.end.between(
+                                           Prescence.begin,
+                                           func.coalesce(
+                                               Prescence.end,
+                                               func.date('now', 'start of month', '+1 month'))))
+                                   )
+                              )
 
 
 class ActivityInfo(Base):
@@ -59,16 +90,7 @@ class ActivityInfo(Base):
     app_name = Column(Text)
     icon_url = Column(Text)
 
-    role = relationship("Role", back_populates="info")
-
-
-class Activity(Base, PrimaryBegin):
-    __tablename__ = 'activity'
-
-    id = Column(Integer, ForeignKey('activityinfo.app_id'), primary_key=True, index=True)
-    member_id = Column(Integer, ForeignKey('member.id'), primary_key=True, index=True)
-
-    info = relationship("ActivityInfo")
+    role = relationship("Role", back_populates="info", uselist=False)
 
 
 class Role(Base):
@@ -79,7 +101,7 @@ class Role(Base):
     id = Column(Integer)
 
     info = relationship("ActivityInfo")
-    emoji = relationship("Emoji", back_populates="role", cascade="all, delete")
+    emoji = relationship("Emoji", back_populates="role", cascade="all, delete", uselist=False)
 
 
 class Emoji(Base):

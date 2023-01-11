@@ -38,8 +38,8 @@ class LoggerView(discord.ui.View, BaseCogMixin):
         discord.ui.View.__init__(self, timeout=None)
         BaseCogMixin.__init__(self, bot, silent=True)
 
-    async def format_data(self, response: list[dict], header: str, col: str, activity_flag: bool = False) -> tuple[str,
-    list]:
+    async def format_data(self, response: list[dict], header: str,
+                          col: str, activity_flag: bool = False) -> tuple[str, list]:
         data, body = [], []
         for row in response:
             user_id, begin, end = row['member_id'], fmt_date(row['begin']), fmt_date(row['end'])
@@ -75,13 +75,13 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
     async def activities(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Активности сессии', 'Активность'
-        activities = await self.request(f'session/by_msg/{interaction.message.id}/activities')
+        activities = await self.request(f'session/{interaction.message.id}/activities')
         as_str, data = await self.format_data(activities, header, column, activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Участники сессии', 'Участник'
-        prescence = await self.request(f'prescence/by_msg/{interaction.message.id}')
+        prescence = await self.request(f'session/{interaction.message.id}/prescence')
         as_str, data = await self.format_data(prescence, header, column)
         await _response_handle(interaction, as_str, data, header, column)
