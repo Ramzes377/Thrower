@@ -75,7 +75,7 @@ async def clear_unregistered_messages():
 async def load_cogs(music=False):
     cogs_path = 'api/bot/cogs'
     cogs_path_dotted = cogs_path.replace('/', '.')
-    exclude = []#['music.py']
+    exclude = ['music.py']
     if music:
         await bot.load_extension(f'{cogs_path_dotted}.music')
     else:
