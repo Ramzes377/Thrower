@@ -24,11 +24,12 @@ class ChannelsManager(DiscordFeaturesMixin):
     async def handle_created_channels(self):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
-        guild = self.bot.guilds[0]
+
         sessions = await self.request('session/unclosed/')
         for session in sessions:
-            member = guild.get_member(session['leader_id'])
             channel = self.bot.get_channel(session['channel_id'])
+            guild = channel.guild
+            member = guild.get_member(session['leader_id'])
             user_in_own_channel = channel and member in channel.members
             if not user_in_own_channel:
                 voice_channel = member.voice.channel if member.voice else None
@@ -64,8 +65,8 @@ class ChannelsManager(DiscordFeaturesMixin):
         need_save = channel_state not in ('T', 'A')
         if need_save and before.name != after.name:
             session = await self.request(f'session/{after.id}')
-            await self.request(f'user/{session["leader_id"]}', 'put', json={'default_sess_name': after.name})
-            await self.request(f'session/{after.id}', 'put', json={'name': after.name})
+            await self.request(f'user/{session["leader_id"]}', 'patch', json={'default_sess_name': after.name})
+            await self.request(f'session/{after.id}', 'patch', json={'name': after.name})
             await self.logger.update_sess_name(session['message_id'], after.name)
 
     @commands.Cog.listener()
@@ -94,7 +95,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         await user.move_to(user_channel)  # send user to his channel
         await self.logger.session_begin(user.id, user_channel)  # send session message
 
-    async def make_channel(self, user: discord.Member) -> tuple[discord.VoiceChannel, str]:
+    async def make_channel(self, user: discord.Member) -> discord.VoiceChannel:
         channel_name = await self.get_user_sess_name(user)
         permissions = {user: leader_role_perms, user.guild.default_role: default_role_perms}
         channel = await user.guild.create_voice_channel(channel_name,
@@ -103,9 +104,9 @@ class ChannelsManager(DiscordFeaturesMixin):
         return channel
 
     async def join_to_foreign(self, user: discord.Member,
-                              user_channel: discord.VoiceChannel,
-                              prev_channel: discord.VoiceChannel,
-                              cur_channel: discord.VoiceChannel):
+                              user_channel: discord.VoiceChannel | None,
+                              prev_channel: discord.VoiceChannel | None,
+                              cur_channel: discord.VoiceChannel | None):
         # User try to join to channel of another user or leave
         user_have_channel = user_channel is not None
         user_join_channel = cur_channel is not None

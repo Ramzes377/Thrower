@@ -11,5 +11,5 @@ class UserID(BaseSpecification):
 class QueryFilter(BaseSpecification):
     column_name = 'query'
 
-    def __init__(self, query: int):
+    def __init__(self, query: str):
         super().__init__(query)

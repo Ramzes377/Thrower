@@ -4,6 +4,8 @@ from api.rest.v1.misc import desqllize
 from api.rest.v1.schemas import Leadership
 from api.rest.v1.service import CreateReadUpdate
 
+from ..specifications import SessionID
+
 
 class SrvLeadership(CreateReadUpdate):
     table = tables.Leadership
@@ -27,7 +29,8 @@ class SrvLeadership(CreateReadUpdate):
             channel_id = leadership['channel_id']
             data = leadership
 
-        current_leader = self.current(channel_id)
+        specification = SessionID(channel_id)
+        current_leader = self.current(specification)
         if current_leader:
             data = desqllize(leadership)
             new_leader_id = data.pop('member_id')
@@ -42,5 +45,5 @@ class SrvLeadership(CreateReadUpdate):
         self.create(leadership)
         return leadership
 
-    def current(self, session_id: int) -> Leadership:
-        return self._get(session_id).limit(1).first()
+    def current(self, session_id: Specification) -> Leadership:
+        return self._get(session_id).first()

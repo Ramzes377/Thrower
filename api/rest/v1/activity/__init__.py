@@ -25,7 +25,6 @@ def all_activities(period=Depends(default_period), service: SrvActivities = Depe
 
 @router.get('/{app_id}', response_model=Activity)
 def activity(app_id: AppID = Depends(), service: SrvActivities = Depends()):
-    print(app_id)
     return service.get(app_id)
 
 

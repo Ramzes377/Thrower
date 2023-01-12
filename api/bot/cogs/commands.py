@@ -28,12 +28,27 @@ class Commands(DiscordFeaturesMixin):
             except:
                 pass
 
+    @app_commands.command(description='Очистка переписки с этим ботом')
+    async def clear_private(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message(f'Начата очистка переписки . . .',
+                                                ephemeral=True, delete_after=30)
+        await interaction.user.send('!')
+        counter = 0
+        async for message in interaction.user.dm_channel.history(limit=None):
+            try:
+                await message.delete()
+                counter += 1
+            except:
+                pass
+        await interaction.response.send_message(f'Успешно удалено {counter} сообщений!',
+                                                ephemeral=True, delete_after=30)
+
     @app_commands.command(description='Показывает зарегистрированное время в игре у соответствующей игровой роли!')
     async def played(self, interaction: discord.Interaction, role_mention: str):
         guild = self.bot.guilds[0]
         try:
             role_id = int(role_mention[3:-1])
-            role = guild.role(role_id)
+            role = guild.get_role(role_id)
         except:
             await interaction.response.send_message('Неверный формат упоминания игровой роли!', ephemeral=True,
                                                     delete_after=30)

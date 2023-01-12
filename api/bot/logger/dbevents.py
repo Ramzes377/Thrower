@@ -1,20 +1,18 @@
 import discord
 from discord.ext import commands
 
+from api.bot.misc import now
 from api.rest.v1.misc import sqllize, rm_keys
 from api.bot.mixins import BaseCogMixin
 
 
-class dbEvents(BaseCogMixin):
+class DBEvents(BaseCogMixin):
     async def _add_member(self, member: discord.Member):
         data = {'id': member.id, 'name': member.display_name, 'default_sess_name': None}
-        try:
-            await self.request('user/', 'post', json=data)
-        finally:
-            pass
+        await self.request('user/', 'post', json=data)
 
     def __init__(self, bot):
-        super(dbEvents, self).__init__(bot, silent=True)
+        super(DBEvents, self).__init__(bot, silent=True)
         for member in bot.guilds[0].members:
             self.bot.loop.create_task(self._add_member(member))
 
@@ -39,26 +37,18 @@ class dbEvents(BaseCogMixin):
             channel_id = data.pop('channel_id')
             session = await self.request(f'session/{channel_id}')
             session.update(data)
-            await self.request(f'session/{channel_id}', 'put', json=session)
+            await self.request(f'session/{channel_id}', 'patch', json=session)
 
-    async def session_prescence(self, **prescencedata):
-        prescence = sqllize(prescencedata)
-        method = 'put' if prescence.get('end') else 'post'  # update/create
+    async def session_prescence(self, **prescence):
+        prescence = sqllize(prescence)
+        method = 'patch' if prescence.get('end') else 'post'  # update/create
         await self.request('prescence/', method, json=prescence)
         if method == 'post':
-            channel_id = prescencedata["channel_id"]
-            member_id = prescencedata["member_id"]
-            try:
-                await self.request(f'session/{channel_id}/members/{member_id}', 'post')
-            except:
-                pass
+            channel_id = prescence["channel_id"]
+            member_id = prescence["member_id"]
+            await self.request(f'session/{channel_id}/members/{member_id}', 'post')
 
-    async def member_activity(self, channel_id: int, app_id: int, **activitydata):
-        if channel_id:
-            await self.request(f'session/{channel_id}/activities/{app_id}', 'post')
-        activity = sqllize(activitydata)
-        method = 'put' if activity.get('end') else 'post'  # update/create
-        try:
-            await self.request(f'activity/', method, json=activity)
-        except:
-            pass
+    async def member_activity(self, **activity):
+        activity = sqllize(activity)
+        method = 'patch' if activity.get('end') else 'post'  # update/create
+        await self.request(f'activity/', method, json=activity)

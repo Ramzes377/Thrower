@@ -28,5 +28,5 @@ def desqllize(obj):
     return d
 
 
-def rm_keys(dct: dict, *keys: tuple[Hashable]) -> Generator:
+def rm_keys(dct: dict, *keys: str) -> Generator:
     return (dct.pop(key) for key in keys)

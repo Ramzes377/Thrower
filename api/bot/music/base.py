@@ -7,12 +7,12 @@ from api.bot.mixins import BaseCogMixin
 
 class LavalinkVoiceClient(discord.VoiceClient):
     def __init__(self, client: discord.Client, channel: discord.abc.Connectable):
-        self.client = client
-        self.channel = channel
+        super().__init__(client, channel)
 
         if not hasattr(self.client, 'lavalink'):
             self.client.lavalink = lavalink.Client(client.user.id)
             self.client.lavalink.add_node('host.docker.internal', 2333, 'youshallnotpass', 'eu', 'default-node')
+
         self.lavalink = self.client.lavalink
 
     async def on_voice_server_update(self, data):
@@ -23,7 +23,8 @@ class LavalinkVoiceClient(discord.VoiceClient):
         data = {'t': 'VOICE_STATE_UPDATE', 'd': data}
         await self.lavalink.voice_update_handler(data)
 
-    async def connect(self, *, timeout: float, reconnect: bool, self_deaf: bool = False, self_mute: bool = False) -> None:
+    async def connect(self, *, timeout: float, reconnect: bool, self_deaf: bool = False,
+                      self_mute: bool = False) -> None:
         self.lavalink.player_manager.create(guild_id=self.channel.guild.id)
         await self.channel.guild.change_voice_state(channel=self.channel, self_mute=self_mute, self_deaf=self_deaf)
 
@@ -50,7 +51,8 @@ class MusicBase(BaseCogMixin):
             await self.ensure_voice(ctx)
         return guild_check
 
-    async def cog_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    async def cog_app_command_error(self, interaction: discord.Interaction,
+                                    error: discord.app_commands.AppCommandError):
         if isinstance(error, commands.CommandInvokeError):
             await interaction.response.send_message(error.original, delete_after=60)
 
@@ -80,5 +82,3 @@ class MusicBase(BaseCogMixin):
                 pass
         elif v_client.channel.id != ctx.author.voice.channel.id:
             raise discord.app_commands.AppCommandError('You need to be in my voicechannel.')
-
-

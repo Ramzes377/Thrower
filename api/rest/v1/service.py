@@ -30,7 +30,7 @@ class Read(BaseService):
     def _get(self, specification: Specification):
         return self._base_query.filter_by(**specification())
 
-    def get(self, specification: Specification):
+    def get(self, specification: Specification, *args, **kwargs):
         return self._get(specification).first()
 
     def all(self, *args, **kwargs):
@@ -39,12 +39,15 @@ class Read(BaseService):
 
 class Update(Read):
     def update(self, obj, data):
-        if not obj:
-            return
-        iterable = data.items() if isinstance(data, dict) else data
-        for k, v in iterable:
-            setattr(obj, k, v)
-        self._session.commit()
+        try:
+            if not obj:
+                return
+            iterable = data.items() if isinstance(data, dict) else data
+            for k, v in iterable:
+                setattr(obj, k, v)
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
 
     def patch(self, specification: Specification, data: BaseService, *args, **kwargs) -> BaseService:
         obj = self.get(specification)
@@ -53,7 +56,7 @@ class Update(Read):
 
 
 class Delete(Read):
-    def delete(self, role_id: int):
+    def delete(self, role_id: Specification):
         role = self.get(role_id)
         self._session.delete(role)
         self._session.commit()

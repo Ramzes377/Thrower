@@ -8,8 +8,8 @@ router = APIRouter(prefix='/role', tags=['role'])
 
 
 @router.post('/', response_model=Role)
-def role(roledata: Role, service: SrvRole = Depends()):
-    return service.post(roledata)
+def role(role: Role, service: SrvRole = Depends()):
+    return service.post(role)
 
 
 @router.get('/by_app/{app_id}', response_model=Role)
@@ -18,7 +18,7 @@ def role(app_id: ActivityID = Depends(), service: SrvRole = Depends()):
 
 
 @router.delete('/{role_id}')
-def role(role_id: int, service: SrvRole = Depends()):
+def role(role_id: RoleID = Depends(), service: SrvRole = Depends()):
     return service.delete(role_id)
 
 

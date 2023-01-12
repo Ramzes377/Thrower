@@ -59,7 +59,7 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
     img = Image.open(BytesIO(raw_img))
     img = img.copy()
     img.thumbnail((resize, resize))
-    paletted = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=numcolors)
+    paletted = img.convert('P', palette=Image.ADAPTIVE, colors=numcolors)
     palette = paletted.getpalette()
     color_counts = sorted(paletted.getcolors(), reverse=True)
     colors = []

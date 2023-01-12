@@ -6,16 +6,14 @@
             <tr>
                 <th scope="col">#</th>
                 <th scope="col">{{ f_column }}</th>
-                <th scope="col">Пользователь</th>
                 <th scope="col">Время начала</th>
                 <th scope="col">Время окончания</th>
             </tr>
             </thead>
             <tbody>
-            {% for activity, user, begin, end in data %}
+            {% for user, begin, end in data %}
                 <tr>
                     <th scope="row"></th>
-                    <td>{{ activity | safe }}</td>
                     <td>{{ user | safe }}</td>
                     <td>{{ begin }}</td>
                     <td>{{ end }}</td>
@@ -24,3 +22,4 @@
             </tbody>
         </table>
 {% endblock %}
+

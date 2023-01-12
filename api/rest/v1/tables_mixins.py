@@ -6,6 +6,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 seconds_in_day = 24 * 60 * 60
 
 
+# noinspection PyMethodParameters
 class BaseTimePeriod:
     begin = Column(DateTime, nullable=False)
     end = Column(DateTime, nullable=True)
@@ -23,6 +24,7 @@ class PrimaryBegin(BaseTimePeriod):
     begin = Column(DateTime, primary_key=True)
 
 
+# noinspection PyMethodParameters
 class LeadershipLike(BaseTimePeriod):
     @declared_attr
     def channel_id(cls):

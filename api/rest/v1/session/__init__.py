@@ -4,8 +4,8 @@ from .specifications import LeaderID
 from .services import SrvSession
 from ..dependencies import default_period
 from ..schemas import Session, Member, Prescence, Activity, Leadership
-from ..specifications import SessionID, MessageID, UserID
-
+from ..specifications import SessionID, MessageID
+from ..user.specifications import UserID
 
 router = APIRouter(prefix='/session', tags=['session'])
 
@@ -25,9 +25,9 @@ def get_unclosed_sessions(service: SrvSession = Depends()):
     return service.unclosed()
 
 
-@router.get('/unclosed/{leader_id}', response_model=Session)
+@router.get('/unclosed/{leader_id}', response_model=Session | None)
 def session(leader_id: LeaderID = Depends(), service: SrvSession = Depends()):
-    return service.get(leader_id)
+    return service.user_unclosed(leader_id)
 
 
 @router.get('/{session_id}', response_model=Session)
@@ -36,7 +36,7 @@ def session(session_id: SessionID = Depends(), service: SrvSession = Depends()):
 
 
 @router.patch('/{session_id}', response_model=Session)
-def session(session_id: int, sess_data: Session | dict, service: SrvSession = Depends()):
+def session(session_id: SessionID = Depends(), sess_data: Session | dict = None, service: SrvSession = Depends()):
     return service.patch(session_id, sess_data)
 
 

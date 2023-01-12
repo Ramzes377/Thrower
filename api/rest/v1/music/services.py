@@ -10,11 +10,7 @@ class SrvFavoriteMusic(CreateReadUpdate):
     table = tables.FavoriteMusic
 
     def _get(self, specification: Specification):
-        return (
-            self._session.query(tables.FavoriteMusic)
-            .filter_by(**specification())
-            .order_by(tables.FavoriteMusic.counter.desc())
-        )
+        return super()._get(specification).order_by(tables.FavoriteMusic.counter.desc())
 
     def get(self, user_id: Specification, amount: int) -> list[FavoriteMusic]:
         return self._get(user_id).limit(amount).all()

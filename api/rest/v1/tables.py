@@ -46,6 +46,9 @@ class Member(Base):
     prescences = relationship("Prescence")
 
 
+date_placeholder = func.date('now', 'localtime', '+1 month')
+
+
 class Session(Base, BaseTimePeriod):
     __tablename__ = 'session'
 
@@ -60,7 +63,7 @@ class Session(Base, BaseTimePeriod):
     leadership = relationship("Leadership")
     activities = relationship('Activity',
                               innerjoin=True, lazy=True,
-                              viewonly=True, uselist=True,
+                              viewonly=True, uselist=True, order_by=Activity.begin,
                               primaryjoin=
                               and_(foreign(channel_id) == remote(member_session.c.channel_id),
                                    remote(member_session.c.member_id) == remote(Member.id),
@@ -69,15 +72,9 @@ class Session(Base, BaseTimePeriod):
                                    foreign(channel_id) == remote(Prescence.channel_id),
                                    or_(
                                        Activity.begin.between(
-                                           Prescence.begin,
-                                           func.coalesce(
-                                               Prescence.end,
-                                               func.date('now', 'start of month', '+1 month'))),
+                                           Prescence.begin, func.coalesce(Prescence.end, date_placeholder)),
                                        Activity.end.between(
-                                           Prescence.begin,
-                                           func.coalesce(
-                                               Prescence.end,
-                                               func.date('now', 'start of month', '+1 month'))))
+                                           Prescence.begin, func.coalesce(Prescence.end, date_placeholder)))
                                    )
                               )
 

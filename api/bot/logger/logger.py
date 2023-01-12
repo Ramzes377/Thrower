@@ -1,6 +1,6 @@
 import discord
 
-from api.bot.logger.dbevents import dbEvents
+from api.bot.logger.dbevents import DBEvents
 from api.bot.logger.views import LoggerView
 from api.bot.mixins import DiscordFeaturesMixin
 from api.bot.misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel
@@ -11,11 +11,11 @@ class Logger(DiscordFeaturesMixin):
 
     def __init__(self, bot):
         super(Logger, self).__init__(bot, silent=True)
-        self.events = dbEvents(bot)
+        self.events = DBEvents(bot)
         self.bot.loop.create_task(self.register_logger_views())
 
     async def register_logger_views(self):
-        sessions: list[dict] = await self.request('session/all/')
+        sessions: list[dict] = await self.request('session/')
         for session in sessions:
             self.bot.add_view(LoggerView(self.bot), message_id=session['message_id'])
 
@@ -86,31 +86,25 @@ class Logger(DiscordFeaturesMixin):
         await msg.edit(embed=embed)
 
     async def update_leader(self, channel_id: int, leader_id: int):
-        try:
-            session = await self.get_session(channel_id)
-            if not self.exist(session):
-                return
+        session = await self.get_session(channel_id)
+        if not self.exist(session):
+            return
 
-            msg = await self.bot.logger_channel.fetch_message(session['message_id'])
-            embed = msg.embeds[0]
-            embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
-            await msg.edit(embed=embed)
-            await self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
-        finally:
-            pass
+        msg = await self.bot.logger_channel.fetch_message(session['message_id'])
+        embed = msg.embeds[0]
+        embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
+        await msg.edit(embed=embed)
+        await self.events.session_update(channel_id=channel_id, member_id=leader_id, end=now())
 
     async def update_embed_members(self, session_id: int):
-        try:
-            members = await self.request(f'session/{session_id}/members')
-            session = await self.get_session(session_id)
-            message = await self.bot.logger_channel.fetch_message(session['message_id'])
-            embed = message.embeds[0]
-            embed.set_field_at(2, name='├ Участники',
-                               value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
-                               inline=False)
-            await message.edit(embed=embed)
-        finally:
-            pass
+        members = await self.request(f'session/{session_id}/members')
+        session = await self.get_session(session_id)
+        message = await self.bot.logger_channel.fetch_message(session['message_id'])
+        embed = message.embeds[0]
+        embed.set_field_at(2, name='├ Участники',
+                           value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
+                           inline=False)
+        await message.edit(embed=embed)
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
         session = await self.get_session(channel_id)
@@ -124,9 +118,10 @@ class Logger(DiscordFeaturesMixin):
 
             emoji = await self.request(f'activity/{app_id}/emoji')
             if self.exist(emoji):
-                await msg.add_reaction(self.bot.emoji(emoji['id']))
+                await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
-    async def log_activity(self, before: discord.Member, after: discord.Member):
+    async def log_activity(self, before: discord.Member | None, after: discord.Member):
+        timestamp = now()
         voice_channel = get_voice_channel(after)
 
         before_app_id, before_is_real = get_app_id(before)
@@ -136,25 +131,18 @@ class Logger(DiscordFeaturesMixin):
         before_familiar = before is not None and user_is_playing(before) and before_is_real
 
         if after_familiar:
-            try:
-                begin = after.activity.start.astimezone(tzMoscow)
-            except AttributeError:
-                begin = now()
-            channel_id = voice_channel.id if voice_channel else None
-            await self.events.member_activity(channel_id, after_app_id, member_id=after.id, id=after_app_id,
-                                              begin=begin,
-                                              end=None)
-            if voice_channel is not None:  # logging activities from ANY user in these channel
+            await self.events.member_activity(member_id=after.id, id=after_app_id, begin=timestamp, end=None)
+            if voice_channel is not None:  # logging activities of user in channel
                 await self.update_activity_icon(voice_channel.id, after_app_id)
 
         if before_familiar:
-            await self.events.member_activity(None, None, member_id=before.id, id=before_app_id, end=now())
+            await self.events.member_activity(member_id=before.id, id=before_app_id, end=timestamp)
 
     async def log_member_join(self, user_id: int, channel_id: int):
         try:
             await self.request(f'session/{channel_id}/members/{user_id}', 'post')
             await self.update_embed_members(channel_id)  # add new member to logging message
-        finally:
+        except:
             await self.events.session_prescence(channel_id=channel_id, member_id=user_id, begin=now())
 
     async def log_member_abandon(self, user_id: int, channel_id: int):

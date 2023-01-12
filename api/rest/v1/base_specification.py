@@ -22,7 +22,6 @@ def specification_fabric(column: str | None = None, counter: int | None = None):
     )
 
 
-
 class Specification(ABC):
     column_name: str | None = None
 

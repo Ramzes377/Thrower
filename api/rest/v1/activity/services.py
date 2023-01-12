@@ -1,10 +1,10 @@
 from datetime import datetime
 
+from .. import tables
 from ..specifications import AppID, UserID, Unclosed
-from ..misc import rm_keys
+from ..misc import rm_keys, desqllize
 from ..schemas import Activity
 from ..service import CreateReadUpdate
-from api.rest.v1 import tables
 
 
 class SrvActivities(CreateReadUpdate):
@@ -18,7 +18,8 @@ class SrvActivities(CreateReadUpdate):
             activity_data = activity_data.dict()
 
         app_id, member_id = rm_keys(activity_data, 'id', 'member_id')
+        activity_data = desqllize(activity_data)
         specification = AppID(app_id) & UserID(member_id) & Unclosed(None)
-        activity = self._base_query.filter_by(**specification()).order_by(tables.Activity.begin.desc()).first()
+        activity = self._base_query.filter_by(**specification()).order_by(self.table.begin.desc()).first()
         self.update(activity, activity_data)
         return activity

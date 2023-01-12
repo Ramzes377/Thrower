@@ -1,14 +1,12 @@
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, and_, func
 
-from api.rest.database import Session
-from api.rest.v1 import tables
-from api.rest.v1.base_specification import Specification
-from api.rest.v1.service import CreateReadUpdate
-from api.rest.v1.schemas import Activity
+from .. import tables
+from ..schemas import Session
+from ..service import CreateReadUpdate
 from ..specifications import Unclosed
+from ..base_specification import Specification
 
 
 class SrvSession(CreateReadUpdate):
@@ -22,11 +20,11 @@ class SrvSession(CreateReadUpdate):
         unclosed_specification = Unclosed(None)
         return self._get(unclosed_specification).order_by(tables.Session.begin.desc())
 
-    def unclosed(self):
+    def unclosed(self) -> list[Session]:
         return self._unclosed().all()
 
-    def user_unclosed(self, leader_specification: Specification) -> Session:
-        return self._unclosed().filter_by(**leader_specification()).first()
+    def user_unclosed(self, leader_id: Specification) -> Session | None:
+        return self._unclosed().filter_by(**leader_id()).first()
 
     def add_member(self, sess_specification: Specification, user_specification: Specification) -> tables.Member:
         user = self._session.query(tables.Member).filter_by(**user_specification()).first()

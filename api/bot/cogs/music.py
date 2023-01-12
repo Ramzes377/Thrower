@@ -8,9 +8,10 @@ from discord.ext import commands
 from api.bot.music.base import MusicBase
 from api.bot.music.views import create_dropdown, PlayerButtonsView
 from api.bot.misc import code_block
-from settings import guild_id
+from settings import envs
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
+guild_id = envs['guild_id']
 
 
 @code_block
@@ -39,10 +40,9 @@ class Music(MusicBase):
             try:
                 await self._msg.delete()
                 self._msg = None
-            except:
-                pass
+            finally:
+                await guild.voice_client.disconnect(force=True)
 
-            await guild.voice_client.disconnect(force=True)
         if isinstance(event, lavalink.events.TrackStartEvent):
             await self.update_msg()
 
@@ -109,7 +109,7 @@ class Music(MusicBase):
             await player.play()
 
     @app_commands.command(description='Очищает очередь и останавливает исполнение')
-    async def stop(self, interaction: discord.Interaction) -> None:
+    async def stop(self, interaction: discord.Interaction) -> None | discord.Message:
         """ Disconnects the player from the voice channel and clears its queue. """
         ctx: commands.Context = await self.bot.get_context(interaction)
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
@@ -124,12 +124,11 @@ class Music(MusicBase):
         try:
             await self._msg.delete()
             self._msg = None
-        except:
-            pass
-
-        await player.stop()
-        await ctx.voice_client.disconnect(force=True)
-        await interaction.response.send_message('Принудительно завершено исполнение!', ephemeral=False, delete_after=30)
+        finally:
+            await player.stop()
+            await ctx.voice_client.disconnect(force=True)
+            await interaction.response.send_message('Принудительно завершено исполнение!', ephemeral=False,
+                                                    delete_after=30)
 
     @app_commands.command(description='Очередь исполнения')
     async def queue(self, interaction: discord.Interaction) -> None:
@@ -162,8 +161,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = ((x['title'], x['query'], x['counter']) for x in await self.request(f'favoritemusic/{user.id}'))
-        # title, query, counter
+        favorites = await self.request(f'favoritemusic/{user.id}')
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)
             await user.send(view=view, delete_after=60)
@@ -200,7 +198,7 @@ class Music(MusicBase):
             return
 
         current_track = player.current.title
-        thumbnail_url = f"http://img.youtube.com/vi/{player.current.identifier}/0.jpg"
+        thumbnail_url = f"http://i3.ytimg.com/vi/{player.current.identifier}/maxresdefault.jpg"
         requester = f'<@{player.current.requester}>'
         status = ':musical_note: Играет :musical_note:' if not self._paused else ':pause_button: Пауза :pause_button:'
         if self._msg:

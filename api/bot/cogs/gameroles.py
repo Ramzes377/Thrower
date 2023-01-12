@@ -27,7 +27,7 @@ class GameRoles(BaseCogMixin):
         if user_is_playing(after):
             await self.add_gamerole(after)
 
-    async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple:
+    async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple | None:
         user_is_bot = payload.user_id == self.bot.user.id
         emoji_id = payload.emoji.id
         if user_is_bot or not emoji_id:
@@ -39,7 +39,7 @@ class GameRoles(BaseCogMixin):
 
         guild = self.bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
-        role = guild.role(role.id)
+        role = guild.get_role(role.id)
 
         if add:
             await member.add_roles(role)
@@ -122,7 +122,7 @@ class GameRoles(BaseCogMixin):
                     pass
 
     # async def delete_unused_emoji(self) -> None:
-    #     """Clear emoji from request channel if it origin were deleted for some reason"""
+    #     """Clear emoji from request channel if origin were deleted for some reason"""
     #     guild = self.bot.request_channel.guild
     #     async for msg, reaction in ((msg, reaction) async for msg in self.bot.request_channel.history(limit=None)
     #                           for reaction in msg.reactions if reaction.emoji not in guild.emojis):

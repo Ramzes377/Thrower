@@ -16,19 +16,21 @@ def fmt_date(s: str) -> str:
     return fmt(dt_from_str(s)) if s else '-'
 
 
-def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]], tmplt_path: str) -> io.BytesIO:
-    template = env.get_template(tmplt_path)
+def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]], template: str) -> io.BytesIO:
+    template = env.get_template(template)
     html = template.render(title=title, f_column=f_col, data=data)
     return io.BytesIO(html.encode('utf-8'))
 
 
-async def _response_handle(interaction, string, data, header, column, tmplt_path='leaders.prescence_template.html'):
+async def _response_handle(interaction, string, data, header, column, template='template.html'):
     try:
+        user = interaction.user
         if len(string) <= 2000:
-            await interaction.response.send_message(f"```{string}```", delete_after=30)
+            await user.send(f"```{string}```", delete_after=2 * 60)
         else:
-            bts = html_as_bytes(title=header, f_col=column, data=data, tmplt_path=tmplt_path)
-            await interaction.response.send_message(file=discord.File(bts, filename=f'{header}.html'), delete_after=30)
+            bts = html_as_bytes(header, column, data, template)
+            await user.send(file=discord.File(bts, filename=f'{header}.html'), delete_after=2 * 60)
+        await interaction.response.send_message(f'Успешно отправлена информация', ephemeral=False, delete_after=5)
     except discord.errors.NotFound:
         pass
 
@@ -77,7 +79,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
         header, column = 'Активности сессии', 'Активность'
         activities = await self.request(f'session/{interaction.message.id}/activities')
         as_str, data = await self.format_data(activities, header, column, activity_flag=True)
-        await _response_handle(interaction, as_str, data, header, column)
+        await _response_handle(interaction, as_str, data, header, column, 'activity_template.html')
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, _) -> None:

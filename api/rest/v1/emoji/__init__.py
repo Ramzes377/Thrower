@@ -13,8 +13,8 @@ def emoji(emoji_id: EmojiID = Depends(), service: SrvEmoji = Depends()):
 
 
 @router.post('/', response_model=Emoji)
-def emoji(emojidata: Emoji, service: SrvEmoji = Depends()):
-    return service.post(emojidata)
+def emoji(emoji: Emoji, service: SrvEmoji = Depends()):
+    return service.post(emoji)
 
 
 @router.get('/{emoji_id}/role', response_model=Role)
