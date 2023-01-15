@@ -30,7 +30,7 @@ async def _response_handle(interaction, string, data, header, column, template='
         else:
             bts = html_as_bytes(header, column, data, template)
             await user.send(file=discord.File(bts, filename=f'{header}.html'), delete_after=2 * 60)
-        await interaction.response.send_message(f'Успешно отправлена информация', ephemeral=False, delete_after=5)
+        await interaction.response.send_message(f'Успешно отправлена информация', ephemeral=True, delete_after=5)
     except discord.errors.NotFound:
         pass
 

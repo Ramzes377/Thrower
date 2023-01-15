@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from settings import envs, token
+from api.rest.base import request
 
 try:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -58,18 +59,18 @@ async def on_command_error(ctx, error):
 
 async def clear_unregistered_messages():
     guild = bot.guilds[0]
-    exclude = [bot.logger_channel, bot.request_channel]
+    text_channels = [channel for channel in guild.channels if channel.type.name == 'text']
+    messages = await request('sent_message/')
+    for message in messages:
+        for channel in text_channels:
+            msg = await channel.fetch_message(message['id'])
+            if msg:
+                print(msg)
+                # deletion process
+                # await msg.delete()
+                # await request(f'sent_message/{msg.id}', 'delete')
 
-    if any(not channel for channel in exclude):
-        raise ValueError('Dangerous behavior! Check exclude channels.')
-
-    pub_text_channels = (channel for channel in guild.channels if
-                         channel.type.name == 'text' and channel not in exclude)
-    for channel in pub_text_channels:
-        deleted = await channel.purge(limit=100, check=lambda msg: msg.author == bot.user)
-        n = len(deleted)
-        if n > 0:
-            print(f'Delete {len(deleted)} messages from {channel}!')
+                break
 
 
 async def load_cogs(music=False):

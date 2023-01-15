@@ -1,22 +1,18 @@
 import asyncio
 import re
+from typing import Awaitable
 
 import discord
 from discord.ext import commands
-from httpx import AsyncClient
 
-from api.rest.base import app
-from api.bot.misc import get_category
-from api.rest.v1.schemas import Session
+from api.rest.base import request
+from .misc import get_category
 
 
 class BaseCogMixin(commands.Cog):
 
     def __init__(self, bot, silent=False):
         super(BaseCogMixin, self).__init__()
-        base = "http://127.0.0.1:8000"
-        api_ver = "v1"
-        self._base_url = f'{base}/{api_ver}/'
         self.bot = bot
         if not silent:
             print(f'Cog {type(self).__name__} have been started!')
@@ -24,24 +20,19 @@ class BaseCogMixin(commands.Cog):
     def exist(self, obj: dict):
         return obj is not None and 'detail' not in obj
 
-    async def request(self, url: str, method: str = 'get', json=None):
-        async with AsyncClient(app=app, base_url=self._base_url) as client:
-            handler = getattr(client, method)
-            if method == 'get':
-                response = await handler(url)
-                return response.json()
-            elif method == 'delete':
-                response = await client.request('delete', url)
-                return response.json()
-            else:
-                json = json or {}
-                response = await handler(url, json=json)
-                return response
+    @staticmethod
+    async def request(url: str, method: str = 'get', data: dict | None = None):
+        return await request(url, method, data)
+
+    async def log_message(self, send: Awaitable):
+        msg = await send
+        await self.request(f'sent_message/', 'post', data={'id': msg.id})
+        return msg
 
 
 class DiscordFeaturesMixin(BaseCogMixin):
 
-    async def get_session(self, channel_id: int) -> Session | None:
+    async def get_session(self, channel_id: int) -> dict | None:
         session = await self.request(f'session/{channel_id}')
         if self.exist(session):
             return session
@@ -76,3 +67,5 @@ class DiscordFeaturesMixin(BaseCogMixin):
             )
         except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :('
             await channel.edit(category=category, overwrites=overwrites)
+        except discord.NotFound:
+            pass

@@ -2,7 +2,7 @@ from fastapi import Depends, APIRouter
 
 from .services import SrvActivities
 from ..dependencies import default_period
-from ..schemas import Activity, Role, ActivityInfo, Emoji
+from ..schemas import Activity, Role, ActivityInfo, Emoji, EndActivity
 from ..specifications import AppID
 
 router = APIRouter(prefix='/activity', tags=['activity'])
@@ -14,13 +14,13 @@ def activity(activitydata: Activity, service: SrvActivities = Depends()):
 
 
 @router.patch('/', response_model=Activity)
-def activity(activitydata: Activity | dict, service: SrvActivities = Depends()):
+def activity(activitydata: EndActivity, service: SrvActivities = Depends()):
     return service.patch(activitydata)
 
 
 @router.get('/', response_model=list[Activity])
-def all_activities(period=Depends(default_period), service: SrvActivities = Depends()):
-    return service.all(**period)
+def all_activities(timestamps: SrvActivities.filter_by_timeperiod = Depends(), service: SrvActivities = Depends()):
+    return service.all(timestamps)
 
 
 @router.get('/{app_id}', response_model=Activity)
@@ -30,14 +30,20 @@ def activity(app_id: AppID = Depends(), service: SrvActivities = Depends()):
 
 @router.get('/{app_id}/info', response_model=ActivityInfo)
 def activity_info(app_id: AppID = Depends(), service: SrvActivities = Depends()):
-    return service.get(app_id).info
+    activity = service.get(app_id)
+    return activity.info
 
 
 @router.get('/{app_id}/role', response_model=Role)
 def activity_role(app_id: AppID = Depends(), service: SrvActivities = Depends()):
-    return service.get(app_id).info.role
+    activity = service.get(app_id)
+    info = activity.info
+    return info.role
 
 
 @router.get('/{app_id}/emoji', response_model=Emoji)
 def activity_emoji(app_id: AppID = Depends(), service: SrvActivities = Depends()):
-    return service.get(app_id).info.role.emoji
+    activity = service.get(app_id)
+    info = activity.info
+    role = info.role
+    return role.emoji

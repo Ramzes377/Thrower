@@ -6,18 +6,17 @@ from sqlalchemy.ext.hybrid import hybrid_property
 seconds_in_day = 24 * 60 * 60
 
 
-# noinspection PyMethodParameters
 class BaseTimePeriod:
     begin = Column(DateTime, nullable=False)
     end = Column(DateTime, nullable=True)
 
     @hybrid_property
-    def duration(cls):
+    def duration(self):
         seconds = cast(
-            seconds_in_day * (func.julianday(cls.end) - func.julianday(cls.begin)),
+            seconds_in_day * (func.julianday(self.end) - func.julianday(self.begin)),
             Integer
         )
-        return seconds
+        return func.coalesce(seconds, 0)
 
 
 class PrimaryBegin(BaseTimePeriod):
@@ -25,7 +24,7 @@ class PrimaryBegin(BaseTimePeriod):
 
 
 # noinspection PyMethodParameters
-class LeadershipLike(BaseTimePeriod):
+class SessionLike(BaseTimePeriod):
     @declared_attr
     def channel_id(cls):
         return Column(Integer, ForeignKey('session.channel_id'), primary_key=True, index=True)

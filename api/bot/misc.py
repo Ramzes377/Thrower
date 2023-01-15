@@ -44,26 +44,26 @@ def fmt(dt: datetime.datetime) -> str:
 
 
 def dt_from_str(s: str) -> datetime.datetime:
-    return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
+    return datetime.datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
 
 
 def _hash(string: str) -> int:
     return int(str(sha3_224(string.encode(encoding='utf8')).hexdigest()), 16) % 10 ** 10
 
 
-def get_pseudo_random_color() -> tuple[int, int, int]:
+def random_color() -> tuple[int, int, int]:
     return randint(70, 255), randint(70, 255), randint(70, 255)
 
 
-def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] | list:
+def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int] | list:
     img = Image.open(BytesIO(raw_img))
     img = img.copy()
     img.thumbnail((resize, resize))
-    paletted = img.convert('P', palette=Image.ADAPTIVE, colors=numcolors)
+    paletted = img.convert('P', palette=Image.ADAPTIVE, colors=colors_num)
     palette = paletted.getpalette()
     color_counts = sorted(paletted.getcolors(), reverse=True)
     colors = []
-    for i in range(numcolors):
+    for i in range(colors_num):
         palette_index = color_counts[i][1]
         dominant_color = dc = tuple(palette[palette_index * 3:palette_index * 3 + 3])
         sq_dist = dc[0] * dc[0] + dc[1] * dc[1] + dc[2] * dc[2]
@@ -73,7 +73,9 @@ def get_dominant_color(raw_img, numcolors=5, resize=64) -> tuple[int, int, int] 
 
 
 def now() -> datetime.datetime:
-    return datetime.datetime.now(tz=tzMoscow)
+    time = datetime.datetime.now(tz=tzMoscow)
+    time.replace(microsecond=0)
+    return time
 
 
 def code_block(func):

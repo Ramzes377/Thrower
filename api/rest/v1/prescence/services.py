@@ -1,26 +1,25 @@
-from api.rest.v1 import tables
-from ..misc import desqllize
+from fastapi import Depends
+
+from .. import tables
 from ..service import CreateReadUpdate
-from ..schemas import Prescence
+from ..schemas import Prescence, EndPrescence
 from ..base_specification import Specification
 from ..specifications import SessionID, UserID, Unclosed
-
-
-def unsclosed_user_session(channel_id: int, member_id: int):
-    return SessionID(channel_id) & UserID(member_id) & Unclosed(None)
+from ...database import Session, get_session
 
 
 class SrvPrescence(CreateReadUpdate):
     table = tables.Prescence
+    order_by = table.begin
 
-    def get(self, specification: Specification) -> list[Prescence]:
-        return (
-            self._base_query
-            .join(tables.Session, tables.Session.channel_id == self.table.channel_id)
-            .filter_by(**specification())
-            .order_by(self.table.begin)
-            .all()
-        )
+    def __init__(self, session: Session = Depends(get_session)):
+        super().__init__(session)
+        # rewriting base query to use base class _get
+        # method more native way
+        self._base_query = self._base_query.join(tables.Session)
+
+    def get(self, specification: Specification, *args) -> list[Prescence]:
+        return self._get(specification).all()
 
     def _member_prescence(self, specification: Specification) -> Prescence:
         return (
@@ -30,20 +29,6 @@ class SrvPrescence(CreateReadUpdate):
             .first()
         )
 
-    def post(self, prescence: Prescence) -> tables.Prescence:
-        channel_id, member_id = prescence.channel_id, prescence.member_id
-        specification = unsclosed_user_session(channel_id, member_id)
-        member_prescence = self._member_prescence(specification)
-        if member_prescence:  # trying to add member that's prescence isn't closed
-            self.update(member_prescence, prescence)
-            return member_prescence
-        prescence = tables.Prescence(**prescence.dict())  # type: ignore
-        self.create(prescence)
-        return prescence
-
-    def patch(self, prescence: Prescence | dict, *args) -> Prescence:
-        channel_id, member_id = prescence['channel_id'], prescence['member_id']
-        specification = unsclosed_user_session(channel_id, member_id)
-        member_prescence = self._member_prescence(specification)
-        self.update(member_prescence, desqllize(prescence))
-        return member_prescence
+    def patch(self, prescence: EndPrescence, *args) -> Prescence:
+        specification = SessionID(prescence.channel_id) & UserID(prescence.member_id) & Unclosed()
+        return super().patch(specification, prescence, get_method=self._member_prescence)

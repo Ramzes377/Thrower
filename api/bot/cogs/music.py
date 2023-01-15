@@ -78,7 +78,8 @@ class Music(MusicBase):
         results = await player.node.get_tracks(query)
 
         if not results or not results.tracks:
-            return await self._text_channel.send('Nothing found!', delete_after=30)
+            await self.log_message(self._text_channel.send('Nothing found!', delete_after=30))
+            return
 
         user_id = interaction.user.id
         embed = discord.Embed(color=discord.Color.blurple())
@@ -98,10 +99,12 @@ class Music(MusicBase):
             json = {'title': track.title, 'query': track.uri,
                     'user_id': user_id, 'counter': 1}
 
-        await self.request(f'favoritemusic/', 'post', json=json)
+        await self.request(f'favoritemusic/', 'post', data=json)
 
         try:
-            await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+            msg = await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+            await self.request('/')
+            await self.request(f'sent_message/', 'post', data={'id': msg.id})
         except discord.errors.InteractionResponded:
             pass
 
@@ -114,10 +117,10 @@ class Music(MusicBase):
         ctx: commands.Context = await self.bot.get_context(interaction)
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
         if not ctx.voice_client:
-            return await ctx.send('Not connected.', delete_after=30)
+            return await self.log_message(ctx.send('Not connected.', delete_after=30))
 
         if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
-            return await ctx.send('You\'re not in my voicechannel!', delete_after=30)
+            return await self.log_message(ctx.send('You\'re not in my voicechannel!', delete_after=30))
 
         player.queue.clear()
 
@@ -127,8 +130,12 @@ class Music(MusicBase):
         finally:
             await player.stop()
             await ctx.voice_client.disconnect(force=True)
-            await interaction.response.send_message('Принудительно завершено исполнение!', ephemeral=False,
-                                                    delete_after=30)
+            await self.log_message(
+                interaction.response.send_message(
+                    'Принудительно завершено исполнение!',
+                    ephemeral=False,
+                    delete_after=30)
+            )
 
     @app_commands.command(description='Очередь исполнения')
     async def queue(self, interaction: discord.Interaction) -> None:
@@ -142,10 +149,10 @@ class Music(MusicBase):
 
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
         if player is None or (not player.is_playing and not player.queue):
-            await interaction.response.send_message('Очередь пуста!', delete_after=30)
+            await self.log_message(interaction.response.send_message('Очередь пуста!', delete_after=30))
             return
         queue_msg = queue_repr(player.queue, player.current.title)
-        await interaction.response.send_message(queue_msg, ephemeral=False, delete_after=30)
+        await self.log_message(interaction.response.send_message(queue_msg, ephemeral=False, delete_after=30))
 
     @app_commands.command(description='Быстрый заказ избранных треков')
     async def favorite(self, interaction: discord.Interaction) -> None:
@@ -164,9 +171,9 @@ class Music(MusicBase):
         favorites = await self.request(f'favoritemusic/{user.id}')
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)
-            await user.send(view=view, delete_after=60)
+            await self.log_message(user.send(view=view, delete_after=60))
         except AttributeError:
-            await user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.')
+            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.'))
 
     @app_commands.command(description='Пауза текущего трека')
     async def pause(self, interaction: discord.Interaction) -> None:
@@ -176,7 +183,9 @@ class Music(MusicBase):
         player = self.bot.lavalink.player_manager.get(self._guild_id)
         self._paused = not self._paused
         status = "приостановлено" if self._paused else "вознобновлено"
-        await interaction.response.send_message(f'Воспроизведение {status}!', ephemeral=False, delete_after=15)
+        await self.log_message(
+            interaction.response.send_message(f'Воспроизведение {status}!', ephemeral=False, delete_after=15)
+        )
         await player.set_pause(self._paused)
         await self.update_msg()
 
@@ -186,8 +195,10 @@ class Music(MusicBase):
 
     async def _skip(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(self._guild_id)
-        await interaction.response.send_message(f'Пропущено воспроизведение трека {player.current.title}',
-                                                ephemeral=False, delete_after=15)
+        await self.log_message(
+            interaction.response.send_message(f'Пропущено воспроизведение трека {player.current.title}',
+                                              ephemeral=False, delete_after=15)
+        )
         await player.skip()
         await self.update_msg()
 
@@ -221,9 +232,11 @@ class Music(MusicBase):
                  .add_field(name='Поставил', value=requester, inline=False)
                  .set_thumbnail(url=thumbnail_url)
                  .set_footer(text=f'Великий бот - {self.bot.user.display_name}', icon_url=self.bot.user.avatar))
-        self._msg = await self._text_channel.send(embed=embed,
-                                                  view=PlayerButtonsView(self._pause, self._skip,
-                                                                         self._queue, self._favorite))
+        self._msg = await self.log_message(
+            self._text_channel.send(embed=embed,
+                                    view=PlayerButtonsView(self._pause, self._skip,
+                                                           self._queue, self._favorite))
+        )
 
 
 async def setup(bot):

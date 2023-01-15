@@ -6,7 +6,7 @@ import discord
 from discord.ext import tasks, commands
 
 from api.bot.mixins import BaseCogMixin
-from api.bot.misc import get_pseudo_random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
+from api.bot.misc import random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
 
 HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
@@ -60,7 +60,13 @@ class GameRoles(BaseCogMixin):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        db_role = await self.request(f'role/by_app/{app_id}')
+        try:
+            db_role = await self.request(f'role/by_app/{app_id}')
+        except Exception as e:
+            admin_id = 242349833245949953
+            admin = self.bot.get_user(admin_id)
+            await admin.send('Error with role: ', e, f'. App id = {app_id}')
+            return
         if self.exist(db_role):  # role already exist
             role = guild.get_role(db_role['id'])  # get role
             if role and role not in user.roles:  # check user have this role
@@ -71,7 +77,7 @@ class GameRoles(BaseCogMixin):
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)
-            await self.request(f'role/', 'post', json={'id': role.id, 'app_id': app_id})
+            await self.request(f'role/', 'post', data={'id': role.id, 'app_id': app_id})
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
 
@@ -79,7 +85,7 @@ class GameRoles(BaseCogMixin):
         try:
             activity_info = await self.request(f'activityinfo/{app_id}')
         except AttributeError:
-            await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
+            await role.edit(color=discord.Colour(1).from_rgb(*random_color()))
             return
         name, thumbnail_url = activity_info['app_name'], activity_info['icon_url']
         cutted_name = re.compile('[^a-zA-Z0-9]').sub('', name)[:32]
@@ -92,7 +98,7 @@ class GameRoles(BaseCogMixin):
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
-            await self.request('emoji/', 'post', json={'id': emoji.id, 'role_id': role.id})
+            await self.request('emoji/', 'post', data={'id': emoji.id, 'role_id': role.id})
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
                 await role.edit(display_icon=content)
@@ -101,7 +107,7 @@ class GameRoles(BaseCogMixin):
             finally:
                 await role.edit(color=discord.Colour(1).from_rgb(*dominant_color))
         else:
-            await role.edit(color=discord.Colour(1).from_rgb(*get_pseudo_random_color()))
+            await role.edit(color=discord.Colour(1).from_rgb(*random_color()))
 
     async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
         emoji = self.bot.emoji(emoji_id)

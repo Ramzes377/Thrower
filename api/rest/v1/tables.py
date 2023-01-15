@@ -2,9 +2,10 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, Text, func, and_, or_
 from sqlalchemy.orm import declarative_base, relationship, backref, foreign, remote
 
 from api.rest.database import engine
-from api.rest.v1.tables_mixins import BaseTimePeriod, PrimaryBegin, LeadershipLike
+from api.rest.v1.tables_mixins import BaseTimePeriod, PrimaryBegin, SessionLike
 
 Base = declarative_base()
+date_placeholder = func.date('now', 'localtime', '+1 month')
 
 member_session = Table(
     "member_session",
@@ -23,11 +24,11 @@ class Activity(Base, PrimaryBegin):
     info = relationship("ActivityInfo")
 
 
-class Leadership(Base, LeadershipLike):
+class Leadership(Base, SessionLike):
     __tablename__ = 'leadership'
 
 
-class Prescence(Base, LeadershipLike):
+class Prescence(Base, SessionLike):
     __tablename__ = 'prescence'
 
 
@@ -44,9 +45,6 @@ class Member(Base):
                             lazy='dynamic')
     activities = relationship("Activity", lazy='dynamic')
     prescences = relationship("Prescence")
-
-
-date_placeholder = func.date('now', 'localtime', '+1 month')
 
 
 class Session(Base, BaseTimePeriod):
@@ -119,6 +117,12 @@ class FavoriteMusic(Base):
 
     title = Column(Text)
     counter = Column(Integer)
+
+
+class SentMessage(Base):
+    __tablename__ = 'sent_message'
+
+    id = Column(Integer, primary_key=True, index=True)
 
 
 Base.metadata.create_all(engine)

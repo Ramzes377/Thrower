@@ -9,6 +9,7 @@ from api.rest.v1.leadership import router as leadership_router
 from api.rest.v1.role import router as role_router
 from api.rest.v1.emoji import router as emoji_router
 from api.rest.v1.music import router as music_router
+from api.rest.v1.sent_message import router as sent_message_router
 
 
 router = APIRouter(prefix='/v1')
@@ -21,3 +22,4 @@ router.include_router(leadership_router)
 router.include_router(role_router)
 router.include_router(emoji_router)
 router.include_router(music_router)
+router.include_router(sent_message_router)

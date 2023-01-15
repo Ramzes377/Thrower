@@ -1,5 +1,4 @@
-from api.rest.v1 import tables
-
+from .. import tables
 from .specifications import UserID, QueryFilter
 from ..schemas import FavoriteMusic
 from ..service import CreateReadUpdate
@@ -8,11 +7,9 @@ from ..base_specification import Specification
 
 class SrvFavoriteMusic(CreateReadUpdate):
     table = tables.FavoriteMusic
+    order_by = table.counter.desc()
 
-    def _get(self, specification: Specification):
-        return super()._get(specification).order_by(tables.FavoriteMusic.counter.desc())
-
-    def get(self, user_id: Specification, amount: int) -> list[FavoriteMusic]:
+    def get(self, user_id: Specification, amount: int, *args) -> list[FavoriteMusic]:
         return self._get(user_id).limit(amount).all()
 
     def _get_record(self, user_id: int, query: str) -> FavoriteMusic:

@@ -3,9 +3,10 @@ import asyncio
 import discord
 from discord.ext import tasks
 
-from api.bot.logger.logger import Logger
-from api.bot.misc import get_category
-from api.bot.mixins import commands, DiscordFeaturesMixin
+from ..logger import Logger
+from ..misc import get_category
+from ..mixins import commands, DiscordFeaturesMixin
+
 from settings import bots_ids
 from bot import default_role_perms, leader_role_perms
 
@@ -28,6 +29,8 @@ class ChannelsManager(DiscordFeaturesMixin):
         sessions = await self.request('session/unclosed/')
         for session in sessions:
             channel = self.bot.get_channel(session['channel_id'])
+            if channel is None:
+                continue
             guild = channel.guild
             member = guild.get_member(session['leader_id'])
             user_in_own_channel = channel and member in channel.members
@@ -46,7 +49,6 @@ class ChannelsManager(DiscordFeaturesMixin):
                     await member.move_to(channel)
                 except:
                     pass
-
         await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
@@ -59,22 +61,19 @@ class ChannelsManager(DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
-        # skip transfer channel rename and activity rename
+        # skip rename when transfer channel or change activity presence
         await asyncio.sleep(3)  # delay to prevent skip event of activity or transfer channel
         channel_state = ChannelsManager.channel_flags.pop(after.id, None)
         need_save = channel_state not in ('T', 'A')
         if need_save and before.name != after.name:
-            session = await self.request(f'session/{after.id}')
-            await self.request(f'user/{session["leader_id"]}', 'patch', json={'default_sess_name': after.name})
-            await self.request(f'session/{after.id}', 'patch', json={'name': after.name})
-            await self.logger.update_sess_name(session['message_id'], after.name)
+            await self.logger.update_sess_name(after.id, after.name)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
                                     after: discord.VoiceState):
         if before.channel == after.channel or before.channel == self.bot.create_channel:
             # handling only channel changing, not mute or deaf member
-            # and previous channel is not create channel
+            # and previous channel is not 'create' channel
             return
         channel = await self.get_user_channel(member.id)
         user_join_create_channel = after.channel == self.bot.create_channel

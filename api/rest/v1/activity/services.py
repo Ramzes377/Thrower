@@ -1,25 +1,31 @@
-from datetime import datetime
+from fastapi import Depends
+from sqlalchemy.sql.elements import BinaryExpression
 
 from .. import tables
+from ..base_specification import Specification
+from ..dependencies import default_period
 from ..specifications import AppID, UserID, Unclosed
-from ..misc import rm_keys, desqllize
-from ..schemas import Activity
+from ..schemas import Activity, EndActivity
 from ..service import CreateReadUpdate
 
 
 class SrvActivities(CreateReadUpdate):
     table = tables.Activity
+    order_by = tables.Activity.begin
 
-    def all(self, begin: datetime, end: datetime) -> list[Activity]:
-        return super().all().filter(tables.Activity.begin.between(begin, end)).all()
+    @classmethod
+    def filter_by_timeperiod(cls, period: dict = Depends(default_period)) -> BinaryExpression:
+        return cls.table.begin.between(period['begin'], period['end'])
 
-    def patch(self, activity_data: Activity | dict, *args) -> Activity:
-        if isinstance(activity_data, Activity):
-            activity_data = activity_data.dict()
+    def _current_activity(self, specification: Specification):
+        return (
+            self._base_query
+            .filter_by(**specification())
+            .order_by(self.table.begin.desc())
+            .first()
+        )
 
-        app_id, member_id = rm_keys(activity_data, 'id', 'member_id')
-        activity_data = desqllize(activity_data)
-        specification = AppID(app_id) & UserID(member_id) & Unclosed(None)
-        activity = self._base_query.filter_by(**specification()).order_by(self.table.begin.desc()).first()
-        self.update(activity, activity_data)
-        return activity
+    def patch(self, activity: EndActivity, *args) -> Activity:
+        specification = AppID(activity.id) & UserID(activity.member_id) & Unclosed()
+        return super().patch(specification, activity, get_method=self._current_activity)
+

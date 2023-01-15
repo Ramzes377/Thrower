@@ -3,7 +3,6 @@ from fastapi import Depends, APIRouter
 from .services import SrvUser
 from .specifications import UserID
 from ..specifications import AppID, RoleID, UserID as MemberID
-from ..dependencies import default_period
 from ..schemas import Member, Session, IngameSeconds, DurationActivity
 
 router = APIRouter(prefix='/user', tags=['user'])
@@ -30,8 +29,9 @@ def user(userdata: Member | dict, user_id: UserID = Depends(), service: SrvUser 
 
 
 @router.get('/{user_id}/sessions', response_model=list[Session])
-def user_sessions(user_id: UserID = Depends(), period=Depends(default_period), service: SrvUser = Depends()):
-    sessions = service.get_sessions(user_id, **period)
+def user_sessions(user_id: UserID = Depends(), timestamps: SrvUser.filter_by_timeperiod = Depends(),
+                  service: SrvUser = Depends()):
+    sessions = service.get_sessions(user_id, timestamps)
     return sessions
 
 
@@ -45,7 +45,7 @@ def user_concrete_activity(user_id: MemberID = Depends(),
                            app_id: AppID = Depends(),
                            service: SrvUser = Depends()):
     specification = user_id & app_id
-    return service.concrete_user_activity(specification)
+    return service.user_activities(specification)
 
 
 @router.get('/{user_id}/activities/duration/', response_model=list[IngameSeconds])
@@ -53,7 +53,7 @@ def user_activities_durations(user_id: MemberID = Depends(), service: SrvUser = 
     return service.durations(user_id)
 
 
-@router.get('/{user_id}/activities/duration/{role_id}', response_model=IngameSeconds)
+@router.get('/{user_id}/activities/duration/{role_id}', response_model=IngameSeconds | None)
 def user_concrete_activity_duration(user_id: MemberID = Depends(),
                                     role_id: RoleID = Depends(),
                                     service: SrvUser = Depends()):

@@ -1,4 +1,4 @@
-from api.rest.v1.base_specification import BaseSpecification
+from ..base_specification import BaseSpecification
 
 
 class UserID(BaseSpecification):

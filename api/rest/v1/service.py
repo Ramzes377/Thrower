@@ -1,65 +1,100 @@
-from fastapi import Depends
+from typing import Callable, Any
 
-from api.rest.database import Session, get_session
-from api.rest.v1.base_specification import Specification
+from fastapi import Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Query
+from sqlalchemy.sql.elements import BinaryExpression
+
+from .tables import Base as BaseTable
+from .base_specification import Specification
+from ..database import Session, get_session
 
 
 class BaseService:
     table = None
+    order_by = None
 
     def __init__(self, session: Session = Depends(get_session)):
         self._session = session
         self._base_query = self._session.query(self.table)
+        self._order_by = type(self).order_by
 
 
 class Create(BaseService):
-    def create(self, obj):
+    def create(self, obj: BaseModel) -> None:
         try:
             self._session.add(obj)
             self._session.commit()
-        except:
+        except Exception as e:
             self._session.rollback()
+            raise e
 
-    def post(self, data: BaseService):
-        obj = self.table(**data.dict())  # type: ignore
+    def post(self, data: BaseModel) -> BaseTable:
+        obj = self.table(**data.dict())
         self.create(obj)
         return obj
 
 
 class Read(BaseService):
-    def _get(self, specification: Specification):
-        return self._base_query.filter_by(**specification())
+    @property
+    def _query(self) -> Query:
+        query = self._base_query
+        if self._order_by is not None:
+            query = query.order_by(self._order_by)
+        return query
 
-    def get(self, specification: Specification, *args, **kwargs):
+    def _get(self, specification: Specification) -> Query:
+        return self._query.filter_by(**specification())
+
+    def get(self, specification: Specification, *args: Any, **kwargs: Any) -> BaseTable:
         return self._get(specification).first()
 
-    def all(self, *args, **kwargs):
-        return self._base_query
+    def all(self, filters: BinaryExpression = None, *args, query: Query | None = None, **kwargs) -> list[BaseTable]:
+        query = self._query if query is None else query
+        if filters is not None:
+            query = query.filter(filters)
+        return query.all()
 
 
 class Update(Read):
-    def update(self, obj, data):
+    def update(self, obj: BaseService, data: BaseModel | dict) -> None:
         try:
-            if not obj:
-                return
+            print('update', data)
             iterable = data.items() if isinstance(data, dict) else data
             for k, v in iterable:
                 setattr(obj, k, v)
             self._session.commit()
         except Exception as e:
             self._session.rollback()
+            raise e
 
-    def patch(self, specification: Specification, data: BaseService, *args, **kwargs) -> BaseService:
-        obj = self.get(specification)
+    def patch(
+            self,
+            specification: Specification,
+            data: BaseModel | dict,
+            *args,
+            get_method: Callable = None,
+            **kwargs
+    ) -> BaseTable:
+        get = self.get if get_method is None else get_method
+        obj: BaseService = get(specification)
+        print('patch', data)
         self.update(obj, data)
         return obj
 
 
 class Delete(Read):
-    def delete(self, role_id: Specification):
-        role = self.get(role_id)
-        self._session.delete(role)
-        self._session.commit()
+    def destroy(self, obj: BaseTable) -> None:
+        try:
+            self._session.delete(obj)
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
+            raise e
+
+    def delete(self, specification: Specification) -> dict[bool]:
+        obj = self.get(specification)
+        self.destroy(obj)
         return {"ok": True}
 
 

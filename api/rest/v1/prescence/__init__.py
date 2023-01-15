@@ -2,8 +2,7 @@ from fastapi import Depends, APIRouter
 
 from .services import SrvPrescence
 from ..specifications import SessionID, MessageID
-from ..schemas import Prescence
-
+from ..schemas import Prescence, EndPrescence
 
 router = APIRouter(prefix='/prescence', tags=['prescence'])
 
@@ -13,8 +12,8 @@ def prescence(prescencedata: Prescence, service: SrvPrescence = Depends()):
     return service.post(prescencedata)
 
 
-@router.patch('/', response_model=Prescence | None)
-def prescence(prescencedata: dict, service: SrvPrescence = Depends()):
+@router.patch('/', response_model=Prescence)
+def prescence(prescencedata: EndPrescence, service: SrvPrescence = Depends()):
     return service.patch(prescencedata)
 
 
