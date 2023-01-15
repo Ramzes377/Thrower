@@ -17,7 +17,8 @@ class BaseCogMixin(commands.Cog):
         if not silent:
             print(f'Cog {type(self).__name__} have been started!')
 
-    def exist(self, obj: dict):
+    @staticmethod
+    def exist(obj: dict):
         return obj is not None and 'detail' not in obj
 
     @staticmethod

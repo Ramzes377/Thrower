@@ -59,7 +59,6 @@ class Read(BaseService):
 class Update(Read):
     def update(self, obj: BaseService, data: BaseModel | dict) -> None:
         try:
-            print('update', data)
             iterable = data.items() if isinstance(data, dict) else data
             for k, v in iterable:
                 setattr(obj, k, v)
@@ -78,7 +77,6 @@ class Update(Read):
     ) -> BaseTable:
         get = self.get if get_method is None else get_method
         obj: BaseService = get(specification)
-        print('patch', data)
         self.update(obj, data)
         return obj
 
@@ -92,7 +90,7 @@ class Delete(Read):
             self._session.rollback()
             raise e
 
-    def delete(self, specification: Specification) -> dict[bool]:
+    def delete(self, specification: Specification) -> dict[str, bool]:
         obj = self.get(specification)
         self.destroy(obj)
         return {"ok": True}

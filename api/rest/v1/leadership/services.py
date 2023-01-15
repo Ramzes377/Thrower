@@ -18,7 +18,7 @@ class SrvLeadership(CreateReadUpdate):
 
     def _end_current_leadership(self, leadership: Leadership | LeaderChange) -> Leadership | None:
         specification = SessionID(leadership.channel_id)
-        session_leader: Leadership = self.get(specification)
+        session_leader: tables.Leadership = self.get(specification)
 
         if session_leader is None:
             return

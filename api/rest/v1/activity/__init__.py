@@ -1,7 +1,6 @@
 from fastapi import Depends, APIRouter
 
 from .services import SrvActivities
-from ..dependencies import default_period
 from ..schemas import Activity, Role, ActivityInfo, Emoji, EndActivity
 from ..specifications import AppID
 
