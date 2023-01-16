@@ -26,7 +26,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
 
-        sessions = await self.request('session/unclosed/')
+        sessions = await self.get_unclosed_sessions()
         for session in sessions:
             channel = self.bot.get_channel(session['channel_id'])
             if channel is None:
@@ -130,7 +130,7 @@ class ChannelsManager(DiscordFeaturesMixin):
             overwrites = {user: default_role_perms, new_leader: leader_role_perms}
             await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
             await self.logger.log_activity(None, new_leader)
-            await self.logger.update_leader(channel.id, new_leader.id)
+            await self.logger.log_update_leader(channel.id, new_leader.id)
             ChannelsManager.channel_flags[channel.id] = 'T'
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)

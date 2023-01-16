@@ -36,7 +36,9 @@ def session(session_id: SessionID = Depends(), service: SrvSession = Depends()):
 
 
 @router.patch('/{session_id}', response_model=Session)
-def session(session_id: SessionID = Depends(), sess_data: Session | EndSession = None, service: SrvSession = Depends()):
+def session(session_id: SessionID = Depends(),
+            sess_data: Session | EndSession | dict = None,
+            service: SrvSession = Depends()):
     return service.patch(session_id, sess_data)
 
 

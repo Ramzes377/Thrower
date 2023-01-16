@@ -1,5 +1,5 @@
 from sqlalchemy import Table, Column, Integer, ForeignKey, Text, func, and_, or_
-from sqlalchemy.orm import declarative_base, relationship, backref, foreign, remote
+from sqlalchemy.orm import declarative_base, relationship, backref, remote
 
 from api.rest.database import engine
 from api.rest.v1.tables_mixins import BaseTimePeriod, PrimaryBegin, SessionLike
@@ -63,11 +63,11 @@ class Session(Base, BaseTimePeriod):
                               innerjoin=True, lazy=True,
                               viewonly=True, uselist=True, order_by=Activity.begin,
                               primaryjoin=
-                              and_(foreign(channel_id) == remote(member_session.c.channel_id),
-                                   remote(member_session.c.member_id) == remote(Member.id),
-                                   remote(Member.id) == remote(Activity.member_id),
-                                   remote(Prescence.member_id) == remote(Member.id),
-                                   foreign(channel_id) == remote(Prescence.channel_id),
+                              and_(channel_id == remote(member_session.c.channel_id),
+                                   member_session.c.member_id == Member.id,
+                                   Member.id == Activity.member_id,
+                                   Prescence.member_id == Member.id,
+                                   channel_id == Prescence.channel_id,
                                    or_(
                                        Activity.begin.between(
                                            Prescence.begin, func.coalesce(Prescence.end, date_placeholder)),

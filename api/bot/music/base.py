@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import lavalink
 
-from api.bot.mixins import BaseCogMixin
+from api.bot.mixins import BasicRequests
 
 
 class LavalinkVoiceClient(discord.VoiceClient):
@@ -37,7 +37,7 @@ class LavalinkVoiceClient(discord.VoiceClient):
         self.cleanup()
 
 
-class MusicBase(BaseCogMixin):
+class MusicBase(BasicRequests):
     def __init__(self, bot):
         super(MusicBase, self).__init__(bot)
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.

@@ -23,16 +23,15 @@ class PrimaryBegin(BaseTimePeriod):
     begin = Column(DateTime, primary_key=True)
 
 
-# noinspection PyMethodParameters
 class SessionLike(BaseTimePeriod):
     @declared_attr
-    def channel_id(cls):
+    def channel_id(self):
         return Column(Integer, ForeignKey('session.channel_id'), primary_key=True, index=True)
 
     @declared_attr
-    def member_id(cls):
+    def member_id(self):
         return Column(Integer, ForeignKey("member.id"), primary_key=True)
 
     @declared_attr
-    def begin(cls):
+    def begin(self):
         return Column(DateTime, primary_key=True)

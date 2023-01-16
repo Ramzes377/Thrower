@@ -89,22 +89,21 @@ class Music(MusicBase):
                 player.add(requester=user_id, track=track)
             embed.title = 'Плейлист добавлен в очередь!'
             embed.description = f'{results.playlist_info.name} - {len(tracks)} tracks'
-            json = {'title': results.playlist_info.name, 'query': query,
+            data = {'title': results.playlist_info.name, 'query': query,
                     'user_id': user_id, 'counter': 1}
         else:
             track = results.tracks[0]
             embed.title = 'Трек добавлен в очередь!'
             embed.description = f'[{track.title}]({track.uri})'
             player.add(requester=user_id, track=track)
-            json = {'title': track.title, 'query': track.uri,
+            data = {'title': track.title, 'query': track.uri,
                     'user_id': user_id, 'counter': 1}
 
-        await self.request(f'favoritemusic/', 'post', data=json)
+        await self.music_create(data)
 
         try:
             msg = await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
-            await self.request('/')
-            await self.request(f'sent_message/', 'post', data={'id': msg.id})
+            await self.create_sent_message(msg.id)
         except discord.errors.InteractionResponded:
             pass
 
@@ -168,7 +167,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = await self.request(f'favoritemusic/{user.id}')
+        favorites = await self.get_user_favorite_music(user.id)
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)
             await self.log_message(user.send(view=view, delete_after=60))

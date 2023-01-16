@@ -3,13 +3,13 @@ import datetime
 import discord
 from discord import app_commands
 
-from api.bot.mixins import DiscordFeaturesMixin
+from api.bot.mixins import BasicRequests
 from settings import envs
 
 CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
 
 
-class Commands(DiscordFeaturesMixin):
+class Commands(BasicRequests):
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
@@ -56,7 +56,7 @@ class Commands(DiscordFeaturesMixin):
 
         embed = discord.Embed(title=f"Запрос по игре {role.name}", color=role.color)
 
-        data = await self.request(f'user/{interaction.user.id}/activities/duration/{role.id}')
+        data = await self.get_activity_duration(interaction.user.id, role.id)
         if self.exist(data):
             ingame_time = datetime.timedelta(seconds=data['seconds'])
             embed.add_field(name='Зарегистрировано в игре ', value=f"{str(ingame_time).split('.')[0]}", inline=False)

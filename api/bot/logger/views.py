@@ -5,7 +5,7 @@ import discord
 from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
 
-from api.bot.mixins import BaseCogMixin
+from api.bot.mixins import BasicRequests
 from api.bot.misc import fmt, dt_from_str
 
 loader = FileSystemLoader(os.getcwd() + '/api/bot/logger/templates')
@@ -35,10 +35,10 @@ async def _response_handle(interaction, string, data, header, column, template='
         pass
 
 
-class LoggerView(discord.ui.View, BaseCogMixin):
+class LoggerView(discord.ui.View, BasicRequests):
     def __init__(self, bot) -> None:
         discord.ui.View.__init__(self, timeout=None)
-        BaseCogMixin.__init__(self, bot, silent=True)
+        BasicRequests.__init__(self, bot, silent=True)
 
     async def format_data(self, response: list[dict], header: str,
                           col: str, activity_flag: bool = False) -> tuple[str, list]:
@@ -51,7 +51,7 @@ class LoggerView(discord.ui.View, BaseCogMixin):
                 data.append((url, begin, end))
                 body.append((user.display_name, begin, end))
             else:
-                activity = await self.request(f'/activity/{row["id"]}/info')
+                activity = await self.get_activity_info(row["id"])
                 name = activity['app_name']
                 data.append((name, url, begin, end))
                 body.append((name, user.display_name, begin, end))
@@ -70,20 +70,20 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="👑", custom_id='logger_view:leadership', )
     async def leadership(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Лидеры сессии', 'Лидер'
-        leadership = await self.request(f'session/{interaction.message.id}/leadership')
+        leadership = await self.get_session_leadership(interaction.message.id)
         as_str, data = await self.format_data(leadership, header, column)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮", custom_id='logger_view:activities')
     async def activities(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Активности сессии', 'Активность'
-        activities = await self.request(f'session/{interaction.message.id}/activities')
+        activities = await self.get_session_activities(interaction.message.id)
         as_str, data = await self.format_data(activities, header, column, activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column, 'activity_template.html')
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Участники сессии', 'Участник'
-        prescence = await self.request(f'session/{interaction.message.id}/prescence')
+        prescence =  await self.get_session_prescence(interaction.message.id)
         as_str, data = await self.format_data(prescence, header, column)
         await _response_handle(interaction, as_str, data, header, column)
