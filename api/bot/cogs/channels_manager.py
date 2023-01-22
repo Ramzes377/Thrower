@@ -26,7 +26,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
 
-        sessions = await self.get_unclosed_sessions()
+        sessions = await self.db.get_unclosed_sessions()
         for session in sessions:
             channel = self.bot.get_channel(session['channel_id'])
             if channel is None:
@@ -93,6 +93,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         user_channel = await self.make_channel(user)
         await user.move_to(user_channel)  # send user to his channel
         await self.logger.session_begin(user.id, user_channel)  # send session message
+        await self.db.session_add_member(user_channel.id, user.id)  # add leader to session
 
     async def make_channel(self, user: discord.Member) -> discord.VoiceChannel:
         channel_name = await self.get_user_sess_name(user)
@@ -122,7 +123,10 @@ class ChannelsManager(DiscordFeaturesMixin):
 
     async def leader_leave(self, leader: discord.Member, channel: discord.VoiceChannel):
         user_channel_empty = len(channel.members) == 0
-        await self.end_session(channel) if user_channel_empty else await self.transfer_channel(leader, channel)
+        if user_channel_empty:
+            await self.end_session(channel)
+        else:
+            await self.transfer_channel(leader, channel)
 
     async def transfer_channel(self, user: discord.Member, channel: discord.VoiceChannel):
         try:

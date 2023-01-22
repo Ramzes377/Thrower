@@ -4,14 +4,13 @@ import discord
 from discord.ext import commands
 from cachetools import TTLCache
 
-
 from .views import LoggerView
-from ..mixins import BasicRequests
+from ..mixins import BaseCogMixin
 from ..misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
 from ...rest.v1.tables import Session
 
 
-class Logger(BasicRequests):
+class Logger(BaseCogMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
 
     def __init__(self, bot):
@@ -19,14 +18,14 @@ class Logger(BasicRequests):
         self._cache = TTLCache(maxsize=100, ttl=3)  # cache stores items only 3 seconds
         self.bot.loop.create_task(self.register_logger_views())
         for member in bot.guilds[0].members:
-            self.bot.loop.create_task(self.user_create(id=member.id, name=member.display_name))
+            self.bot.loop.create_task(self.db.user_create(id=member.id, name=member.display_name))
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        await self.user_create(id=member.id, name=member.display_name)
+        await self.db.user_create(id=member.id, name=member.display_name)
 
     async def register_logger_views(self):
-        sessions = await self.get_all_sessions()
+        sessions = await self.db.get_all_sessions()
         for session in sessions:
             self.bot.add_view(LoggerView(self.bot), message_id=session['message_id'])
 
@@ -44,17 +43,17 @@ class Logger(BasicRequests):
         )
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
-        await self.session_update(creator_id=creator.id,
-                                  leader_id=creator.id,
-                                  channel_id=channel.id,
-                                  message_id=msg.id,
-                                  begin=begin, name=name)
-        await self.prescence_update(channel_id=channel.id,
-                                    member_id=creator.id, begin=begin)
+        await self.db.session_update(creator_id=creator.id,
+                                     leader_id=creator.id,
+                                     channel_id=channel.id,
+                                     message_id=msg.id,
+                                     begin=begin, name=name)
+        await self.db.prescence_update(channel_id=channel.id,
+                                       member_id=creator.id, begin=begin)
         await self.log_activity(None, creator)
 
     async def session_over(self, channel_id: int):
-        session = await self.get_session(channel_id)
+        session = await self.db.get_session(channel_id)
         if session is None:
             return
 
@@ -68,8 +67,8 @@ class Logger(BasicRequests):
         end = now()
         sess_duration = end - begin
 
-        await self.update_leader(channel_id=channel_id, member_id=None, begin=end)
-        await self.session_update(channel_id=channel_id, end=end)
+        await self.db.update_leader(channel_id=channel_id, member_id=None, begin=end)
+        await self.db.session_update(channel_id=channel_id, end=end)
 
         if sess_duration.seconds < Logger.MIN_SESS_DURATION:
             await msg.delete()
@@ -77,7 +76,7 @@ class Logger(BasicRequests):
 
         duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
         members_field = '└ ' + ', '.join(f'<@{member["id"]}>'
-                                         for member in await self.get_session_members(channel_id)
+                                         for member in await self.db.get_session_members(channel_id)
                                          )
         embed = (
             discord.Embed(title=f"Сеанс {sess_name} окончен!", color=discord.Color.red())
@@ -91,8 +90,8 @@ class Logger(BasicRequests):
         await msg.edit(embed=embed)
 
     async def update_sess_name(self, channel_id: int, name: str):
-        session = await self.session_update(channel_id=channel_id, name=name)
-        await self.user_update(id=session["leader_id"], default_sess_name=session['name'])
+        session = await self.db.session_update(channel_id=channel_id, name=name)
+        await self.db.user_update(id=session["leader_id"], default_sess_name=session['name'])
 
         msg = await self.bot.logger_channel.fetch_message(session['message_id'])
         dct = msg.embeds[0].to_dict()
@@ -101,21 +100,21 @@ class Logger(BasicRequests):
         await msg.edit(embed=embed)
 
     async def log_update_leader(self, channel_id: int, leader_id: int | None):
-        session = await self.get_session(channel_id)
-        if not self.exist(session):
+        session = await self.db.get_session(channel_id)
+        if not self.db.exist(session):
             return
 
         msg = await self.bot.logger_channel.fetch_message(session['message_id'])
         embed = msg.embeds[0]
         embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
         await msg.edit(embed=embed)
-        await self.update_leader(channel_id=channel_id, member_id=leader_id, begin=now(), end=None)
+        await self.db.update_leader(channel_id=channel_id, member_id=leader_id, begin=now(), end=None)
 
     async def update_embed_members(self, session_id: int):
-        session = await self.get_session(session_id)
-        members = await self.get_session_members(session_id)
-
+        session = await self.db.get_session(session_id)
+        members = await self.db.get_session_members(session_id)
         message = await self.bot.logger_channel.fetch_message(session['message_id'])
+
         embed = message.embeds[0]
         embed.set_field_at(2, name='├ Участники',
                            value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
@@ -123,17 +122,17 @@ class Logger(BasicRequests):
         await message.edit(embed=embed)
 
     async def update_activity_icon(self, channel_id: int, app_id: int):
-        session = await self.get_session(channel_id)
-        app_info = await self.get_activity_info(app_id)
-        if self.exist(session) and self.exist(app_info):
+        session = await self.db.get_session(channel_id)
+        app_info = await self.db.get_activity_info(app_id)
+        if self.db.exist(session) and self.db.exist(app_info):
             message_id, thumbnail_url = session['message_id'], app_info['icon_url']
             msg = await self.bot.logger_channel.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_thumbnail(url=thumbnail_url)
             await msg.edit(embed=embed)
 
-            emoji = await self.get_activity_emoji(app_id)
-            if self.exist(emoji):
+            emoji = await self.db.get_activity_emoji(app_id)
+            if self.db.exist(emoji):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
     async def log_activity(self, before: discord.Member | None, after: discord.Member):
@@ -152,25 +151,25 @@ class Logger(BasicRequests):
             # event on_prescence_update twice with
             # same data
             self._cache[after] = dt.isoformat()
-            await self.member_activity(member_id=after.id, id=after_app_id, begin=dt, end=None)
+            await self.db.member_activity(member_id=after.id, id=after_app_id, begin=dt, end=None)
             if voice_channel is not None:  # logging activities of user in channel
                 await self.update_activity_icon(voice_channel.id, after_app_id)
 
         if before_familiar and not self._cache.get(before):
             self._cache[before] = dt.isoformat()
-            await self.member_activity(member_id=before.id, id=before_app_id, end=dt)
+            await self.db.member_activity(member_id=before.id, id=before_app_id, end=dt)
 
     async def log_member_join(self, user_id: int, channel_id: int):
         try:
-            await self.session_add_member(channel_id, user_id)
+            await self.db.session_add_member(channel_id, user_id)
             await self.update_embed_members(channel_id)  # add new member to logging message
         except IntegrityError:
             pass
         finally:
-            await self.prescence_update(channel_id=channel_id, member_id=user_id, begin=now())
+            await self.db.prescence_update(channel_id=channel_id, member_id=user_id, begin=now())
 
     async def log_member_abandon(self, user_id: int, channel_id: int):
-        await self.prescence_update(member_id=user_id, channel_id=channel_id, end=now())
+        await self.db.prescence_update(member_id=user_id, channel_id=channel_id, end=now())
 
     async def restore_log_session_message(self, session: Session):
         guild = self.bot.guilds[0]
@@ -183,7 +182,7 @@ class Logger(BasicRequests):
 
         duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
         members_field = '└ ' + ', '.join(
-            f'<@{member["id"]}>' for member in await self.get_session_members(session['channel_id'])
+            f'<@{member["id"]}>' for member in await self.db.get_session_members(session['channel_id'])
         )
 
         if sess_duration.seconds < Logger.MIN_SESS_DURATION:
@@ -199,4 +198,4 @@ class Logger(BasicRequests):
         )
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
-        await self.session_update(channel_id=session['channel_id'], message_id=msg.id)
+        await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)

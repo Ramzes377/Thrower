@@ -99,11 +99,11 @@ class Music(MusicBase):
             data = {'title': track.title, 'query': track.uri,
                     'user_id': user_id, 'counter': 1}
 
-        await self.music_create(data)
+        await self.db.music_create(data)
 
         try:
             msg = await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
-            await self.create_sent_message(msg.id)
+            await self.db.create_sent_message(msg.id)
         except discord.errors.InteractionResponded:
             pass
 
@@ -167,7 +167,7 @@ class Music(MusicBase):
             ctx = self._custom_context(interaction, command_name='favorite')
             user = ctx.author
 
-        favorites = await self.get_user_favorite_music(user.id)
+        favorites = await self.db.get_user_favorite_music(user.id)
         try:
             view = create_dropdown('Выберите трек для добавления в очередь', favorites, handler=self._play)
             await self.log_message(user.send(view=view, delete_after=60))

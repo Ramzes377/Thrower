@@ -40,7 +40,6 @@ class Session(EncoderBase):
 
 
 class EndSession(EncoderBase):
-    channel_id: int
     end: datetime
 
 

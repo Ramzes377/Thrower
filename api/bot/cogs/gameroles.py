@@ -5,13 +5,13 @@ import aiohttp
 import discord
 from discord.ext import tasks, commands
 
-from api.bot.mixins import BasicRequests
+from api.bot.mixins import BaseCogMixin
 from api.bot.misc import random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
 
 HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 
 
-class GameRoles(BasicRequests):
+class GameRoles(BaseCogMixin):
     def __init__(self, bot):
         super(GameRoles, self).__init__(bot)
         bot.loop.create_task(self.remove_unused_activities_loop())
@@ -33,11 +33,11 @@ class GameRoles(BasicRequests):
         if user_is_bot or not emoji_id:
             return
 
-        role = await self.get_emoji_role(emoji_id)
-        if not self.exist(role):
+        role = await self.db.get_emoji_role(emoji_id)
+        if not self.db.exist(role):
             return
 
-        guild = self.bot.get_guild(payload.guild_id)
+        guild = self.db.bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
         role = guild.get_role(role.id)
 
@@ -60,8 +60,8 @@ class GameRoles(BasicRequests):
         app_id, is_real = get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
-        role = await self.get_role(app_id)
-        if self.exist(role):  # role already exist
+        role = await self.db.get_role(app_id)
+        if self.db.exist(role):  # role already exist
             role = guild.get_role(role['id'])  # get role
             if role and role not in user.roles:  # check user have this role
                 try:
@@ -71,13 +71,13 @@ class GameRoles(BasicRequests):
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
             role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
                                            hoist=True, mentionable=True)
-            await self.role_create(role.id, app_id)
+            await self.db.role_create(role.id, app_id)
             await self.create_activity_emoji(guild, app_id, role)
             await user.add_roles(role)
 
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         try:
-            activity_info = self.get_activityinfo(app_id)
+            activity_info = await self.db.get_activityinfo(app_id)
         except AttributeError:
             await role.edit(color=discord.Colour(1).from_rgb(*random_color()))
             return
@@ -92,7 +92,7 @@ class GameRoles(BasicRequests):
         if content:
             dominant_color = get_dominant_color(content)
             emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
-            await self.emoji_create(emoji.id, role.id)
+            await self.db.emoji_create(emoji.id, role.id)
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
                 await role.edit(display_icon=content)
@@ -117,7 +117,7 @@ class GameRoles(BasicRequests):
             if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
                 try:
                     await role.delete()
-                    await self.role_delete(role.id)
+                    await self.db.role_delete(role.id)
                 except:
                     pass
 
