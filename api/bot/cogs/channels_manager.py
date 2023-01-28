@@ -1,10 +1,8 @@
-import asyncio
-
 import discord
 from discord.ext import tasks
 
 from ..logger import Logger
-from ..misc import get_category
+from ..misc import get_category, ChannelStatus
 from ..mixins import commands, DiscordFeaturesMixin
 
 from settings import bots_ids
@@ -14,11 +12,10 @@ CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
 
 
 class ChannelsManager(DiscordFeaturesMixin):
-    channel_flags = {}
-
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
         self.logger = Logger(bot)
+        self.cache = self.logger.cache
         self.handle_created_channels.start()
 
     @tasks.loop(seconds=CREATED_CHANNELS_HANDLE_PERIOD)
@@ -56,15 +53,12 @@ class ChannelsManager(DiscordFeaturesMixin):
         await self.logger.log_activity(before, after)
         channel = await self.get_user_channel(after.id)
         if channel is not None:
-            ChannelsManager.channel_flags[channel.id] = 'A'
+            self.cache[channel.id] = ChannelStatus.Activity
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
-        # skip rename when transfer channel or change activity presence
-        await asyncio.sleep(3)  # delay to prevent skip event of activity or transfer channel
-        channel_state = ChannelsManager.channel_flags.pop(after.id, None)
-        need_save = channel_state not in ('T', 'A')
+        need_save = not self.cache.get(after.id)    # handle only user manual name change
         if need_save and before.name != after.name:
             await self.logger.update_sess_name(after.id, after.name)
 
@@ -135,7 +129,7 @@ class ChannelsManager(DiscordFeaturesMixin):
             await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
             await self.logger.log_activity(None, new_leader)
             await self.logger.log_update_leader(channel.id, new_leader.id)
-            ChannelsManager.channel_flags[channel.id] = 'T'
+            self.cache[channel.id] = ChannelStatus.Transfer
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)
 

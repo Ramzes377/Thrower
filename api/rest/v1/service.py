@@ -17,7 +17,7 @@ class BaseService:
     def __init__(self, session: Session = Depends(get_session)):
         self._session = session
         self._base_query = self._session.query(self.table)
-        self._order_by = type(self).order_by
+        self._order_by = self.order_by
 
 
 class Create(BaseService):
@@ -82,7 +82,7 @@ class Update(Read):
 
 
 class Delete(Read):
-    def destroy(self, obj: BaseTable) -> None:
+    def erase(self, obj: BaseTable) -> None:
         try:
             self._session.delete(obj)
             self._session.commit()
@@ -92,7 +92,7 @@ class Delete(Read):
 
     def delete(self, specification: Specification) -> dict[str, bool]:
         obj = self.get(specification)
-        self.destroy(obj)
+        self.erase(obj)
         return {"ok": True}
 
 

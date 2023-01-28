@@ -15,7 +15,7 @@ class Logger(BaseCogMixin):
 
     def __init__(self, bot):
         super(Logger, self).__init__(bot, silent=True)
-        self._cache = TTLCache(maxsize=100, ttl=3)  # cache stores items only 3 seconds
+        self.cache = TTLCache(maxsize=100, ttl=3)  # cache stores items only 3 seconds
         self.bot.loop.create_task(self.register_logger_views())
         for member in bot.guilds[0].members:
             self.bot.loop.create_task(self.db.user_create(id=member.id, name=member.display_name))
@@ -146,17 +146,17 @@ class Logger(BaseCogMixin):
         after_familiar = user_is_playing(after) and after_is_real
         before_familiar = before is not None and user_is_playing(before) and before_is_real
 
-        if after_familiar and not self._cache.get(after):
+        if after_familiar and not self.cache.get(after):
             # for some reason discord api calling
             # event on_prescence_update twice with
             # same data
-            self._cache[after] = dt.isoformat()
+            self.cache[after] = dt.isoformat()
             await self.db.member_activity(member_id=after.id, id=after_app_id, begin=dt, end=None)
             if voice_channel is not None:  # logging activities of user in channel
                 await self.update_activity_icon(voice_channel.id, after_app_id)
 
-        if before_familiar and not self._cache.get(before):
-            self._cache[before] = dt.isoformat()
+        if before_familiar and not self.cache.get(before):
+            self.cache[before] = dt.isoformat()
             await self.db.member_activity(member_id=before.id, id=before_app_id, end=dt)
 
     async def log_member_join(self, user_id: int, channel_id: int):

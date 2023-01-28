@@ -3,6 +3,7 @@ from io import BytesIO
 from hashlib import sha3_224
 from random import randint
 from hashlib import blake2b
+from enum import Enum, auto
 
 import discord
 from PIL import Image
@@ -83,4 +84,11 @@ def code_block(func):
         wrap = '```'
         result = func(*args, **kwargs)
         return f'{wrap}{result}{wrap}'
+
     return wrapper
+
+
+class ChannelStatus(Enum):
+    Activity = auto()
+    Transfer = auto()
+    Rename = auto()

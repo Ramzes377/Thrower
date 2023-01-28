@@ -4,11 +4,11 @@ from api.rest.base import request
 class BasicRequests:
 
     @staticmethod
-    def exist(obj: dict):
+    def exist(obj: dict) -> bool:
         return obj is not None and 'detail' not in obj
 
     @staticmethod
-    async def request(url: str, method: str = 'get', data: dict | None = None):
+    async def request(url: str, method: str = 'get', data: dict | None = None) -> dict | None:
         try:
             return await request(url, method, data)
         except Exception as e:
