@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvUser
 from .specifications import UserID
@@ -13,7 +13,7 @@ def all_users(service: SrvUser = Depends()):
     return service.all()
 
 
-@router.post('/', response_model=Member)
+@router.post('/', response_model=Member, status_code=status.HTTP_201_CREATED)
 def user(user_data: Member, service: SrvUser = Depends()):
     return service.post(user_data)
 

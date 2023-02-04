@@ -1,6 +1,6 @@
 from typing import Callable, Any
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
@@ -17,7 +17,7 @@ class BaseService:
     def __init__(self, session: Session = Depends(get_session)):
         self._session = session
         self._base_query = self._session.query(self.table)
-        self._order_by = self.order_by
+        self._order_by = BaseService.order_by
 
 
 class Create(BaseService):
@@ -47,12 +47,18 @@ class Read(BaseService):
         return self._query.filter_by(**specification())
 
     def get(self, specification: Specification, *args: Any, **kwargs: Any) -> BaseTable:
-        return self._get(specification).first()
+        query = self._get(specification)
+        obj = query.first()
+        if not obj:
+            specs = ', '.join(f'{k} = {v}' for k, v in specification().items())
+            details = f"Row of table {self.table.__name__} with follows params ({specs}) not found"
+            raise HTTPException(status_code=404, detail=details)
+        return obj
 
-    def all(self, filters: BinaryExpression = None, *args, query: Query | None = None, **kwargs) -> list[BaseTable]:
+    def all(self, filter: BinaryExpression = None, *args, query: Query | None = None, **kwargs) -> list[BaseTable]:
         query = self._query if query is None else query
-        if filters is not None:
-            query = query.filter(filters)
+        if filter is not None:
+            query = query.filter(filter)
         return query.all()
 
 
@@ -90,10 +96,9 @@ class Delete(Read):
             self._session.rollback()
             raise e
 
-    def delete(self, specification: Specification) -> dict[str, bool]:
+    def delete(self, specification: Specification) -> int:
         obj = self.get(specification)
         self.erase(obj)
-        return {"ok": True}
 
 
 class CreateRead(Create, Read):

@@ -1,13 +1,13 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvLeadership
-from ..specifications import SessionID, MessageID
+from ..specifications import SessionID
 from ..schemas import Leadership, LeaderChange
 
 router = APIRouter(prefix='/leadership', tags=['leadership'])
 
 
-@router.post('/', response_model=Leadership)
+@router.post('/', response_model=Leadership, status_code=status.HTTP_201_CREATED)
 def leadership(leadership: Leadership | LeaderChange, service: SrvLeadership = Depends()):
     return service.post(leadership)
 
@@ -20,8 +20,3 @@ def session_leader(session_id: SessionID = Depends(), service: SrvLeadership = D
 @router.get('/hist/{session_id}', response_model=list[Leadership])
 def leadership(session_id: SessionID = Depends(), service: SrvLeadership = Depends()):
     return service.history(session_id)
-
-
-@router.get('/hist/by_msg/{message_id}', response_model=list[Leadership])
-def leadership(message_id: MessageID = Depends(), service: SrvLeadership = Depends()):
-    return service.history(message_id)

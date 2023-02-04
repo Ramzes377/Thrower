@@ -58,7 +58,7 @@ class ChannelsManager(DiscordFeaturesMixin):
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
-        need_save = not self.cache.get(after.id)    # handle only user manual name change
+        need_save = not self.cache.get(after.id)  # handle only user manual name change
         if need_save and before.name != after.name:
             await self.logger.update_sess_name(after.id, after.name)
 

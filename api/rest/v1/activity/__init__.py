@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvActivities
 from ..schemas import Activity, Role, ActivityInfo, Emoji, EndActivity
@@ -7,7 +7,7 @@ from ..specifications import AppID
 router = APIRouter(prefix='/activity', tags=['activity'])
 
 
-@router.post('/', response_model=Activity)
+@router.post('/', response_model=Activity, status_code=status.HTTP_201_CREATED)
 def activity(activitydata: Activity, service: SrvActivities = Depends()):
     return service.post(activitydata)
 

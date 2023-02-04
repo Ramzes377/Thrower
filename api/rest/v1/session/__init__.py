@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .specifications import LeaderID
 from .services import SrvSession
@@ -10,7 +10,7 @@ from ..user.specifications import UserID
 router = APIRouter(prefix='/session', tags=['session'])
 
 
-@router.post('/', response_model=Session)
+@router.post('/', response_model=Session, status_code=status.HTTP_201_CREATED)
 def session(sess: Session, service: SrvSession = Depends()):
     return service.post(sess)
 
@@ -48,7 +48,7 @@ def session_users(session_id: SessionID = Depends(), service: SrvSession = Depen
     return sess.members
 
 
-@router.post('/{session_id}/members/{user_id}', response_model=Member)
+@router.post('/{session_id}/members/{user_id}', response_model=Member, status_code=status.HTTP_201_CREATED)
 def session_add_member(session_id: SessionID = Depends(),
                        user_id: UserID = Depends(),
                        service: SrvSession = Depends()):

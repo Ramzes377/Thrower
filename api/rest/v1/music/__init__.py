@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvFavoriteMusic
 from .specifications import UserID
@@ -13,6 +13,6 @@ def get(user_id: UserID = Depends(), limit=Depends(query_amount), service: SrvFa
     return service.get(user_id, amount=limit)
 
 
-@router.post('/', response_model=FavoriteMusic)
+@router.post('/', response_model=FavoriteMusic, status_code=status.HTTP_201_CREATED)
 def post(data: FavoriteMusic, service: SrvFavoriteMusic = Depends()):
     return service.post(data)

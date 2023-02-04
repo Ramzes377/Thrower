@@ -1,3 +1,4 @@
+import datetime
 from sqlite3 import IntegrityError
 
 import discord
@@ -7,7 +8,6 @@ from cachetools import TTLCache
 from .views import LoggerView
 from ..mixins import BaseCogMixin
 from ..misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
-from ...rest.v1.tables import Session
 
 
 class Logger(BaseCogMixin):
@@ -147,7 +147,7 @@ class Logger(BaseCogMixin):
         before_familiar = before is not None and user_is_playing(before) and before_is_real
 
         if after_familiar and not self.cache.get(after):
-            # for some reason discord api calling
+            # for some reason discord rest calling
             # event on_prescence_update twice with
             # same data
             self.cache[after] = dt.isoformat()
@@ -171,31 +171,33 @@ class Logger(BaseCogMixin):
     async def log_member_abandon(self, user_id: int, channel_id: int):
         await self.db.prescence_update(member_id=user_id, channel_id=channel_id, end=now())
 
-    async def restore_log_session_message(self, session: Session):
-        guild = self.bot.guilds[0]
-        name = session['name']
-        begin = dt_from_str(session['begin'])
-        end = dt_from_str(session['end'])
+    async def restore_log_session_message(self, from_date: datetime.datetime | None = None,
+                                          to_date: datetime.datetime | None = None):
+        for session in await self.db.get_all_sessions(from_date, to_date):
+            guild = self.bot.guilds[0]
+            name = session['name']
+            begin = dt_from_str(session['begin'])
+            end = dt_from_str(session['end'])
 
-        creator = guild.get_member(session['creator_id'])
-        sess_duration = end - begin
+            creator = guild.get_member(session['creator_id'])
+            sess_duration = end - begin
 
-        duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
-        members_field = '└ ' + ', '.join(
-            f'<@{member["id"]}>' for member in await self.db.get_session_members(session['channel_id'])
-        )
+            duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
+            members_field = '└ ' + ', '.join(
+                f'<@{member["id"]}>' for member in await self.db.get_session_members(session['channel_id'])
+            )
 
-        if sess_duration.seconds < Logger.MIN_SESS_DURATION:
-            return
+            if sess_duration.seconds < Logger.MIN_SESS_DURATION:
+                return
 
-        embed = (
-            discord.Embed(title=f"Сеанс {name} окончен!", color=discord.Color.red())
-            .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
-            .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
-            .add_field(name='├ Продолжительность', value=duration_field, inline=False)
-            .add_field(name='├ Участники', value=members_field, inline=False)
-            .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
-        )
+            embed = (
+                discord.Embed(title=f"Сеанс {name} окончен!", color=discord.Color.red())
+                .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
+                .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
+                .add_field(name='├ Продолжительность', value=duration_field, inline=False)
+                .add_field(name='├ Участники', value=members_field, inline=False)
+                .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
+            )
 
-        msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
-        await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)
+            msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
+            await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)

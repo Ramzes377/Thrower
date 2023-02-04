@@ -1,8 +1,9 @@
-from .. import tables
 from .specifications import UserID, QueryFilter
+from .. import tables
 from ..schemas import FavoriteMusic
 from ..service import CreateReadUpdate
 from ..base_specification import Specification
+from ..custom_responses import modify_response
 
 
 class SrvFavoriteMusic(CreateReadUpdate):
@@ -16,12 +17,9 @@ class SrvFavoriteMusic(CreateReadUpdate):
         specification = UserID(user_id) & QueryFilter(query)
         return self._get(specification).first()
 
-    def post(self, data: FavoriteMusic) -> tables.FavoriteMusic:
-        record = self._get_record(data.user_id, data.query)
+    def post(self, music_data: FavoriteMusic) -> tables.FavoriteMusic:
+        record = self._get_record(music_data.user_id, music_data.query)
         if record:  # track already exists, just increasing it counter
             self.update(record, {'counter': record.counter + 1})
-            return record
-
-        favorite_music = tables.FavoriteMusic(**data.dict())
-        self.create(favorite_music)
-        return favorite_music
+            return modify_response(record)
+        return super().post(music_data)

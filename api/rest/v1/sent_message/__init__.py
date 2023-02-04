@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvSentMessage
 from ..specifications import ID
@@ -12,7 +12,7 @@ def all_messages(service: SrvSentMessage = Depends()):
     return service.all()
 
 
-@router.post('/', response_model=SentMessage)
+@router.post('/', response_model=SentMessage, status_code=status.HTTP_201_CREATED)
 def post_message(message: SentMessage, service: SrvSentMessage = Depends()):
     return service.post(message)
 

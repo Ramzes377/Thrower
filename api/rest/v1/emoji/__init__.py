@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvEmoji
 from .specifications import EmojiID
@@ -13,7 +13,7 @@ def all_emojis(service: SrvEmoji = Depends()):
     return service.all()
 
 
-@router.post('/', response_model=Emoji)
+@router.post('/', response_model=Emoji, status_code=status.HTTP_201_CREATED)
 def create_emoji(emoji: Emoji, service: SrvEmoji = Depends()):
     return service.post(emoji)
 

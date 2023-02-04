@@ -1,6 +1,6 @@
 from api.rest.v1 import tables
-from api.rest.v1.service import Read
+from api.rest.v1.service import CreateRead
 
 
-class SrvActivityInfo(Read):
+class SrvActivityInfo(CreateRead):
     table = tables.ActivityInfo

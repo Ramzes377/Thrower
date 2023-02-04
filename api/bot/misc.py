@@ -76,7 +76,7 @@ def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int]
 def now() -> datetime.datetime:
     time = datetime.datetime.now(tz=tzMoscow)
     time.replace(microsecond=0)
-    return time
+    return time.replace(tzinfo=None)
 
 
 def code_block(func):

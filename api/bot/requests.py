@@ -1,4 +1,5 @@
 from api.rest.base import request
+from api.rest.v1.dependencies import default_period
 
 
 class BasicRequests:
@@ -8,11 +9,11 @@ class BasicRequests:
         return obj is not None and 'detail' not in obj
 
     @staticmethod
-    async def request(url: str, method: str = 'get', data: dict | None = None) -> dict | None:
+    async def request(url: str, method: str = 'get', data: dict | None = None, params: dict | None = None) -> dict | None:
         try:
-            return await request(url, method, data)
+            return await request(url, method, data, params)
         except Exception as e:
-            if 'user/' in url:
+            if '(sqlite3.IntegrityError) UNIQUE constraint failed:' in e.args[0]:
                 return
             print(f'Raised exception {e=} with follows params: \n{url=}, \n{method=}, \n{data=}')
 
@@ -79,8 +80,8 @@ class BasicRequests:
     async def get_user_session(self, user_id: int) -> dict:
         return await self.request(f'session/unclosed/{user_id}')
 
-    async def get_all_sessions(self) -> list[dict]:
-        return await self.request('session/')
+    async def get_all_sessions(self, begin=None, end=None) -> list[dict]:
+        return await self.request('session/', params=default_period(begin, end))
 
     async def get_session_members(self, session_id: int) -> list[dict]:
         return await self.request(f'session/{session_id}/members')

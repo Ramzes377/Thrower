@@ -17,13 +17,13 @@ app.include_router(router)
 AsyncHttpClient = partial(AsyncClient, app=app, base_url=base_url)
 
 
-async def request(url: str, method: str = 'get', data: dict | None = None):
+async def request(url: str, method: str = 'get', data: dict | None = None, params: dict | None = None):
     async with AsyncHttpClient() as client:
         if method in ('get', 'delete'):
-            response = await client.request(method, url)
+            response = await client.request(method, url, params=params)
         else:
             _method = getattr(client, method)
-            response = await _method(url, json=jsonable_encoder(data))
+            response = await _method(url, json=jsonable_encoder(data), params=params)
         return response.json()
 
 
@@ -35,4 +35,4 @@ def home():
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run('api.rest.base:app', host='127.0.0.1', port=8000, reload=True)
+    uvicorn.run('rest.rest.base:app', host='127.0.0.1', port=8000, reload=True)

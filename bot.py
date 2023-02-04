@@ -85,4 +85,4 @@ async def load_cogs(music=False):
                 await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
 
 
-run = lambda: bot.run(token)
+run = lambda: bot.run(token, reconnect=True)

@@ -14,8 +14,7 @@ class SrvPrescence(CreateReadUpdate):
 
     def __init__(self, session: Session = Depends(get_session)):
         super().__init__(session)
-        # rewriting base query to use base class _get
-        # method more native way
+        # override base query to use base method _get  more native way with filter by message_id
         self._base_query = self._base_query.join(tables.Session)
 
     def get(self, specification: Specification, *args) -> list[Prescence]:

@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvRole
 from .. import tables
@@ -13,7 +13,7 @@ def all_roles(service: SrvRole = Depends()):
     return service.all()
 
 
-@router.post('/', response_model=Role)
+@router.post('/', response_model=Role, status_code=status.HTTP_201_CREATED)
 def role(role: Role, service: SrvRole = Depends()):
     return service.post(role)
 
@@ -23,7 +23,7 @@ def role(app_id: ActivityID = Depends(), service: SrvRole = Depends()):
     return service.get(app_id)
 
 
-@router.delete('/{role_id}')
+@router.delete('/{role_id}', status_code=status.HTTP_204_NO_CONTENT)
 def role(role_id: RoleID = Depends(), service: SrvRole = Depends()):
     return service.delete(role_id)
 

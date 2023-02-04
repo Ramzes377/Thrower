@@ -116,7 +116,7 @@ class FavoriteMusic(Base):
     query = Column(Text, primary_key=True)
 
     title = Column(Text)
-    counter = Column(Integer)
+    counter = Column(Integer, default=1)
 
 
 class SentMessage(Base):

@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, status
 
 from .services import SrvPrescence
 from ..specifications import SessionID, MessageID
@@ -7,7 +7,7 @@ from ..schemas import Prescence, EndPrescence
 router = APIRouter(prefix='/prescence', tags=['prescence'])
 
 
-@router.post('/', response_model=Prescence)
+@router.post('/', response_model=Prescence, status_code=status.HTTP_201_CREATED)
 def prescence(prescencedata: Prescence, service: SrvPrescence = Depends()):
     return service.post(prescencedata)
 
