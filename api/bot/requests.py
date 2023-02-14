@@ -15,7 +15,7 @@ class BasicRequests:
         except Exception as e:
             if '(sqlite3.IntegrityError) UNIQUE constraint failed:' in e.args[0]:
                 return
-            print(f'Raised exception {e=} with follows params: \n{url=}, \n{method=}, \n{data=}')
+            print(f'Raised exception {e=} with follows params: {url=}, {method=}, {data=}')
 
     async def update_leader(self, *args, channel_id, member_id, begin, update_sess=True, **kwargs) -> None:
         if update_sess and member_id is not None:  # close session
