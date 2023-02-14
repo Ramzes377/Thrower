@@ -44,8 +44,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music=True)
-    print(await bot.tree.sync(guild=discord.Object(id=envs['guild_id'])))
+    await load_cogs(music_only=False)
     await clear_unregistered_messages()
     print('Bot have been started!')
 
@@ -68,17 +67,17 @@ async def clear_unregistered_messages():
                 pass
 
 
-async def load_cogs(music=False):
+async def load_cogs(music_only=False):
     cogs_path = 'api/bot/cogs'
     cogs_path_dotted = cogs_path.replace('/', '.')
-    exclude = ['music.py']
-    if music:
+    if music_only:
         await bot.load_extension(f'{cogs_path_dotted}.music')
     else:
         for filename in reversed(os.listdir(cogs_path)):
-            if filename.endswith('.py') and filename.lower() not in exclude:
+            if filename.endswith('.py'):
                 await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
+        print(await bot.tree.sync(guild=discord.Object(id=envs['guild_id'])))
 
 run = lambda: bot.run(
     token,

@@ -144,7 +144,7 @@ class Music(MusicBase):
         player.paused = not player.paused
         status = "приостановлено" if player.paused else "вознобновлено"
         try:
-            msg = f'Воспроизведение {status}! Пользователь: {interaction.user.mention}'
+            msg = f'Воспроизведение {status}! \nПользователь: {interaction.user.mention}'
             await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
         except AttributeError:
             pass
@@ -158,7 +158,7 @@ class Music(MusicBase):
     async def _skip(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(interaction.guild_id)
         try:
-            msg = f'Пропущено воспроизведение трека {player.current.title}! Пользователь: {interaction.user.mention}'
+            msg = f'Пропущено воспроизведение трека {player.current.title}! \nПользователь: {interaction.user.mention}'
             await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
         except AttributeError:
             pass
