@@ -1,6 +1,6 @@
 import discord
 
-from api.bot.mixins import BaseCogMixin, commands
+from ..mixins import BaseCogMixin, commands
 from settings import bots_ids, envs
 
 

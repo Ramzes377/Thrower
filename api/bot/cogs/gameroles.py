@@ -5,8 +5,8 @@ import aiohttp
 import discord
 from discord.ext import tasks, commands
 
-from api.bot.mixins import BaseCogMixin
-from api.bot.misc import random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
+from ..mixins import BaseCogMixin
+from ..misc import random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
 
 HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
 

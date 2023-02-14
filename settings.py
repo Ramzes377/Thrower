@@ -3,8 +3,13 @@ from envparse import Env
 
 tzMoscow = ZoneInfo("Europe/Moscow")
 
+DEBUG = False
+
 env = Env()
-env.read_envfile()
+if DEBUG:
+    env.read_envfile('.env-test')
+else:
+    env.read_envfile()
 
 env_vars_names = ['guild_id', 'logger_id', 'command_id',
                   'role_request_id', 'create_channel_id',

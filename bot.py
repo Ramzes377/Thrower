@@ -1,5 +1,6 @@
 import asyncio
 import os
+import logging
 
 import discord
 from discord.ext import commands
@@ -31,7 +32,6 @@ default_role_perms = discord.PermissionOverwrite(
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
-bot.logger_channel, bot.request_channel = None, None
 
 
 @bot.event
@@ -44,17 +44,10 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music=False)
+    await load_cogs(music=True)
+    print(await bot.tree.sync(guild=discord.Object(id=envs['guild_id'])))
     await clear_unregistered_messages()
-    await bot.tree.sync(guild=discord.Object(id=envs['guild_id']))
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
     print('Bot have been started!')
-
-
-@bot.tree.error
-async def on_command_error(ctx, error):
-    print(ctx, error)
-    pass
 
 
 async def clear_unregistered_messages():
@@ -63,14 +56,16 @@ async def clear_unregistered_messages():
     messages = await request('sent_message/')
     for message in messages:
         for channel in text_channels:
-            msg = await channel.fetch_message(message['id'])
-            if msg:
-                print(msg)
-                # deletion process
-                # await msg.delete()
-                # await request(f'sent_message/{msg.id}', 'delete')
-
-                break
+            try:
+                msg = await channel.fetch_message(message['id'])
+                if msg:
+                    print(msg)
+                    # deletion process
+                    # await msg.delete()
+                else:
+                    print(await request(f'sent_message/{msg.id}', 'delete'))
+            except:
+                pass
 
 
 async def load_cogs(music=False):
@@ -83,6 +78,10 @@ async def load_cogs(music=False):
         for filename in reversed(os.listdir(cogs_path)):
             if filename.endswith('.py') and filename.lower() not in exclude:
                 await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
 
-
-run = lambda: bot.run(token, reconnect=True)
+run = lambda: bot.run(
+    token,
+    reconnect=True,
+    log_handler=logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+)

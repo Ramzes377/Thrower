@@ -5,8 +5,8 @@ import discord
 from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
 
-from api.bot.mixins import BaseCogMixin
-from api.bot.misc import fmt, dt_from_str
+from ...mixins import BaseCogMixin
+from ...misc import fmt, dt_from_str
 
 loader = FileSystemLoader(os.getcwd() + '/rest/bot/logger/templates')
 env = Environment(loader=loader)
@@ -38,7 +38,7 @@ async def _response_handle(interaction, string, data, header, column, template='
 class LoggerView(discord.ui.View, BaseCogMixin):
     def __init__(self, bot) -> None:
         discord.ui.View.__init__(self, timeout=None)
-        BaseCogMixin.__init__(self, bot, silent=True)
+        BaseCogMixin.__init__(self, bot, subcog=True)
 
     async def format_data(self, response: list[dict], header: str,
                           col: str, activity_flag: bool = False) -> tuple[str, list]:

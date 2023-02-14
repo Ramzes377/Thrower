@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
-from tests.rest._client import client_fixture, session_fixture
 
 
 def get_all(client: TestClient):

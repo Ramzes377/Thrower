@@ -3,7 +3,7 @@ import datetime
 import discord
 from discord import app_commands
 
-from api.bot.mixins import BaseCogMixin
+from ..mixins import BaseCogMixin
 from settings import envs
 
 CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds

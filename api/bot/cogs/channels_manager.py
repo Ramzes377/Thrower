@@ -1,14 +1,14 @@
 import discord
 from discord.ext import tasks
 
-from ..logger import Logger
+from .logger import Logger
 from ..misc import get_category, ChannelStatus
 from ..mixins import commands, DiscordFeaturesMixin
 
 from settings import bots_ids
 from bot import default_role_perms, leader_role_perms
 
-CREATED_CHANNELS_HANDLE_PERIOD = 30 * 60  # in seconds
+CREATED_CHANNELS_HANDLE_PERIOD = 10 * 60  # in seconds
 
 
 class ChannelsManager(DiscordFeaturesMixin):
@@ -20,7 +20,7 @@ class ChannelsManager(DiscordFeaturesMixin):
 
     @tasks.loop(seconds=CREATED_CHANNELS_HANDLE_PERIOD)
     async def handle_created_channels(self):
-        # handle channels every 30 minutes to prevent possible accumulating errors on channel transfer
+        # handle channels sometimes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
 
         sessions = await self.db.get_unclosed_sessions()

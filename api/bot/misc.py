@@ -79,7 +79,7 @@ def now() -> datetime.datetime:
     return time.replace(tzinfo=None)
 
 
-def code_block(func):
+def code(func):
     def wrapper(*args, **kwargs) -> str:
         wrap = '```'
         result = func(*args, **kwargs)

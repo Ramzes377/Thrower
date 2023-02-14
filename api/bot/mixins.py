@@ -12,10 +12,10 @@ from .requests import BasicRequests
 class BaseCogMixin(commands.Cog):
     db = BasicRequests()
 
-    def __init__(self, bot, silent=False):
+    def __init__(self, bot, subcog=False):
         super(BaseCogMixin, self).__init__()
         self.bot = bot
-        if not silent:
+        if not subcog:
             print(f'Cog {type(self).__name__} have been started!')
 
 

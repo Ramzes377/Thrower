@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from sqlite3 import IntegrityError
 
@@ -6,19 +7,23 @@ from discord.ext import commands
 from cachetools import TTLCache
 
 from .views import LoggerView
-from ..mixins import BaseCogMixin
-from ..misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
+from api.bot.mixins import BaseCogMixin
+from api.bot.misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
 
 
 class Logger(BaseCogMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
 
     def __init__(self, bot):
-        super(Logger, self).__init__(bot, silent=True)
+        super(Logger, self).__init__(bot, subcog=True)
         self.cache = TTLCache(maxsize=100, ttl=3)  # cache stores items only 3 seconds
         self.bot.loop.create_task(self.register_logger_views())
-        for member in bot.guilds[0].members:
-            self.bot.loop.create_task(self.db.user_create(id=member.id, name=member.display_name))
+        self.bot.loop.create_task(self.add_members())
+
+    async def add_members(self):
+        tasks = (self.db.user_create(id=member.id, name=member.display_name)
+                 for member in self.bot.guilds[0].members)
+        await asyncio.gather(*tasks)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
