@@ -8,7 +8,8 @@ from table2ascii import table2ascii as t2a, PresetStyle
 from ...mixins import BaseCogMixin
 from ...misc import fmt, dt_from_str
 
-loader = FileSystemLoader(os.getcwd() + '/rest/bot/logger/templates')
+
+loader = FileSystemLoader(os.getcwd() + 'api/bot/cogs/logger/templates')
 env = Environment(loader=loader)
 
 

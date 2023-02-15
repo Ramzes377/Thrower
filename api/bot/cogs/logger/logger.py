@@ -7,8 +7,8 @@ from discord.ext import commands
 from cachetools import TTLCache
 
 from .views import LoggerView
-from api.bot.mixins import BaseCogMixin
-from api.bot.misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
+from ...mixins import BaseCogMixin
+from ...misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
 
 
 class Logger(BaseCogMixin):
