@@ -44,7 +44,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music_only=True, separate_load=True)
+    await load_cogs(music_only=False, separate_load=True)
     await clear_unregistered_messages()
     print('Bot have been started!')
 

@@ -4,7 +4,7 @@ from envparse import Env
 
 tzMoscow = ZoneInfo("Europe/Moscow")
 
-DEBUG = True
+DEBUG = False
 
 env = Env()
 if DEBUG:
