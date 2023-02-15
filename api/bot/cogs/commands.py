@@ -2,21 +2,12 @@ import datetime
 
 import discord
 from discord import app_commands
-from discord.ext import tasks
 
 from ..mixins import BaseCogMixin
 from settings import guild
 
 
 class Commands(BaseCogMixin):
-    def __init__(self, bot):
-        super().__init__(bot)
-        self.sync_loop.start()
-
-    @tasks.loop(hours=1)
-    async def sync_loop(self):
-        # syncing bot slash commands for periodically disabling music bot
-        await self.bot.tree.sync(guild=guild)
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)

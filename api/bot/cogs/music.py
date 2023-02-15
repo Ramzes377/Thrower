@@ -1,5 +1,6 @@
 import discord
 from discord import app_commands
+from discord.ext import tasks
 
 from settings import guild
 from .music_base import MusicCommandsHandlers
@@ -8,6 +9,12 @@ from .music_base import MusicCommandsHandlers
 class Music(MusicCommandsHandlers):
     def __init__(self, bot) -> None:
         super(Music, self).__init__(bot)
+        self.sync_loop.start()
+
+    @tasks.loop(hours=1)
+    async def sync_loop(self):
+        # syncing bot slash commands for periodically disabling music bot
+        await self.bot.tree.sync(guild=guild)
 
     @app_commands.command(description='Ссылка или часть названия трека')
     async def play(self, interaction: discord.Interaction, query: str) -> None:

@@ -68,7 +68,7 @@ class Logger(BaseCogMixin):
         except:
             return
 
-        begin = msg.created_at.astimezone(tzMoscow)
+        begin = msg.created_at.astimezone(tzMoscow).replace(microsecond=0).replace(tzinfo=None)
         end = now()
         sess_duration = end - begin
 
