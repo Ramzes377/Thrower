@@ -5,7 +5,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from settings import envs, token
+from settings import envs, token, guild
 from api.rest.base import request
 
 try:
@@ -44,7 +44,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music_only=False)
+    await load_cogs(music_only=True, separate_load=True)
     await clear_unregistered_messages()
     print('Bot have been started!')
 
@@ -67,17 +67,22 @@ async def clear_unregistered_messages():
                 pass
 
 
-async def load_cogs(music_only=False):
+async def load_cogs(music_only, separate_load=True):
     cogs_path = 'api/bot/cogs'
     cogs_path_dotted = cogs_path.replace('/', '.')
     if music_only:
         await bot.load_extension(f'{cogs_path_dotted}.music')
+        await bot.load_extension(f'{cogs_path_dotted}.commands')
     else:
         for filename in reversed(os.listdir(cogs_path)):
             if filename.endswith('.py'):
-                await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
+                if filename != 'music.py':
+                    await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
+                elif not separate_load:
+                    await bot.load_extension(f'{cogs_path_dotted}.{filename[:-3]}')
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=" за каналами"))
-        print(await bot.tree.sync(guild=discord.Object(id=envs['guild_id'])))
+    print(await bot.tree.sync(guild=guild))
+
 
 run = lambda: bot.run(
     token,

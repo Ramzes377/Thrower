@@ -2,20 +2,27 @@ import datetime
 
 import discord
 from discord import app_commands
+from discord.ext import tasks
 
 from ..mixins import BaseCogMixin
-from settings import envs
-
-CLEAR_CONNECTIONS_PERIOD = 5 * 60  # seconds
+from settings import guild
 
 
 class Commands(BaseCogMixin):
+    def __init__(self, bot):
+        super().__init__(bot)
+        self.sync_loop.start()
+
+    @tasks.loop(hours=1)
+    async def sync_loop(self):
+        # syncing bot slash commands for periodically disabling music bot
+        await self.bot.tree.sync(guild=guild)
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
     async def sync(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message(await self.bot.tree.sync(guild=interaction.guild),
-                                                ephemeral=True, delete_after=30)
+        sync = await self.bot.tree.sync(guild=interaction.guild)
+        await interaction.response.send_message(sync, ephemeral=True, delete_after=30)
 
     @app_commands.command(description='Удаление n предшевствующих сообщений')
     @app_commands.checks.has_permissions(manage_messages=True)
@@ -58,8 +65,8 @@ class Commands(BaseCogMixin):
 
         data = await self.db.get_activity_duration(interaction.user.id, role.id)
         if self.db.exist(data):
-            ingame_time = datetime.timedelta(seconds=data['seconds'])
-            embed.add_field(name='Зарегистрировано в игре ', value=f"{str(ingame_time).split('.')[0]}", inline=False)
+            game_time = datetime.timedelta(seconds=data['seconds'])
+            embed.add_field(name='Зарегистрировано в игре ', value=f"{str(game_time).split('.')[0]}", inline=False)
         else:
             embed.add_field(name='Вы не играли в эту игру или Discord не смог это обнаружить',
                             value='Если вам нужна эта функция,'
@@ -71,5 +78,4 @@ class Commands(BaseCogMixin):
 
 
 async def setup(bot):
-    guild = discord.Object(id=envs['guild_id'])
     await bot.add_cog(Commands(bot), guilds=[guild])

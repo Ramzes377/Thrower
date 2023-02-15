@@ -8,8 +8,6 @@ from ..mixins import commands, DiscordFeaturesMixin
 from settings import bots_ids
 from bot import default_role_perms, leader_role_perms
 
-CREATED_CHANNELS_HANDLE_PERIOD = 10 * 60  # in seconds
-
 
 class ChannelsManager(DiscordFeaturesMixin):
     def __init__(self, bot: commands.Bot):
@@ -18,7 +16,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         self.cache = self.logger.cache
         self.handle_created_channels.start()
 
-    @tasks.loop(seconds=CREATED_CHANNELS_HANDLE_PERIOD)
+    @tasks.loop(minutes=10)
     async def handle_created_channels(self):
         # handle channels sometimes to prevent possible accumulating errors on channel transfer
         # or if bot was offline for some reasons then calculate possible current behavior
