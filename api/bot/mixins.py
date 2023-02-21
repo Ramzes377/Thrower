@@ -38,20 +38,26 @@ class DiscordFeaturesMixin(BaseCogMixin):
         return sess_name
 
     async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,
-                                         overwrites=None) -> None:
+                                         overwrites=None, check_user=False) -> None:
+        if check_user:
+            # calling of itself handler
+            sess = await self.db.get_session(channel.id)
+            if not self.db.exist(sess) or sess['leader_id'] != user.id or sess['end'] is not None:
+                # check for call isn't deprecated
+                return
+
         channel_name = await self.get_user_sess_name(user)
         category = get_category(user)
+        coro = channel.edit(name=channel_name, category=category, overwrites=overwrites)
         try:
-            await asyncio.wait_for(
-                channel.edit(name=channel_name, category=category, overwrites=overwrites),
-                timeout=5.0
-            )
-        except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :('
+            await asyncio.wait_for(coro, timeout=5.0)
+            # Discord had set the rate limit for things like channel rename to 2 requests per 10 minutes
+        except asyncio.TimeoutError:  # Trying to rename channel in transfer but Discord restrictions :(
             await channel.edit(category=category, overwrites=overwrites)
-        except discord.NotFound:
-            pass
+            await asyncio.sleep(10 * 60)  # after 10 minutes trying to update name again
+            await self.edit_channel_name_category(user, channel, overwrites, check_user=True)
 
-    async def log_message(self, send: Awaitable):
-        msg = await send
+    async def log_message(self, sendable: Awaitable):
+        msg = await sendable
         await self.db.request(f'sent_message/', 'post', data={'id': msg.id})
         return msg

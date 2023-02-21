@@ -40,10 +40,8 @@ class ChannelsManager(DiscordFeaturesMixin):
             user = members[0]
             channel = await self.make_channel(user)
             for member in members:
-                try:
-                    await member.move_to(channel)
-                except:
-                    pass
+                await member.move_to(channel)
+
         await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
@@ -53,12 +51,6 @@ class ChannelsManager(DiscordFeaturesMixin):
         if channel is not None:
             self.cache[channel.id] = ChannelStatus.Activity
             await self.edit_channel_name_category(after, channel)
-
-    @commands.Cog.listener()
-    async def on_guild_channel_update(self, before: discord.VoiceChannel, after: discord.VoiceChannel):
-        need_save = not self.cache.get(after.id)  # handle only user manual name change
-        if need_save and before.name != after.name:
-            await self.logger.update_sess_name(after.id, after.name)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
@@ -125,9 +117,9 @@ class ChannelsManager(DiscordFeaturesMixin):
             new_leader = [member for member in channel.members if member.id not in bots_ids][0]
             overwrites = {user: default_role_perms, new_leader: leader_role_perms}
             await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
+            self.cache[channel.id] = ChannelStatus.Transfer
             await self.logger.log_activity(None, new_leader)
             await self.logger.log_update_leader(channel.id, new_leader.id)
-            self.cache[channel.id] = ChannelStatus.Transfer
         except IndexError:  # remain only bots in channel
             await self.end_session(channel)
 

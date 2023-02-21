@@ -1,13 +1,13 @@
+import asyncio
 import datetime
 
 import discord
 from discord import app_commands
 
-from ..mixins import BaseCogMixin
-from settings import guild
+from ..mixins import DiscordFeaturesMixin
 
 
-class Commands(BaseCogMixin):
+class Commands(DiscordFeaturesMixin):
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
@@ -15,7 +15,7 @@ class Commands(BaseCogMixin):
         sync = await self.bot.tree.sync(guild=interaction.guild)
         await interaction.response.send_message(sync, ephemeral=True, delete_after=30)
 
-    @app_commands.command(description='Удаление n предшевствующих сообщений')
+    @app_commands.command(description='Удаление n предшествующих сообщений')
     @app_commands.checks.has_permissions(manage_messages=True)
     async def clear(self, interaction: discord.Interaction, n: int = 0) -> None:
         await interaction.response.send_message(f'Будет удалено {n} сообщений!',
@@ -23,7 +23,7 @@ class Commands(BaseCogMixin):
         async for message in interaction.channel.history(limit=n):
             try:
                 await message.delete()
-            except:
+            except discord.NotFound:
                 pass
 
     @app_commands.command(description='Очистка переписки с этим ботом')
@@ -36,14 +36,14 @@ class Commands(BaseCogMixin):
             try:
                 await message.delete()
                 counter += 1
-            except:
+            except discord.NotFound:
                 pass
         await interaction.response.send_message(f'Успешно удалено {counter} сообщений!',
                                                 ephemeral=True, delete_after=30)
 
     @app_commands.command(description='Показывает зарегистрированное время в игре у соответствующей игровой роли!')
     async def played(self, interaction: discord.Interaction, role_mention: str):
-        guild = self.bot.guilds[0]
+        guild = interaction.guild
         try:
             role_id = int(role_mention[3:-1])
             role = guild.get_role(role_id)
@@ -67,6 +67,35 @@ class Commands(BaseCogMixin):
         embed.set_footer(text='Великий бот - ' + self.bot.user.display_name, icon_url=self.bot.user.avatar)
         await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=30)
 
+    async def update_sess_name(self, channel_id: int, name: str):
+        session = await self.db.session_update(channel_id=channel_id, name=name)
+        await self.db.user_update(id=session["leader_id"], default_sess_name=session['name'])
+
+        msg = await self.bot.logger_channel.fetch_message(session['message_id'])
+        dct = msg.embeds[0].to_dict()
+        dct['title'] = f"Активен сеанс: {name}"
+        embed = discord.Embed.from_dict(dct)
+        await msg.edit(embed=embed)
+
+    @staticmethod
+    async def rename_channel(channel: discord.VoiceChannel, name: str):
+        coro = channel.edit(name=name)
+        try:
+            await asyncio.wait_for(coro, timeout=300)
+        except asyncio.TimeoutError:
+            pass
+
+    @app_commands.command(description='Устанавливает стандартное название вашей сессии')
+    async def session_name(self, interaction: discord.Interaction, name: str):
+        await self.db.user_update(id=interaction.user.id, default_sess_name=name)
+        msg = f'Успешно установлено стандартное название сессии: {name}'
+        await interaction.response.send_message(msg, ephemeral=True, delete_after=30)
+        channel = await self.get_user_channel(interaction.user.id)
+        if channel:
+            await self.rename_channel(channel, name)
+            await self.update_sess_name(channel.id, name)
+
 
 async def setup(bot):
+    from settings import guild
     await bot.add_cog(Commands(bot), guilds=[guild])

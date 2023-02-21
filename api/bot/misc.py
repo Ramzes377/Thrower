@@ -73,10 +73,14 @@ def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int]
     return colors[0]
 
 
+def convert_datetime(dt: datetime.datetime):
+    dt.astimezone(tzMoscow)
+    dt.replace(microsecond=0)
+    return dt.replace(tzinfo=None)
+
+
 def now() -> datetime.datetime:
-    time = datetime.datetime.now(tz=tzMoscow)
-    time.replace(microsecond=0)
-    return time.replace(tzinfo=None)
+    return convert_datetime(datetime.datetime.now(tz=tzMoscow))
 
 
 def code(func):

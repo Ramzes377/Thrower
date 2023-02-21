@@ -1,4 +1,3 @@
-import asyncio
 import os
 import logging
 
@@ -7,11 +6,6 @@ from discord.ext import commands
 
 from settings import envs, token, guild
 from api.rest.base import request
-
-try:
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-except:
-    pass
 
 categories = {
     None: envs['idle_category_id'],
@@ -44,7 +38,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music_only=True, separate_load=True)
+    await load_cogs(music_only=False, separate_load=True)
     await clear_unregistered_messages()
     print('Bot have been started!')
 
@@ -63,7 +57,7 @@ async def clear_unregistered_messages():
                     # await msg.delete()
                 else:
                     print(await request(f'sent_message/{msg.id}', 'delete'))
-            except:
+            except discord.NotFound:
                 pass
 
 
@@ -84,8 +78,6 @@ async def load_cogs(music_only, separate_load=True):
     print(await bot.tree.sync(guild=guild))
 
 
-run = lambda: bot.run(
-    token,
-    reconnect=True,
-    log_handler=logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-)
+def run():
+    logger = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+    bot.run(token, reconnect=True, log_handler=logger)

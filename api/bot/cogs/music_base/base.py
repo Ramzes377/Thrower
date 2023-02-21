@@ -265,10 +265,11 @@ class MusicCommandsHandlers(MusicBase):
                                interaction.guild_id, handler=self._play)
             await self.log_message(user.send(view=view, delete_after=60))
         except AttributeError:
-            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.'))
+            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.',
+                                             delete_after=60))
 
     async def _pause(self, interaction: discord.Interaction) -> None:
-        player: lavalink.DefaultPlayer = self.bot.lavalink.player_manager.get(interaction.guild_id)
+        player = self.bot.lavalink.player_manager.get(interaction.guild_id)
         player.paused = not player.paused
         status = "приостановлено" if player.paused else "вознобновлено"
         try:

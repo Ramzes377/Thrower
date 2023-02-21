@@ -8,7 +8,7 @@ from cachetools import TTLCache
 
 from .views import LoggerView
 from ...mixins import BaseCogMixin
-from ...misc import fmt, user_is_playing, get_app_id, tzMoscow, now, get_voice_channel, dt_from_str
+from ...misc import fmt, user_is_playing, get_app_id, now, get_voice_channel, dt_from_str, convert_datetime
 
 
 class Logger(BaseCogMixin):
@@ -16,7 +16,7 @@ class Logger(BaseCogMixin):
 
     def __init__(self, bot):
         super(Logger, self).__init__(bot, subcog=True)
-        self.cache = TTLCache(maxsize=100, ttl=3)  # cache stores items only 3 seconds
+        self.cache = TTLCache(maxsize=100, ttl=15)  # cache stores items only 15 seconds
         self.bot.loop.create_task(self.register_logger_views())
         self.bot.loop.create_task(self.add_members())
 
@@ -65,10 +65,10 @@ class Logger(BaseCogMixin):
         sess_name, msg_id = session['name'], session['message_id']
         try:
             msg = await self.bot.logger_channel.fetch_message(msg_id)
-        except:
+        except discord.NotFound:
             return
 
-        begin = msg.created_at.astimezone(tzMoscow).replace(microsecond=0).replace(tzinfo=None)
+        begin = convert_datetime(msg.created_at)
         end = now()
         sess_duration = end - begin
 
@@ -92,16 +92,6 @@ class Logger(BaseCogMixin):
             .set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
             .set_thumbnail(url=msg.embeds[0].thumbnail.url)
         )
-        await msg.edit(embed=embed)
-
-    async def update_sess_name(self, channel_id: int, name: str):
-        session = await self.db.session_update(channel_id=channel_id, name=name)
-        await self.db.user_update(id=session["leader_id"], default_sess_name=session['name'])
-
-        msg = await self.bot.logger_channel.fetch_message(session['message_id'])
-        dct = msg.embeds[0].to_dict()
-        dct['title'] = f"Активен сеанс: {name}"
-        embed = discord.Embed.from_dict(dct)
         await msg.edit(embed=embed)
 
     async def log_update_leader(self, channel_id: int, leader_id: int | None):

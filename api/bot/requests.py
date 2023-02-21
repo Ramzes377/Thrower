@@ -17,7 +17,7 @@ class BasicRequests:
                 return
             print(f'Raised exception {e=} with follows params: {url=}, {method=}, {data=}')
 
-    async def update_leader(self, *args, channel_id, member_id, begin, update_sess=True, **kwargs) -> None:
+    async def update_leader(self, *, channel_id, member_id, begin, update_sess=True) -> None:
         if update_sess and member_id is not None:  # close session
             await self.session_update(channel_id=channel_id, leader_id=member_id)
         data = {'channel_id': channel_id, 'member_id': member_id, 'begin': begin}

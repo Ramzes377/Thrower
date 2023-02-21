@@ -4,7 +4,7 @@ import fastapi
 from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
 
-from api.rest.v1 import router
+from .v1 import router
 
 base = "http://127.0.0.1:8000"
 api_ver = "v1"
@@ -34,4 +34,4 @@ def home():
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run('rest.rest.base:app', host='127.0.0.1', port=8000, reload=True)
+    uvicorn.run('api.rest.base:app', host='127.0.0.1', port=8000, reload=True)

@@ -7,6 +7,7 @@ from ..schemas import Role, Emoji, ActivityInfo
 
 router = APIRouter(prefix='/role', tags=['role'])
 
+
 @router.get('/', response_model=list[Role])
 def all_roles(service: SrvRole = Depends()):
     return service.all()

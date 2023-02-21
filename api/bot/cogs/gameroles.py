@@ -1,4 +1,3 @@
-import datetime
 import re
 
 import aiohttp
@@ -6,9 +5,7 @@ import discord
 from discord.ext import tasks, commands
 
 from ..mixins import BaseCogMixin
-from ..misc import random_color, get_app_id, tzMoscow, get_dominant_color, user_is_playing
-
-HANDLE_UNUSED_CONTENT_PERIOD = 60 * 60 * 3  # in seconds 3 hours
+from ..misc import get_app_id, get_dominant_color, user_is_playing, now, convert_datetime
 
 
 class GameRoles(BaseCogMixin):
@@ -17,7 +14,7 @@ class GameRoles(BaseCogMixin):
         bot.loop.create_task(self.remove_unused_activities_loop())
         self.remove_unused_activities_loop.start()
 
-    @tasks.loop(seconds=HANDLE_UNUSED_CONTENT_PERIOD)
+    @tasks.loop(hours=3)
     async def remove_unused_activities_loop(self) -> None:
         await self.delete_unused_roles()
         # await self.delete_unused_emoji()
@@ -63,7 +60,7 @@ class GameRoles(BaseCogMixin):
         role = await self.db.get_role(app_id)
         if self.db.exist(role):  # role already exist
             role = guild.get_role(role['id'])  # get role
-            if role and role not in user.roles:  # check user have this role
+            if role and role not in user.roles:  # check user haven't this role
                 try:
                     await user.add_roles(role)
                 except discord.errors.Forbidden:
@@ -78,7 +75,7 @@ class GameRoles(BaseCogMixin):
     async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
         activity_info = await self.db.get_activityinfo(app_id)
         if not activity_info:
-            await role.edit(color=discord.Colour(1).from_rgb(*random_color()))
+            await role.edit(color=discord.Colour.random())
             return
         name, thumbnail_url = activity_info['app_name'], activity_info['icon_url']
         cutted_name = re.compile('[^a-zA-Z0-9]').sub('', name)[:32]
@@ -94,13 +91,11 @@ class GameRoles(BaseCogMixin):
             await self.db.emoji_create(emoji.id, role.id)
             await self.add_emoji_rolerequest(emoji.id, name)
             try:
-                await role.edit(display_icon=content)
-            except discord.errors.Forbidden:
-                pass
-            finally:
-                await role.edit(color=discord.Colour(1).from_rgb(*dominant_color))
+                await role.edit(color=dominant_color, display_icon=content)
+            except discord.HTTPException:
+                await role.edit(color=discord.Colour.random())
         else:
-            await role.edit(color=discord.Colour(1).from_rgb(*random_color()))
+            await role.edit(color=discord.Colour.random())
 
     async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
         emoji = self.bot.emoji(emoji_id)
@@ -111,13 +106,14 @@ class GameRoles(BaseCogMixin):
         """Delete role if it cant reach greater than 1 member for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
         roles = guild.roles
-        cur_time = datetime.datetime.now(tz=tzMoscow)
+        cur_time = now()
         for role in roles:
-            if len(role.members) < 2 and (cur_time - role.created_at).days > 60:
+            role_created = convert_datetime(role.created_at)
+            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - role_created).days > 60):
                 try:
                     await role.delete()
                     await self.db.role_delete(role.id)
-                except:
+                except discord.HTTPException:
                     pass
 
     # async def delete_unused_emoji(self) -> None:
