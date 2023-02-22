@@ -5,13 +5,21 @@ import discord
 
 from .views import create_view
 from .views import PlayerButtonsView
-from ...misc import code
 from ...mixins import DiscordFeaturesMixin
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
 not_connected = discord.app_commands.AppCommandError('Сначала войдите в голосовой канал!')
 not_same_voicechat = discord.app_commands.AppCommandError('Вы должны быть в том же голосовом чате!')
+
+
+def code(func):
+    def wrapper(*args, **kwargs) -> str:
+        wrap = '```'
+        result = func(*args, **kwargs)
+        return f'{wrap}{result}{wrap}'
+
+    return wrapper
 
 
 class LavalinkVoiceClient(discord.VoiceClient):

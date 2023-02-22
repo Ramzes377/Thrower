@@ -6,15 +6,9 @@ from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
 
 from ...mixins import BaseCogMixin
-from ...misc import fmt, dt_from_str
-
 
 loader = FileSystemLoader(os.getcwd() + 'api/bot/cogs/logger/templates')
 env = Environment(loader=loader)
-
-
-def fmt_date(s: str) -> str:
-    return fmt(dt_from_str(s)) if s else '-'
 
 
 def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]], template: str) -> io.BytesIO:
@@ -37,15 +31,17 @@ async def _response_handle(interaction, string, data, header, column, template='
 
 
 class LoggerView(discord.ui.View, BaseCogMixin):
-    def __init__(self, bot) -> None:
+    def __init__(self, bot, format_handler) -> None:
         discord.ui.View.__init__(self, timeout=None)
         BaseCogMixin.__init__(self, bot, subcog=True)
+        self._fmt = format_handler  # lambda s: format_handler(s) if s else '-'
 
     async def format_data(self, response: list[dict], header: str,
                           col: str, activity_flag: bool = False) -> tuple[str, list]:
         data, body = [], []
         for row in response:
-            user_id, begin, end = row['member_id'], fmt_date(row['begin']), fmt_date(row['end'])
+            # user_id, begin, end = row['member_id'], fmt_date(row['begin']), fmt_date(row['end'])
+            user_id, begin, end = row['member_id'], self._fmt(row['begin']), self._fmt(row['end'])
             user = self.bot.guilds[0].get_member(user_id)
             url = f'''<a href="https://discordapp.com/users/{user_id}/"> {user.display_name} </a>'''
             if not activity_flag:
@@ -85,6 +81,6 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🚶", custom_id='logger_view:prescence')
     async def prescence(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Участники сессии', 'Участник'
-        prescence =  await self.db.get_session_prescence(interaction.message.id)
+        prescence = await self.db.get_session_prescence(interaction.message.id)
         as_str, data = await self.format_data(prescence, header, column)
         await _response_handle(interaction, as_str, data, header, column)

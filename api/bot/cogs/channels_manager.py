@@ -1,12 +1,19 @@
+from enum import Enum, auto
+
 import discord
 from discord.ext import tasks
 
 from .logger import Logger
-from ..misc import get_category, ChannelStatus
 from ..mixins import commands, DiscordFeaturesMixin
 
 from settings import bots_ids
 from bot import default_role_perms, leader_role_perms
+
+
+class ChannelStatus(Enum):
+    Activity = auto()
+    Transfer = auto()
+    Rename = auto()
 
 
 class ChannelsManager(DiscordFeaturesMixin):
@@ -83,7 +90,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         channel_name = await self.get_user_sess_name(user)
         permissions = {user: leader_role_perms, user.guild.default_role: default_role_perms}
         channel = await user.guild.create_voice_channel(channel_name,
-                                                        category=get_category(user),
+                                                        category=self.get_category(user),
                                                         overwrites=permissions)
         return channel
 

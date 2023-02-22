@@ -1,12 +1,17 @@
 import asyncio
 import re
+from hashlib import sha3_224
 from typing import Awaitable
 
 import discord
 from discord.ext import commands
 
-from .misc import get_category
+from bot import categories
 from .requests import BasicRequests
+
+
+def _hash(string: str) -> int:
+    return int(str(sha3_224(string.encode(encoding='utf8')).hexdigest()), 16) % 10 ** 10
 
 
 class BaseCogMixin(commands.Cog):
@@ -17,6 +22,21 @@ class BaseCogMixin(commands.Cog):
         self.bot = bot
         if not subcog:
             print(f'Cog {type(self).__name__} have been started!')
+
+    @staticmethod
+    def get_app_id(user: discord.Member) -> tuple[int, bool]:
+        try:
+            app_id, is_real = user.activity.application_id, True
+        except AttributeError:
+            try:
+                app_id, is_real = _hash(user.activity.name), False
+            except AttributeError:
+                app_id, is_real = None, False
+        return app_id, is_real
+
+    @staticmethod
+    def user_is_playing(user: discord.Member) -> bool:
+        return user.activity and user.activity.type == discord.ActivityType.playing
 
 
 class DiscordFeaturesMixin(BaseCogMixin):
@@ -37,6 +57,11 @@ class DiscordFeaturesMixin(BaseCogMixin):
                 sess_name = session['name'] if self.db.exist(session) else f"Сессия {user.display_name}'а"
         return sess_name
 
+    @staticmethod
+    def get_category(user: discord.Member) -> discord.CategoryChannel:
+        activity_type = user.activity.type if user.activity else None
+        return categories.get(activity_type, categories[None])
+
     async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,
                                          overwrites=None, check_user=False) -> None:
         if check_user:
@@ -47,7 +72,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
                 return
 
         channel_name = await self.get_user_sess_name(user)
-        category = get_category(user)
+        category = self.get_category(user)
         coro = channel.edit(name=channel_name, category=category, overwrites=overwrites)
         try:
             await asyncio.wait_for(coro, timeout=5.0)

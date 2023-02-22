@@ -8,11 +8,31 @@ from cachetools import TTLCache
 
 from .views import LoggerView
 from ...mixins import BaseCogMixin
-from ...misc import fmt, user_is_playing, get_app_id, now, get_voice_channel, dt_from_str, convert_datetime
+
+from settings import tzMoscow
+
+
+def now() -> datetime:
+    return datetime.datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
 
 
 class Logger(BaseCogMixin):
     MIN_SESS_DURATION = 5 * 60  # in seconds
+
+    @staticmethod
+    def get_voice_channel(user: discord.Member):
+        return user.voice.channel if user.voice else None
+
+    @staticmethod
+    def fmt(dt: datetime.datetime) -> str:
+        return dt.strftime('%H:%M %d.%m.%y')
+
+    @staticmethod
+    def dt_from_str(s: str) -> datetime.datetime:
+        return datetime.datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
+
+    def datetime_handler(self, x):
+        return self.fmt(self.dt_from_str(x)) if x else '-'
 
     def __init__(self, bot):
         super(Logger, self).__init__(bot, subcog=True)
@@ -30,9 +50,10 @@ class Logger(BaseCogMixin):
         await self.db.user_create(id=member.id, name=member.display_name)
 
     async def register_logger_views(self):
+
         sessions = await self.db.get_all_sessions()
         for session in sessions:
-            self.bot.add_view(LoggerView(self.bot), message_id=session['message_id'])
+            self.bot.add_view(LoggerView(self.bot, self.datetime_handler), message_id=session['message_id'])
 
     async def session_begin(self, creator_id: int, channel: discord.VoiceChannel):
         begin = now()
@@ -41,13 +62,13 @@ class Logger(BaseCogMixin):
 
         embed = (
             discord.Embed(title=f"Активен сеанс: {name}", color=discord.Color.green())
-            .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
+            .add_field(name=f'├ Время начала', value=f'├ **`{self.fmt(begin)}`**')
             .add_field(name='Текущий лидер', value=creator.mention)
             .add_field(name='├ Участники', value='└ ' + f'<@{creator.id}>', inline=False)
             .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
         )
 
-        msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
+        msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
         await self.db.session_update(creator_id=creator.id,
                                      leader_id=creator.id,
                                      channel_id=channel.id,
@@ -68,7 +89,7 @@ class Logger(BaseCogMixin):
         except discord.NotFound:
             return
 
-        begin = convert_datetime(msg.created_at)
+        begin = session['begin']
         end = now()
         sess_duration = end - begin
 
@@ -85,8 +106,8 @@ class Logger(BaseCogMixin):
                                          )
         embed = (
             discord.Embed(title=f"Сеанс {sess_name} окончен!", color=discord.Color.red())
-            .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
-            .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
+            .add_field(name=f'├ Время начала', value=f'├ **`{self.fmt(begin)}`**')
+            .add_field(name='Время окончания', value=f'**`{self.fmt(end)}`**')
             .add_field(name='├ Продолжительность', value=duration_field, inline=False)
             .add_field(name='├ Участники', value=members_field, inline=False)
             .set_footer(text=msg.embeds[0].footer.text, icon_url=msg.embeds[0].footer.icon_url)
@@ -133,13 +154,13 @@ class Logger(BaseCogMixin):
     async def log_activity(self, before: discord.Member | None, after: discord.Member):
         dt = now()
 
-        voice_channel = get_voice_channel(after)
+        voice_channel = self.get_voice_channel(after)
 
-        before_app_id, before_is_real = get_app_id(before)
-        after_app_id, after_is_real = get_app_id(after)
+        before_app_id, before_is_real = self.get_app_id(before)
+        after_app_id, after_is_real = self.get_app_id(after)
 
-        after_familiar = user_is_playing(after) and after_is_real
-        before_familiar = before is not None and user_is_playing(before) and before_is_real
+        after_familiar = self.user_is_playing(after) and after_is_real
+        before_familiar = before is not None and self.user_is_playing(before) and before_is_real
 
         if after_familiar and not self.cache.get(after):
             # for some reason discord rest calling
@@ -168,11 +189,12 @@ class Logger(BaseCogMixin):
 
     async def restore_log_session_message(self, from_date: datetime.datetime | None = None,
                                           to_date: datetime.datetime | None = None):
+        guild = self.bot.guilds[0]
         for session in await self.db.get_all_sessions(from_date, to_date):
-            guild = self.bot.guilds[0]
+
             name = session['name']
-            begin = dt_from_str(session['begin'])
-            end = dt_from_str(session['end'])
+            begin = self.dt_from_str(session['begin'])
+            end = self.dt_from_str(session['end'])
 
             creator = guild.get_member(session['creator_id'])
             sess_duration = end - begin
@@ -187,12 +209,12 @@ class Logger(BaseCogMixin):
 
             embed = (
                 discord.Embed(title=f"Сеанс {name} окончен!", color=discord.Color.red())
-                .add_field(name=f'├ Время начала', value=f'├ **`{fmt(begin)}`**')
-                .add_field(name='Время окончания', value=f'**`{fmt(end)}`**')
+                .add_field(name=f'├ Время начала', value=f'├ **`{self.fmt(begin)}`**')
+                .add_field(name='Время окончания', value=f'**`{self.fmt(end)}`**')
                 .add_field(name='├ Продолжительность', value=duration_field, inline=False)
                 .add_field(name='├ Участники', value=members_field, inline=False)
                 .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
             )
 
-            msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot))
+            msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
             await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)

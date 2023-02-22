@@ -1,11 +1,30 @@
 import re
+from datetime import datetime
+from io import BytesIO
 
 import aiohttp
 import discord
+from PIL import Image
 from discord.ext import tasks, commands
 
 from ..mixins import BaseCogMixin
-from ..misc import get_app_id, get_dominant_color, user_is_playing, now, convert_datetime
+
+
+def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int] | list:
+    img = Image.open(BytesIO(raw_img))
+    img = img.copy()
+    img.thumbnail((resize, resize))
+    paletted = img.convert('P', palette=Image.ADAPTIVE, colors=colors_num)
+    palette = paletted.getpalette()
+    color_counts = sorted(paletted.getcolors(), reverse=True)
+    colors = []
+    for i in range(colors_num):
+        palette_index = color_counts[i][1]
+        dominant_color = dc = tuple(palette[palette_index * 3:palette_index * 3 + 3])
+        sq_dist = dc[0] * dc[0] + dc[1] * dc[1] + dc[2] * dc[2]
+        if sq_dist > 8:  # drop too dark colors
+            colors.append(dominant_color)
+    return colors[0]
 
 
 class GameRoles(BaseCogMixin):
@@ -21,7 +40,7 @@ class GameRoles(BaseCogMixin):
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member) -> None:
-        if user_is_playing(after):
+        if self.user_is_playing(after):
             await self.add_gamerole(after)
 
     async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple | None:
@@ -54,7 +73,7 @@ class GameRoles(BaseCogMixin):
         await self.manage_roles(payload, add=False)
 
     async def add_gamerole(self, user: discord.Member) -> None:
-        app_id, is_real = get_app_id(user)
+        app_id, is_real = self.get_app_id(user)
         role_name = user.activity.name
         guild = user.guild
         role = await self.db.get_role(app_id)
@@ -106,10 +125,9 @@ class GameRoles(BaseCogMixin):
         """Delete role if it cant reach greater than 1 member for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
         roles = guild.roles
-        cur_time = now()
+        cur_time = datetime.now()
         for role in roles:
-            role_created = convert_datetime(role.created_at)
-            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - role_created).days > 60):
+            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - role.created_at).days > 60):
                 try:
                     await role.delete()
                     await self.db.role_delete(role.id)

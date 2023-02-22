@@ -9,7 +9,8 @@ class BasicRequests:
         return obj is not None and 'detail' not in obj
 
     @staticmethod
-    async def request(url: str, method: str = 'get', data: dict | None = None, params: dict | None = None) -> dict | None:
+    async def request(url: str, method: str = 'get', data: dict | None = None,
+                      params: dict | None = None) -> dict | None:
         try:
             return await request(url, method, data, params)
         except Exception as e:
