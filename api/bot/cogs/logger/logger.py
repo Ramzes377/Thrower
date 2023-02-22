@@ -103,7 +103,7 @@ class Logger(BaseCogMixin):
         embed = msg.embeds[0]
         embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
         await msg.edit(embed=embed)
-        await self.db.update_leader(channel_id=channel_id, member_id=leader_id, begin=now(), end=None)
+        await self.db.update_leader(channel_id=channel_id, member_id=leader_id, begin=now())
 
     async def update_embed_members(self, session_id: int):
         session = await self.db.get_session(session_id)
