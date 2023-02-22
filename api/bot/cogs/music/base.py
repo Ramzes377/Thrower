@@ -1,10 +1,10 @@
 import re
 
-import lavalink
 import discord
+import lavalink
 
-from .views import create_view
 from .views import PlayerButtonsView
+from .views import create_view
 from ...mixins import DiscordFeaturesMixin
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')

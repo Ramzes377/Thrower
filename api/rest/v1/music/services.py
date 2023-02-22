@@ -1,9 +1,9 @@
 from .specifications import UserID, QueryFilter
 from .. import tables
-from ..schemas import FavoriteMusic
-from ..service import CreateReadUpdate
 from ..base_specification import Specification
 from ..custom_responses import modify_response
+from ..schemas import FavoriteMusic
+from ..service import CreateReadUpdate
 
 
 class SrvFavoriteMusic(CreateReadUpdate):

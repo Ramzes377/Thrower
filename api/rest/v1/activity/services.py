@@ -4,9 +4,9 @@ from sqlalchemy.sql.elements import BinaryExpression
 from .. import tables
 from ..base_specification import Specification
 from ..dependencies import default_period
-from ..specifications import AppID, UserID, Unclosed
 from ..schemas import Activity, EndActivity
 from ..service import CreateReadUpdate
+from ..specifications import AppID, UserID, Unclosed
 
 
 class SrvActivities(CreateReadUpdate):
@@ -28,4 +28,3 @@ class SrvActivities(CreateReadUpdate):
     def patch(self, activity: EndActivity, *args) -> Activity:
         specification = AppID(activity.id) & UserID(activity.member_id) & Unclosed()
         return super().patch(specification, activity, get_method=self._current_activity)
-

@@ -1,5 +1,6 @@
-import discord
 from zoneinfo import ZoneInfo
+
+import discord
 from envparse import Env
 
 tzMoscow = ZoneInfo("Europe/Moscow")

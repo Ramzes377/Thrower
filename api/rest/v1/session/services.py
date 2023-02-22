@@ -2,11 +2,11 @@ from fastapi import HTTPException, status, Depends
 from sqlalchemy.sql.elements import BinaryExpression
 
 from .. import tables
+from ..base_specification import Specification
 from ..dependencies import default_period
 from ..schemas import Session
 from ..service import CreateReadUpdate
 from ..specifications import Unclosed
-from ..base_specification import Specification
 
 
 class SrvSession(CreateReadUpdate):

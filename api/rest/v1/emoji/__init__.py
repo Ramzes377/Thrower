@@ -2,8 +2,8 @@ from fastapi import Depends, APIRouter, status
 
 from .services import SrvEmoji
 from .specifications import EmojiID
-from ..schemas import Emoji, Role
 from .. import tables
+from ..schemas import Emoji, Role
 
 router = APIRouter(prefix='/emoji', tags=['emoji'])
 

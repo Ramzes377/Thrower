@@ -1,11 +1,11 @@
-import os
 import logging
+import os
 
 import discord
 from discord.ext import commands
 
-from settings import envs, token, guild
 from api.rest.base import request
+from settings import envs, token, guild
 
 categories = {
     None: envs['idle_category_id'],

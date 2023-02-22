@@ -5,7 +5,7 @@ services:
   lavalink_server:
     build: .
     container_name: lavalink_server
-    command: java -jar /usr/src/app/api/bot/cogs/music_base/Lavalink.jar
+    command: java -jar /usr/src/app/api/bot/cogs/music/Lavalink.jar
     ports:
       - '2333:2333'
     volumes:

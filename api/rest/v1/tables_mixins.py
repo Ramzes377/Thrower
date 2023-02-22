@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, Integer, ForeignKey
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.sql import func, cast
-from sqlalchemy.ext.hybrid import hybrid_property
 
 seconds_in_day = 24 * 60 * 60
 

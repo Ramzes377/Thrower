@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
-from test_activityinfo import post_activityinfo
 
 
 def test_post_activity(client: TestClient):
@@ -32,5 +31,3 @@ def test_get_activity_info(client: TestClient, post_activityinfo):
     data = response.json()
     assert response.status_code == 200
     assert isinstance(data, dict)
-
-

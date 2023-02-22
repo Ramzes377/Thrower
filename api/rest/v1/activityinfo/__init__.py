@@ -1,9 +1,8 @@
 from fastapi import Depends, APIRouter, status
 
 from .services import SrvActivityInfo
-from ..specifications import ActivityID
 from ..schemas import ActivityInfo
-
+from ..specifications import ActivityID
 
 router = APIRouter(prefix='/activityinfo', tags=['activityinfo'])
 

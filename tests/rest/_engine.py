@@ -1,5 +1,6 @@
-from sqlmodel.pool import StaticPool
 from sqlmodel import create_engine
+from sqlmodel.pool import StaticPool
+
 from api.rest.v1.tables import Base
 
 engine = create_engine(

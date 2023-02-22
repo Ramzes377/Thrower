@@ -1,8 +1,8 @@
 from fastapi import Depends, APIRouter, status
 
 from .services import SrvLeadership
-from ..specifications import SessionID
 from ..schemas import Leadership, LeaderChange
+from ..specifications import SessionID
 
 router = APIRouter(prefix='/leadership', tags=['leadership'])
 

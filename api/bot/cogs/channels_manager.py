@@ -3,11 +3,10 @@ from enum import Enum, auto
 import discord
 from discord.ext import tasks
 
+from bot import default_role_perms, leader_role_perms
+from settings import bots_ids
 from .logger import Logger
 from ..mixins import commands, DiscordFeaturesMixin
-
-from settings import bots_ids
-from bot import default_role_perms, leader_role_perms
 
 
 class ChannelStatus(Enum):

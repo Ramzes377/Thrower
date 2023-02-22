@@ -1,7 +1,7 @@
 import discord
 
-from ..mixins import BaseCogMixin, commands
 from settings import bots_ids, envs
+from ..mixins import BaseCogMixin, commands
 
 
 def message_belongs_bot(author_id: int) -> bool:
@@ -13,7 +13,7 @@ def user_calling_bot(content: str) -> bool:
 
 
 class FloodManager(BaseCogMixin):
-    REMOVE_DELAY = 30   # in seconds
+    REMOVE_DELAY = 30  # in seconds
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
