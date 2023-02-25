@@ -38,7 +38,7 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await load_cogs(music_only=False, separate_load=True)
+    await load_cogs(music_only=True, separate_load=True)
     await clear_unregistered_messages()
     print('Bot have been started!')
 
@@ -80,4 +80,4 @@ async def load_cogs(music_only, separate_load=True):
 
 def run():
     logger = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-    bot.run(token, reconnect=True, log_handler=logger)
+    bot.run(token, reconnect=True)

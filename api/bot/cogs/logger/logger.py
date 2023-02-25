@@ -88,7 +88,7 @@ class Logger(BaseCogMixin):
         except discord.NotFound:
             return
 
-        begin = session['begin']
+        begin = self.dt_from_str(session['begin'])
         end = now()
         sess_duration = end - begin
 
