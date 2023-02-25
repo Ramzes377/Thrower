@@ -4,7 +4,7 @@ import fastapi
 from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
 
-from v1 import router
+from .v1 import router
 
 base = "http://127.0.0.1:8000"
 api_ver = "v1"

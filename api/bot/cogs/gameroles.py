@@ -126,8 +126,10 @@ class GameRoles(BaseCogMixin):
         guild = self.bot.create_channel.guild
         roles = guild.roles
         cur_time = datetime.now()
+
         for role in roles:
-            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - role.created_at).days > 60):
+            created_time = role.created_at.replace(tzinfo=None)
+            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - created_time).days > 60):
                 try:
                     await role.delete()
                     await self.db.role_delete(role.id)
