@@ -55,7 +55,7 @@ class Commands(DiscordFeaturesMixin):
         embed = discord.Embed(title=f"Запрос по игре {role.name}", color=role.color)
 
         data = await self.db.get_activity_duration(interaction.user.id, role.id)
-        if self.db.exist(data):
+        if data:
             game_time = datetime.timedelta(seconds=data['seconds'])
             embed.add_field(name='Зарегистрировано в игре ', value=f"{str(game_time).split('.')[0]}", inline=False)
         else:

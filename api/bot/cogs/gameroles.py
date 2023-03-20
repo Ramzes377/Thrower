@@ -1,11 +1,10 @@
 import re
-from datetime import datetime
 from io import BytesIO
 
 import aiohttp
 import discord
-from PIL import Image
 from discord.ext import tasks, commands
+from PIL import Image
 
 from ..mixins import BaseCogMixin
 
@@ -36,7 +35,15 @@ class GameRoles(BaseCogMixin):
     @tasks.loop(hours=3)
     async def remove_unused_activities_loop(self) -> None:
         await self.delete_unused_roles()
-        # await self.delete_unused_emoji()
+
+    @remove_unused_activities_loop.before_loop
+    async def distribute_create_channel_members(self):
+        guild = self.bot.guilds[0]
+        for role in guild.roles:
+            if ((db_role := await self.db.get_role_id(role.id)) and
+                    not role.icon and
+                    (info := self.db.get_activity_info(db_role['app_id']))):
+                await role.edit(display_icon=info['icon_url'])
 
     @commands.Cog.listener()
     async def on_presence_update(self, _, after: discord.Member) -> None:
@@ -50,7 +57,7 @@ class GameRoles(BaseCogMixin):
             return
 
         role = await self.db.get_emoji_role(emoji_id)
-        if not self.db.exist(role):
+        if not role:
             return
 
         guild = self.db.bot.get_guild(payload.guild_id)
@@ -73,11 +80,9 @@ class GameRoles(BaseCogMixin):
         await self.manage_roles(payload, add=False)
 
     async def add_gamerole(self, user: discord.Member) -> None:
-        app_id, is_real = self.get_app_id(user)
-        role_name = user.activity.name
+        app_id = self.get_app_id(user)
         guild = user.guild
-        role = await self.db.get_role(app_id)
-        if self.db.exist(role):  # role already exist
+        if role := await self.db.get_role(app_id):  # role already exist
             role = guild.get_role(role['id'])  # get role
             if role and role not in user.roles:  # check user haven't this role
                 try:
@@ -85,36 +90,38 @@ class GameRoles(BaseCogMixin):
                 except discord.errors.Forbidden:
                     pass
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
-            role = await guild.create_role(name=role_name, permissions=guild.default_role.permissions,
-                                           hoist=True, mentionable=True)
-            await self.db.role_create(role.id, app_id)
-            await self.create_activity_emoji(guild, app_id, role)
-            await user.add_roles(role)
+            try:    # discord unregistered activity
+                await self.create_activity_role(guild, app_id, user.activity.name)
+                await self.db.role_create(role.id, app_id)
+                await user.add_roles(role)
+            except TypeError:
+                pass
 
-    async def create_activity_emoji(self, guild: discord.Guild, app_id: int, role: discord.Role) -> None:
-        activity_info = await self.db.get_activityinfo(app_id)
-        if not self.db.exist(activity_info):
-            await role.edit(color=discord.Colour.random())
-            return
-        name, thumbnail_url = activity_info['app_name'], activity_info['icon_url']
-        cutted_name = re.compile('[^a-zA-Z0-9]').sub('', name)[:32]
-        thumbnail_url = thumbnail_url[:-10]
+    async def create_activity_role(self, guild: discord.Guild, app_id: int, role_name: str) -> None:
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(thumbnail_url) as response:
-                content = await response.read()
+        if not (activity_info := await self.db.get_activityinfo(app_id)):
+            raise TypeError('Adding only a roles registered by discord API')
 
-        if content:
-            dominant_color = get_dominant_color(content)
-            emoji = await guild.create_custom_emoji(name=cutted_name, image=content)
-            await self.db.emoji_create(emoji.id, role.id)
-            await self.add_emoji_rolerequest(emoji.id, name)
-            try:
-                await role.edit(color=dominant_color, display_icon=content)
-            except discord.HTTPException:
-                await role.edit(color=discord.Colour.random())
-        else:
-            await role.edit(color=discord.Colour.random())
+        name = re.compile('[^a-zA-Z0-9]').sub('', activity_info['app_name'])[:32]
+        icon_url = activity_info['icon_url'][:-10]
+
+        async with aiohttp.request('get', icon_url) as response:
+            content = await response.read()
+
+        if not content:
+            raise TypeError('Adding only a roles registered by discord API')
+
+        dominant_color = get_dominant_color(content)
+
+        role = await guild.create_role(name=role_name,
+                                       permissions=guild.default_role.permissions,
+                                       hoist=True, mentionable=True,
+                                       color=dominant_color,
+                                       display_icon=content)
+
+        emoji = await guild.create_custom_emoji(name=name, image=content)
+        await self.add_emoji_rolerequest(emoji.id, name)
+        await self.db.emoji_create(emoji.id, role.id)
 
     async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
         emoji = self.bot.emoji(emoji_id)
@@ -124,28 +131,12 @@ class GameRoles(BaseCogMixin):
     async def delete_unused_roles(self) -> None:
         """Delete role if it cant reach greater than 1 member for 60 days from creation moment"""
         guild = self.bot.create_channel.guild
-        roles = guild.roles
-        cur_time = datetime.now()
 
-        for role in roles:
-            created_time = role.created_at.replace(tzinfo=None)
-            if len(role.members) == 0 or (len(role.members) < 2 and (cur_time - created_time).days > 60):
-                try:
-                    await role.delete()
-                    await self.db.role_delete(role.id)
-                except discord.HTTPException:
-                    pass
-
-    # async def delete_unused_emoji(self) -> None:
-    #     """Clear emoji from request channel if origin were deleted for some reason"""
-    #     guild = self.bot.request_channel.guild
-    #     async for msg, reaction in ((msg, reaction) async for msg in self.bot.request_channel.history(limit=None)
-    #                           for reaction in msg.reactions if reaction.emoji not in guild.emojis):
-    #         try:
-    #             await msg.remove_reaction(reaction.emoji, guild.get_member(self.bot.user.id))
-    #             await self.execute_sql(f"DELETE FROM CreatedEmoji WHERE emoji_id = {reaction.emoji.id}")
-    #         except:
-    #             pass
+        roles = await self.db.get_all_roles()
+        for db_role in roles:
+            if not guild.get_role(db_role['id']):
+                await self.db.role_delete(db_role['id'])
+                print('Deleted ', db_role['id'])
 
 
 async def setup(bot):

@@ -1,22 +1,44 @@
+from sqlalchemy.exc import IntegrityError
+
 from api.rest.base import request
 from api.rest.v1.dependencies import default_period
 
 
-class BasicRequests:
+def exist(obj: dict) -> bool:
+    return obj is not None and 'detail' not in obj
 
-    @staticmethod
-    def exist(obj: dict) -> bool:
-        return obj is not None and 'detail' not in obj
 
+def deco(func):
+    async def wrapper(*args, **kwargs):
+        res = await func(*args, **kwargs)
+        if not exist(res):
+            res = None
+        return res
+    return wrapper
+
+
+class GettersWrapping(type):
+    def __new__(cls, name, bases, attrs):
+        new_attrs = {}
+        for attr_name, attr_value in attrs.items():
+            if callable(attr_value) and attr_name.startswith('get_'):
+                new_attrs[attr_name] = deco(attr_value)
+            else:
+                new_attrs[attr_name] = attr_value
+        return super().__new__(cls, name, bases, new_attrs)
+
+
+class BasicRequests(metaclass=GettersWrapping):
     @staticmethod
     async def request(url: str, method: str = 'get', data: dict | None = None,
                       params: dict | None = None) -> dict | None:
         try:
             return await request(url, method, data, params)
+        except IntegrityError as e:
+            if not e.orig.args[0].startswith('UNIQUE constraint failed:'):
+                print(f'Error: {e.args[0]}\n\t --> {e.statement[:-9] + str(e.params)}')
         except Exception as e:
-            if '(sqlite3.IntegrityError) UNIQUE constraint failed:' in e.args[0]:
-                return
-            print(f'Raised exception {e=} with follows params: {url=}, {method=}, {data=}')
+            print(f'Raised exc {e}. {url} {method} {data} {params}')
 
     async def update_leader(self, *, channel_id, member_id, begin, update_sess=True) -> None:
         if update_sess and member_id is not None:  # close session
@@ -101,6 +123,12 @@ class BasicRequests:
 
     async def get_role(self, app_id: int) -> dict:
         return await self.request(f'role/by_app/{app_id}')
+
+    async def get_all_roles(self) -> dict:
+        return await self.request(f'role/')
+
+    async def get_role_id(self, role_id: int) -> dict:
+        return await self.request(f'role/{role_id}')
 
     async def get_activityinfo(self, app_id: int) -> dict:
         return await self.request(f'activityinfo/{app_id}')
