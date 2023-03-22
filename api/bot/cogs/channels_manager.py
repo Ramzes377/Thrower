@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 import discord
 from discord.ext import tasks, commands
 
@@ -29,20 +31,18 @@ class ChannelsManager(DiscordFeaturesMixin):
             member = guild.get_member(session['leader_id'])
             if not (channel and member in channel.members):  # user_in_own_channel
                 voice_channel = member.voice.channel if member.voice else None
-                try:
+                with suppress(discord.HTTPException):
                     if voice_channel is not None:  # user join channel
                         self.bot.dispatch("member_join_channel", member.id, voice_channel.id)
                     if self._is_empty_channel(channel):
                         await self.end_session(channel)
-                except discord.NotFound:
-                    pass
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self):
-        if members := iter(self.bot.create_channel.members):
-            user = next(members)
+        if members := self.bot.create_channel.members:
+            user = members[0]
             channel = await self.make_channel(user)
-            for member in self.bot.create_channel.members:
+            for member in members:
                 await member.move_to(channel)
 
     @commands.Cog.listener()
@@ -98,8 +98,6 @@ class ChannelsManager(DiscordFeaturesMixin):
         return channel
 
     async def end_session(self, channel: discord.VoiceChannel):
-        try:
+        with suppress(discord.NotFound):
             self.bot.dispatch("session_over", channel.id)
             await channel.delete()
-        except discord.NotFound:
-            pass

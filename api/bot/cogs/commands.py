@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from contextlib import suppress
 
 import discord
 from discord import app_commands
@@ -21,10 +22,8 @@ class Commands(DiscordFeaturesMixin):
         await interaction.response.send_message(f'Будет удалено {n} сообщений!',
                                                 ephemeral=True, delete_after=30)
         async for message in interaction.channel.history(limit=n):
-            try:
+            with suppress(discord.NotFound):
                 await message.delete()
-            except discord.NotFound:
-                pass
 
     @app_commands.command(description='Очистка переписки с этим ботом')
     async def clear_private(self, interaction: discord.Interaction) -> None:
@@ -33,11 +32,9 @@ class Commands(DiscordFeaturesMixin):
         await interaction.user.send('!')
         counter = 0
         async for message in interaction.user.dm_channel.history(limit=None):
-            try:
+            with suppress(discord.NotFound):
                 await message.delete()
                 counter += 1
-            except discord.NotFound:
-                pass
         await interaction.response.send_message(f'Успешно удалено {counter} сообщений!',
                                                 ephemeral=True, delete_after=30)
 
@@ -80,10 +77,8 @@ class Commands(DiscordFeaturesMixin):
     @staticmethod
     async def rename_channel(channel: discord.VoiceChannel, name: str):
         coro = channel.edit(name=name)
-        try:
+        with suppress(asyncio.TimeoutError):
             await asyncio.wait_for(coro, timeout=300)
-        except asyncio.TimeoutError:
-            pass
 
     @app_commands.command(description='Устанавливает стандартное название вашей сессии')
     async def session_name(self, interaction: discord.Interaction, name: str):

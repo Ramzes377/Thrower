@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from contextlib import suppress
 from sqlite3 import IntegrityError
 
 import discord
@@ -90,13 +91,10 @@ class Logger(DiscordFeaturesMixin, LoggerHelpers):
 
     @commands.Cog.listener()
     async def on_member_join_channel(self, member_id: int, channel_id: int):
-        try:
+        with suppress(IntegrityError):
             await self.db.session_add_member(channel_id, member_id)
             await self.update_embed_members(channel_id)  # add new member to logging message
-        except IntegrityError:
-            pass
-        finally:
-            await self.db.prescence_update(channel_id=channel_id, member_id=member_id, begin=now())
+        await self.db.prescence_update(channel_id=channel_id, member_id=member_id, begin=now())
 
     @commands.Cog.listener()
     async def on_member_abandon_channel(self, member_id: int, channel_id: int):

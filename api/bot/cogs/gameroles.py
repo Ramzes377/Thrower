@@ -1,4 +1,5 @@
 import re
+from contextlib import suppress
 from io import BytesIO
 
 import aiohttp
@@ -85,17 +86,13 @@ class GameRoles(BaseCogMixin):
         if role := await self.db.get_role(app_id):  # role already exist
             role = guild.get_role(role['id'])  # get role
             if role and role not in user.roles:  # check user haven't this role
-                try:
+                with suppress(discord.Forbidden):
                     await user.add_roles(role)
-                except discord.errors.Forbidden:
-                    pass
         elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
-            try:    # discord unregistered activity
+            with suppress(TypeError):    # discord unregistered activity
                 await self.create_activity_role(guild, app_id, user.activity.name)
                 await self.db.role_create(role.id, app_id)
                 await user.add_roles(role)
-            except TypeError:
-                pass
 
     async def create_activity_role(self, guild: discord.Guild, app_id: int, role_name: str) -> None:
 

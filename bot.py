@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 import discord
 from discord.ext import commands
 
@@ -35,15 +37,13 @@ async def clear_unregistered_messages():
     messages = await request('sent_message/')
     for message in messages:
         for channel in text_channels:
-            try:
+            with suppress(discord.NotFound):
                 if msg := await channel.fetch_message(message['id']):
                     print(msg)
                     # deletion process
                     # await msg.delete()
                 else:
                     print(await request(f'sent_message/{msg.id}', 'delete'))
-            except discord.NotFound:
-                pass
 
 
 def run():

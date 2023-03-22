@@ -1,5 +1,6 @@
 import io
 import os
+from contextlib import suppress
 
 import discord
 from jinja2 import FileSystemLoader, Environment
@@ -18,7 +19,7 @@ def html_as_bytes(title: str, f_col: str, data: list[tuple[str, str, str]], temp
 
 
 async def _response_handle(interaction, string, data, header, column, template='template.html'):
-    try:
+    with suppress(discord.NotFound):
         user = interaction.user
         if len(string) <= 2000:
             await user.send(f"```{string}```", delete_after=2 * 60)
@@ -26,8 +27,6 @@ async def _response_handle(interaction, string, data, header, column, template='
             bts = html_as_bytes(header, column, data, template)
             await user.send(file=discord.File(bts, filename=f'{header}.html'), delete_after=2 * 60)
         await interaction.response.send_message(f'Успешно отправлена информация', ephemeral=True, delete_after=5)
-    except discord.errors.NotFound:
-        pass
 
 
 class LoggerView(discord.ui.View, BaseCogMixin):
