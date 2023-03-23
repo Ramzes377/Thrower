@@ -61,14 +61,12 @@ class ChannelsManager(DiscordFeaturesMixin):
 
         if after.channel == self.bot.create_channel:  # user join to create own channel
             await self.user_create_channel(member)
-        elif not ((channel := await self.get_user_channel(member.id)) and
-                  after.channel == channel):  # user join to foreign channel
-            # User try to join to channel of another user or leave
-
+        elif not ((channel := await self.get_user_channel(member.id)) and after.channel == channel):
+            # User join to foreign channel (leave considered the same)
             if after.channel is not None:  # user join channel
                 self.bot.dispatch("member_join_channel", member.id, after.channel.id)
 
-            if before.channel is not None:  # user quit channel
+            if before.channel is not None:  # user leave
                 self.bot.dispatch("member_abandon_channel", member.id, before.channel.id)
 
             if channel is not None and not self._is_empty_channel(channel):  # transfer user channel
