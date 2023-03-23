@@ -25,17 +25,17 @@ class ChannelsManager(DiscordFeaturesMixin):
 
         sessions = await self.db.get_unclosed_sessions()
         for session in sessions:
-            if (channel := self.bot.get_channel(session['channel_id'])) is None:
+            if (channel := self.bot.get_channel(session['channel_id'])) is None:    # channel don't exist
                 continue
-            guild = channel.guild
-            member = guild.get_member(session['leader_id'])
-            if not (channel and member in channel.members):  # user_in_own_channel
-                voice_channel = member.voice.channel if member.voice else None
-                with suppress(discord.HTTPException):
-                    if voice_channel is not None:  # user join channel
-                        self.bot.dispatch("member_join_channel", member.id, voice_channel.id)
-                    if self._is_empty_channel(channel):
-                        await self.end_session(channel)
+            if (member := channel.guild.get_member(session['leader_id'])) in channel.members:  # user in own channel
+                continue
+
+            voice_channel = member.voice.channel if member.voice else None
+            with suppress(discord.HTTPException):
+                if voice_channel is not None:  # user join channel
+                    self.bot.dispatch("member_join_channel", member.id, voice_channel.id)
+                if self._is_empty_channel(channel):
+                    await self.end_session(channel)
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self):
