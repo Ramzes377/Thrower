@@ -17,6 +17,8 @@ def now() -> datetime:
 
 
 class LoggerHelpers:
+    bot = db = None
+
     @staticmethod
     def get_voice_channel(user: discord.Member):
         return user.voice.channel if user.voice else None
