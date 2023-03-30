@@ -4,9 +4,10 @@ import discord
 from discord.ext import commands
 
 from api.rest.base import request
-from settings import envs, token, guild, categories, intents
+from settings import envs, token, categories, intents, Permissions
 
 bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
+bot.permissions = Permissions
 
 
 @bot.event
@@ -19,8 +20,8 @@ async def on_ready():
     for category in categories:
         categories[category] = bot.get_channel(categories[category])
 
-    await bot.load_extension('api.bot.__init__')
-    print(await bot.tree.sync(guild=guild))
+    await bot.load_extension('api.bot')
+    print('Commands ', await bot.tree.sync())
 
     await clear_unregistered_messages()
     print('Bot have been started!')

@@ -4,8 +4,9 @@ from io import BytesIO
 
 import aiohttp
 import discord
-from discord.ext import tasks, commands
 from PIL import Image
+from cachetools import TTLCache
+from discord.ext import commands
 
 from ..mixins import BaseCogMixin
 
@@ -27,29 +28,11 @@ def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int]
     return colors[0]
 
 
-class GameRoles(BaseCogMixin):
+class GameRoleHandlers(BaseCogMixin):
+
     def __init__(self, bot):
-        super(GameRoles, self).__init__(bot)
-        bot.loop.create_task(self.remove_unused_activities_loop())
-        self.remove_unused_activities_loop.start()
-
-    @tasks.loop(hours=3)
-    async def remove_unused_activities_loop(self) -> None:
-        await self.delete_unused_roles()
-
-    @remove_unused_activities_loop.before_loop
-    async def distribute_create_channel_members(self):
-        guild = self.bot.guilds[0]
-        for role in guild.roles:
-            if ((db_role := await self.db.get_role_id(role.id)) and
-                    not role.icon and
-                    (info := self.db.get_activity_info(db_role['app_id']))):
-                await role.edit(display_icon=info['icon_url'])
-
-    @commands.Cog.listener()
-    async def on_presence_update(self, _, after: discord.Member) -> None:
-        if self.user_is_playing(after):
-            await self.add_gamerole(after)
+        super(GameRoleHandlers, self).__init__(bot)
+        self.cache = TTLCache(maxsize=100, ttl=2)  # cache stores items only 2 seconds
 
     async def manage_roles(self, payload: discord.RawReactionActionEvent, add=True) -> tuple | None:
         user_is_bot = payload.user_id == self.bot.user.id
@@ -61,9 +44,9 @@ class GameRoles(BaseCogMixin):
         if not role:
             return
 
-        guild = self.db.bot.get_guild(payload.guild_id)
+        guild = self.bot.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
-        role = guild.get_role(role.id)
+        role = guild.get_role(role['id'])
 
         if add:
             await member.add_roles(role)
@@ -72,29 +55,17 @@ class GameRoles(BaseCogMixin):
 
         return member, role
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        await self.manage_roles(payload, add=True)
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
-        await self.manage_roles(payload, add=False)
-
     async def add_gamerole(self, user: discord.Member) -> None:
         app_id = self.get_app_id(user)
-        guild = user.guild
-        if role := await self.db.get_role(app_id):  # role already exist
-            role = guild.get_role(role['id'])  # get role
+        if app_id and (role := await self.db.get_role(app_id)):  # role already exist
+            role = user.guild.get_role(role['id'])  # get role
             if role and role not in user.roles:  # check user haven't this role
-                with suppress(discord.Forbidden):
-                    await user.add_roles(role)
-        elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
-            with suppress(TypeError):    # discord unregistered activity
-                await self.create_activity_role(guild, app_id, user.activity.name)
-                await self.db.role_create(role.id, app_id)
                 await user.add_roles(role)
+        elif user.activity.type == discord.ActivityType.playing:  # if status isn't custom create new role
+            with suppress(TypeError, AttributeError):  # discord unregistered activity
+                await self.create_activity_role(user, app_id)
 
-    async def create_activity_role(self, guild: discord.Guild, app_id: int, role_name: str) -> None:
+    async def create_activity_role(self, user: discord.Member, app_id: int) -> None:
 
         if not (activity_info := await self.db.get_activityinfo(app_id)):
             raise TypeError('Adding only a roles registered by discord API')
@@ -109,31 +80,50 @@ class GameRoles(BaseCogMixin):
             raise TypeError('Adding only a roles registered by discord API')
 
         dominant_color = get_dominant_color(content)
+        guild = user.guild  # TODO: another way to get guild?
 
-        role = await guild.create_role(name=role_name,
-                                       permissions=guild.default_role.permissions,
-                                       hoist=True, mentionable=True,
-                                       color=dominant_color,
-                                       display_icon=content)
+        kw = dict(
+            name=user.activity.name,
+            hoist=True,
+            mentionable=True,
+            display_icon=content,
+            permissions=guild.default_role.permissions,
+            color=discord.Color.from_rgb(*dominant_color)
+        )
+        try:
+            role = await guild.create_role(**kw)
+        except discord.errors.Forbidden:
+            kw.pop('display_icon')
+            role = await guild.create_role(**kw)
+
+        await self.db.role_create(role.id, app_id)
+        await user.add_roles(role)
 
         emoji = await guild.create_custom_emoji(name=name, image=content)
-        await self.add_emoji_rolerequest(emoji.id, name)
         await self.db.emoji_create(emoji.id, role.id)
 
-    async def add_emoji_rolerequest(self, emoji_id: int, app_name: str) -> None:
-        emoji = self.bot.emoji(emoji_id)
+        await self.add_emoji_rolerequest(emoji, user.activity.name)
+
+    async def add_emoji_rolerequest(self, emoji: discord.Emoji, app_name: str) -> None:
         msg = await self.bot.request_channel.send(f'[{app_name}]')
         await msg.add_reaction(emoji)
 
-    async def delete_unused_roles(self) -> None:
-        """Delete role if it cant reach greater than 1 member for 60 days from creation moment"""
-        guild = self.bot.create_channel.guild
 
-        roles = await self.db.get_all_roles()
-        for db_role in roles:
-            if not guild.get_role(db_role['id']):
-                await self.db.role_delete(db_role['id'])
-                print('Deleted ', db_role['id'])
+class GameRoles(GameRoleHandlers):
+
+    @commands.Cog.listener()
+    async def on_presence_update(self, _, after: discord.Member) -> None:
+        if self.user_is_playing(after) and not self.cache.get(after.id):
+            self.cache[after.id] = True
+            await self.add_gamerole(after)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        await self.manage_roles(payload, add=True)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        await self.manage_roles(payload, add=False)
 
 
 async def setup(bot):

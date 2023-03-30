@@ -1,22 +1,21 @@
+import asyncio
 from contextlib import suppress
 
+import cachetools
 import discord
 from discord.ext import tasks, commands
 
-from settings import bots_ids, default_role_perms, leader_role_perms
+from settings import bots_ids
 from ..mixins import DiscordFeaturesMixin
 
 
 class ChannelsManager(DiscordFeaturesMixin):
+    CREATION_COOLDOWN = 10
+
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
+        self._cache = cachetools.TTLCache(maxsize=1e4, ttl=self.CREATION_COOLDOWN)
         self.handle_created_channels.start()
-
-    @staticmethod
-    def _is_empty_channel(channel: discord.VoiceChannel):
-        members = channel.members
-        is_empty = len(members) == 0
-        return True if is_empty else all(channel.guild.get_member(id) in members for id in bots_ids)
 
     @tasks.loop(minutes=10)
     async def handle_created_channels(self):
@@ -25,7 +24,7 @@ class ChannelsManager(DiscordFeaturesMixin):
 
         sessions = await self.db.get_unclosed_sessions()
         for session in sessions:
-            if (channel := self.bot.get_channel(session['channel_id'])) is None:    # channel don't exist
+            if (channel := self.bot.get_channel(session['channel_id'])) is None:  # channel don't exist
                 continue
             if (member := channel.guild.get_member(session['leader_id'])) in channel.members:  # user in own channel
                 continue
@@ -54,45 +53,37 @@ class ChannelsManager(DiscordFeaturesMixin):
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
                                     after: discord.VoiceState):
-        if before.channel == after.channel or before.channel == self.bot.create_channel:
-            # handling only channel changing, not mute or deaf member
-            # and previous channel is not 'create' channel
+        if before.channel == after.channel:  # handling only channel changing, not mute or deaf member
             return
 
         if after.channel == self.bot.create_channel:  # user join to create own channel
             await self.user_create_channel(member)
-        elif not ((channel := await self.get_user_channel(member.id)) and after.channel == channel):
+        elif (channel := await self.get_user_channel(member.id)) and member not in channel.members:
             # User join to foreign channel (leave considered the same)
-            if after.channel is not None:  # user join channel
-                self.bot.dispatch("member_join_channel", member.id, after.channel.id)
-
-            if before.channel is not None:  # user leave
-                self.bot.dispatch("member_abandon_channel", member.id, before.channel.id)
-
-            if channel is not None and not self._is_empty_channel(channel):  # transfer user channel
-                new_leader = next(member for member in channel.members)
-                overwrites = {member: default_role_perms, new_leader: leader_role_perms}
-                await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
+            try:  # transfer user channel
+                new_leader = next(member for member in channel.members if member.id not in bots_ids)
                 self.bot.dispatch("activity", None, new_leader)
                 self.bot.dispatch("leader_change", channel.id, new_leader.id)
+                overwrites = {member: self.bot.permissions.default, new_leader: self.bot.permissions.leader}
+                await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
+            except StopIteration:  # channel is "empty"
+                await self.end_session(channel)
 
     async def user_create_channel(self, user: discord.Member):
+        if await self.db.get_user_session(user.id) and self._cache.get(user.id):
+            await user.send(f'Для создания нужно подождать {self.CREATION_COOLDOWN} секунд!', delete_after=10)
+            await asyncio.sleep(self.CREATION_COOLDOWN)  # for too quickly channel creation
+
         channel = await self.make_channel(user)
+        self._cache[user.id] = user.id  # create a cooldown for user
         await user.move_to(channel)  # send user to his channel
         self.bot.dispatch("session_begin", user.id, channel)
 
-        def check(event_user, before, after):
-            return self._is_empty_channel(channel)
-
-        await self.bot.wait_for('voice_state_update', check=check)
-        await self.end_session(channel)
-
     async def make_channel(self, user: discord.Member) -> discord.VoiceChannel:
-        channel_name = await self.get_user_sess_name(user)
-        permissions = {user: leader_role_perms, user.guild.default_role: default_role_perms}
-        channel = await user.guild.create_voice_channel(channel_name,
-                                                        category=self.get_category(user),
-                                                        overwrites=permissions)
+        name = await self.get_user_sess_name(user)
+        category = self.get_category(user)
+        permissions = {user: self.bot.permissions.leader, user.guild.default_role: self.bot.permissions.default}
+        channel = await user.guild.create_voice_channel(name, category=category, overwrites=permissions)
         return channel
 
     async def end_session(self, channel: discord.VoiceChannel):

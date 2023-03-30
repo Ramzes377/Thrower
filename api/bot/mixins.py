@@ -1,30 +1,29 @@
 import asyncio
 import re
+from contextlib import suppress
 from typing import Awaitable
 
 import discord
 from discord.ext import commands
 
 from bot import categories
+from settings import bots_ids
 from .requests import BasicRequests
 
 
 class BaseCogMixin(commands.Cog):
     db = BasicRequests()
 
-    def __init__(self, bot, subcog=False):
+    def __init__(self, bot, sub_cog=False):
         super(BaseCogMixin, self).__init__()
         self.bot = bot
-        if not subcog:
+        if not sub_cog:
             print(f'Cog {type(self).__name__} have been started!')
 
     @staticmethod
-    def get_app_id(user: discord.Member) -> int:
-        try:
-            app_id = user.activity.application_id
-        except AttributeError:
-            app_id = None
-        return app_id
+    def get_app_id(user: discord.Member) -> int | None:
+        with suppress(AttributeError):
+            return user.activity.application_id
 
     @staticmethod
     def user_is_playing(user: discord.Member) -> bool:
@@ -50,6 +49,12 @@ class DiscordFeaturesMixin(BaseCogMixin):
                 session = await self.db.get_user_session(user.id)
                 sess_name = session['name'] if session else f"Сессия {user.display_name}'а"
         return sess_name
+
+    @staticmethod
+    def _is_empty_channel(channel: discord.VoiceChannel):
+        members = channel.members
+        is_empty = len(members) == 0
+        return True if is_empty else all(channel.guild.get_member(id) in members for id in bots_ids)
 
     @staticmethod
     def get_category(user: discord.Member) -> discord.CategoryChannel:

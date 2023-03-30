@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 import discord
@@ -5,7 +6,7 @@ from envparse import Env
 
 tzMoscow = ZoneInfo("Europe/Moscow")
 
-DEBUG = True
+DEBUG = False
 
 env = Env()
 env_file = '.env-test' if DEBUG else None
@@ -33,16 +34,19 @@ categories = {
     discord.ActivityType.playing: envs['playing_category_id']
 }
 
-leader_role_perms = discord.PermissionOverwrite(
-    kick_members=True,
-    manage_channels=True,
-    create_instant_invite=True
-)
 
-default_role_perms = discord.PermissionOverwrite(
-    kick_members=False,
-    manage_channels=False,
-    create_instant_invite=True
-)
+@dataclass(frozen=True)
+class Permissions:
+    default = discord.PermissionOverwrite(
+        kick_members=False,
+        manage_channels=False,
+        create_instant_invite=True
+    )
+    leader = discord.PermissionOverwrite(
+        kick_members=True,
+        manage_channels=True,
+        create_instant_invite=True
+    )
+
 
 intents = discord.Intents.all()

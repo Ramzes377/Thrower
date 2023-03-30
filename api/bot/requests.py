@@ -1,3 +1,4 @@
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from api.rest.base import request
@@ -20,8 +21,9 @@ def deco(func):
 class GettersWrapping(type):
     def __new__(cls, name, bases, attrs):
         new_attrs = {}
+        include = ['session_add_member']
         for attr_name, attr_value in attrs.items():
-            if callable(attr_value) and attr_name.startswith('get_'):
+            if callable(attr_value) and (attr_name.startswith('get_') or attr_name in include):
                 new_attrs[attr_name] = deco(attr_value)
             else:
                 new_attrs[attr_name] = attr_value
@@ -86,7 +88,7 @@ class BasicRequests(metaclass=GettersWrapping):
         await self.request('prescence/', method, data=prescence)
 
     async def session_add_member(self, channel_id: int, member_id: int):
-        await self.request(f'session/{channel_id}/members/{member_id}', 'post')
+        return await self.request(f'session/{channel_id}/members/{member_id}', 'post')
 
     async def create_sent_message(self, msg_id: int):
         return await self.request(f'sent_message/', 'post', data={'id': msg_id})

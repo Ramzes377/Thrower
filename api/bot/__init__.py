@@ -1,16 +1,13 @@
 from discord.ext import commands
 
-from .cogs import (
-    ChannelsManager,
-    Commands,
-    FloodManager,
-    GameRoles,
-    Logger,
-    Music
-)
+from .cogs import CogContainer as cog
 
 
 async def setup(bot: commands.Bot):
-    _cogs = [ChannelsManager, Commands, FloodManager, GameRoles, Logger]#, Music]
-    for cog in _cogs:
-        await bot.add_cog(cog(bot))
+    await bot.add_cog(cog.ChannelsManager(bot))
+    await bot.add_cog(cog.Commands(bot))
+    await bot.add_cog(cog.FloodManager(bot))
+    await bot.add_cog(cog.GameRoles(bot))
+    await bot.add_cog(cog.Logger(bot))
+    #await bot.add_cog(cog.Music(bot))
+

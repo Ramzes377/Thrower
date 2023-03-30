@@ -1,7 +1,5 @@
 import asyncio
 import datetime
-from contextlib import suppress
-from sqlite3 import IntegrityError
 
 import discord
 from cachetools import TTLCache
@@ -66,12 +64,17 @@ class LoggerHelpers:
             msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
             await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)
 
+    async def wait_for_session_created(self, session_id: int):
+        def check(channel_id: int, _):
+            return channel_id == session_id
 
-class Logger(DiscordFeaturesMixin, LoggerHelpers):
-    MIN_SESS_DURATION = 5 * 60  # in seconds
+        result = await self.bot.wait_for('db_session_created', check=check)
+        return result
 
+
+class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
     def __init__(self, bot):
-        super(Logger, self).__init__(bot, subcog=True)
+        super(LoggerEventHandlers, self).__init__(bot)
         self.cache = TTLCache(maxsize=100, ttl=2)  # cache stores items only 2 seconds
         self.bot.loop.create_task(self.register_logger_views())
         self.bot.loop.create_task(self.add_members())
@@ -87,20 +90,72 @@ class Logger(DiscordFeaturesMixin, LoggerHelpers):
                  for member in self.bot.guilds[0].members)
         await asyncio.gather(*tasks)
 
+    async def update_embed_members(self, session_id: int):
+
+        session = await self.db.get_session(session_id)
+        try:
+            msg_id = session['message_id']
+        except TypeError:
+            _, msg_id = await self.wait_for_session_created(session_id)
+
+        message = await self.bot.logger_channel.fetch_message(msg_id)
+        members = await self.db.get_session_members(session_id)
+        embed = message.embeds[0]
+
+        embed.set_field_at(2, name='├ Участники',
+                           value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
+                           inline=False)
+        await message.edit(embed=embed)
+
+    async def update_activity_icon(self, channel_id: int, app_id: int):
+        session = await self.db.get_session(channel_id)
+        app_info = await self.db.get_activity_info(app_id)
+        if session and app_info:
+            message_id, thumbnail_url = session['message_id'], app_info['icon_url']
+            msg = await self.bot.logger_channel.fetch_message(message_id)
+            embed = msg.embeds[0]
+            embed.set_thumbnail(url=thumbnail_url)
+            await msg.edit(embed=embed)
+            if emoji := await self.db.get_activity_emoji(app_id):
+                await msg.add_reaction(self.bot.get_emoji(emoji['id']))
+
+    async def _member_join_channel(self, member_id: discord.Member, session_id: int):
+        if not await self.db.session_add_member(session_id, member_id):  # session still not created
+            await self.wait_for_session_created(session_id)
+            await self.db.session_add_member(session_id, member_id)
+        await self.update_embed_members(session_id)
+
+        await self.db.prescence_update(channel_id=session_id, member_id=member_id, begin=now())
+
+    async def _member_abandon_channel(self, member_id: int, channel_id: int):
+        await self.db.prescence_update(member_id=member_id, channel_id=channel_id, end=now())
+
+
+class Logger(LoggerEventHandlers):
+    MIN_SESS_DURATION = 5 * 60  # in seconds
+
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member, ):
+    async def on_member_join(self, member: discord.Member):
         await self.db.user_create(id=member.id, name=member.display_name)
 
     @commands.Cog.listener()
-    async def on_member_join_channel(self, member_id: int, channel_id: int):
-        with suppress(IntegrityError):
-            await self.db.session_add_member(channel_id, member_id)
-            await self.update_embed_members(channel_id)  # add new member to logging message
-        await self.db.prescence_update(channel_id=channel_id, member_id=member_id, begin=now())
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
+                                    after: discord.VoiceState):
+        # User join to foreign channel (leave considered the same)
+        if after.channel and after.channel != self.bot.create_channel:
+            # await asyncio.sleep(3)
+            await self._member_join_channel(member.id, after.channel.id)
+
+        if before.channel and before.channel != self.bot.create_channel:
+            await self._member_abandon_channel(member.id, before.channel.id)
 
     @commands.Cog.listener()
-    async def on_member_abandon_channel(self, member_id: int, channel_id: int):
-        await self.db.prescence_update(member_id=member_id, channel_id=channel_id, end=now())
+    async def on_member_join_channel(self, member_id: int, channel_id: int):
+        await self._member_join_channel(member_id, channel_id)
+
+    @commands.Cog.listener()
+    async def on_db_session_created(self, channel_id: int, message_id: int):
+        pass
 
     @commands.Cog.listener()
     async def on_session_begin(self, creator_id: discord.Member, channel: discord.VoiceChannel):
@@ -117,14 +172,15 @@ class Logger(DiscordFeaturesMixin, LoggerHelpers):
         )
 
         msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
-        await self.db.session_update(creator_id=creator_id,
-                                     leader_id=creator_id,
-                                     channel_id=channel.id,
-                                     message_id=msg.id,
-                                     begin=begin, name=name)
-        await self.db.prescence_update(channel_id=channel.id,
-                                       member_id=creator_id, begin=begin)
-        await self.db.session_add_member(channel.id, creator_id)  # add leader to session
+        await self.db.session_update(
+            name=name,
+            creator_id=creator_id,
+            leader_id=creator_id,
+            channel_id=channel.id,
+            begin=begin,
+            message_id=msg.id
+        )
+        self.bot.dispatch("db_session_created", channel.id, msg.id)
         self.bot.dispatch("activity", None, creator)
 
     @commands.Cog.listener()
@@ -198,26 +254,3 @@ class Logger(DiscordFeaturesMixin, LoggerHelpers):
         embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
         await msg.edit(embed=embed)
         await self.db.update_leader(channel_id=channel_id, member_id=leader_id, begin=now())
-
-    async def update_embed_members(self, session_id: int):
-        session = await self.db.get_session(session_id)
-        members = await self.db.get_session_members(session_id)
-        message = await self.bot.logger_channel.fetch_message(session['message_id'])
-
-        embed = message.embeds[0]
-        embed.set_field_at(2, name='├ Участники',
-                           value='└ ' + ', '.join(f'<@{member["id"]}>' for member in members),
-                           inline=False)
-        await message.edit(embed=embed)
-
-    async def update_activity_icon(self, channel_id: int, app_id: int):
-        session = await self.db.get_session(channel_id)
-        app_info = await self.db.get_activity_info(app_id)
-        if session and app_info:
-            message_id, thumbnail_url = session['message_id'], app_info['icon_url']
-            msg = await self.bot.logger_channel.fetch_message(message_id)
-            embed = msg.embeds[0]
-            embed.set_thumbnail(url=thumbnail_url)
-            await msg.edit(embed=embed)
-            if emoji := await self.db.get_activity_emoji(app_id):
-                await msg.add_reaction(self.bot.get_emoji(emoji['id']))

@@ -32,14 +32,13 @@ async def _response_handle(interaction, string, data, header, column, template='
 class LoggerView(discord.ui.View, BaseCogMixin):
     def __init__(self, bot, format_handler) -> None:
         discord.ui.View.__init__(self, timeout=None)
-        BaseCogMixin.__init__(self, bot, subcog=True)
-        self._fmt = format_handler  # lambda s: format_handler(s) if s else '-'
+        BaseCogMixin.__init__(self, bot, sub_cog=True)
+        self._fmt = format_handler
 
     async def format_data(self, response: list[dict], header: str,
                           col: str, activity_flag: bool = False) -> tuple[str, list]:
         data, body = [], []
         for row in response:
-            # user_id, begin, end = row['member_id'], fmt_date(row['begin']), fmt_date(row['end'])
             user_id, begin, end = row['member_id'], self._fmt(row['begin']), self._fmt(row['end'])
             user = self.bot.guilds[0].get_member(user_id)
             url = f'''<a href="https://discordapp.com/users/{user_id}/"> {user.display_name} </a>'''
