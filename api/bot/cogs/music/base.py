@@ -1,17 +1,26 @@
 import re
+from contextlib import suppress
 
-import lavalink
 import discord
+import lavalink
 
-from .views import create_view
 from .views import PlayerButtonsView
-from ...misc import code
+from .views import create_view
 from ...mixins import DiscordFeaturesMixin
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
 not_connected = discord.app_commands.AppCommandError('Сначала войдите в голосовой канал!')
 not_same_voicechat = discord.app_commands.AppCommandError('Вы должны быть в том же голосовом чате!')
+
+
+def code(func):
+    def wrapper(*args, **kwargs) -> str:
+        wrap = '```'
+        result = func(*args, **kwargs)
+        return f'{wrap}{result}{wrap}'
+
+    return wrapper
 
 
 class LavalinkVoiceClient(discord.VoiceClient):
@@ -65,11 +74,8 @@ class MusicBase(DiscordFeaturesMixin):
             player = event.player
             guild = self.bot.get_guild(player.guild_id)
 
-            try:
-                await self.clear_player_message(player)
-                await guild.voice_client.disconnect(force=True)
-            finally:
-                pass
+            await self.clear_player_message(player)
+            await guild.voice_client.disconnect(force=True)
 
         if isinstance(event, lavalink.events.TrackStartEvent):
             await self.update_msg(event.player)
@@ -83,10 +89,8 @@ class MusicBase(DiscordFeaturesMixin):
 
     async def cog_app_command_error(self, interaction: discord.Interaction,
                                     error: discord.app_commands.AppCommandError):
-        try:
+        with suppress(discord.InteractionResponded):
             await interaction.response.send_message(error, delete_after=15, ephemeral=True)
-        except discord.errors.InteractionResponded:
-            pass
 
     async def ensure_voice(self, ctx):
         """ This check ensures that the bot and command author are in the same voicechannel. """
@@ -144,13 +148,10 @@ class MusicBase(DiscordFeaturesMixin):
 
     @staticmethod
     async def clear_player_message(player: lavalink.DefaultPlayer):
-        try:
+        with suppress(AttributeError):
             message = player.fetch('message')
             await message.delete()
-        except AttributeError:
-            pass
-        finally:
-            player.store('message', None)
+        player.store('message', None)
 
     async def _get_context(self, interaction: discord.Interaction, command_name: str):
         try:
@@ -265,26 +266,23 @@ class MusicCommandsHandlers(MusicBase):
                                interaction.guild_id, handler=self._play)
             await self.log_message(user.send(view=view, delete_after=60))
         except AttributeError:
-            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.'))
+            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.',
+                                             delete_after=60))
 
     async def _pause(self, interaction: discord.Interaction) -> None:
-        player: lavalink.DefaultPlayer = self.bot.lavalink.player_manager.get(interaction.guild_id)
+        player = self.bot.lavalink.player_manager.get(interaction.guild_id)
         player.paused = not player.paused
         status = "приостановлено" if player.paused else "вознобновлено"
-        try:
+        with suppress(AttributeError):
             msg = f'Воспроизведение {status}! \nПользователь: {interaction.user.mention}'
             await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
-        except AttributeError:
-            pass
         await player.set_pause(player.paused)
         await self.update_msg(player)
 
     async def _skip(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(interaction.guild_id)
-        try:
+        with suppress(AttributeError):
             msg = f'Пропущено воспроизведение трека {player.current.title}! \nПользователь: {interaction.user.mention}'
             await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
-        except AttributeError:
-            pass
         await player.skip()
         await self.update_msg(player)

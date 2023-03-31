@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
 
-from .tables import Base as BaseTable
 from .base_specification import Specification
+from .tables import Base as BaseTable
 from ..database import Session, get_session
 
 

@@ -1,9 +1,9 @@
 from .. import tables
 from ..base_specification import Specification
+from ..custom_responses import modify_response
 from ..schemas import Leadership, LeaderChange
 from ..service import CreateReadUpdate
 from ..specifications import SessionID, Unclosed
-from ..custom_responses import modify_response
 
 
 class SrvLeadership(CreateReadUpdate):
@@ -38,6 +38,6 @@ class SrvLeadership(CreateReadUpdate):
             return modify_response(current)
 
         response = super().post(leadership)
-        if current is not None:     # modify row response
+        if current is not None:  # modify row response
             response = modify_response(response)
         return response

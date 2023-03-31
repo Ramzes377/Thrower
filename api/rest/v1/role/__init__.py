@@ -2,10 +2,11 @@ from fastapi import Depends, APIRouter, status
 
 from .services import SrvRole
 from .. import tables
-from ..specifications import RoleID, ActivityID
 from ..schemas import Role, Emoji, ActivityInfo
+from ..specifications import RoleID, ActivityID
 
 router = APIRouter(prefix='/role', tags=['role'])
+
 
 @router.get('/', response_model=list[Role])
 def all_roles(service: SrvRole = Depends()):

@@ -1,12 +1,10 @@
 import datetime
-import pytest
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
 from api.rest.v1.dependencies import default_period
-
-from test_user import post_user
 
 TEST_CHANNEL_ID = 1
 TEST_USER_ID = 112

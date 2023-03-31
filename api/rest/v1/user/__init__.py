@@ -2,8 +2,8 @@ from fastapi import Depends, APIRouter, status
 
 from .services import SrvUser
 from .specifications import UserID
-from ..specifications import AppID, RoleID, UserID as MemberID
 from ..schemas import Member, Session, IngameSeconds, DurationActivity
+from ..specifications import AppID, RoleID, UserID as MemberID
 
 router = APIRouter(prefix='/user', tags=['user'])
 

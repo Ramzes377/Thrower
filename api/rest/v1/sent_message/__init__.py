@@ -1,8 +1,8 @@
 from fastapi import Depends, APIRouter, status
 
 from .services import SrvSentMessage
-from ..specifications import ID
 from ..schemas import SentMessage
+from ..specifications import ID
 
 router = APIRouter(prefix='/sent_message', tags=['sent_message'])
 

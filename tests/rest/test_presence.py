@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
-from test_session import post_sessions
 
 
 def test_post_presences(client: TestClient, post_sessions):

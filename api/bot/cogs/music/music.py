@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import tasks
 
 from settings import guild
-from .music_base import MusicCommandsHandlers
+from ..music.base import MusicCommandsHandlers
 
 
 class Music(MusicCommandsHandlers):

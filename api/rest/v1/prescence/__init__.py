@@ -1,8 +1,8 @@
 from fastapi import Depends, APIRouter, status
 
 from .services import SrvPrescence
-from ..specifications import SessionID, MessageID
 from ..schemas import Prescence, EndPrescence
+from ..specifications import SessionID, MessageID
 
 router = APIRouter(prefix='/prescence', tags=['prescence'])
 

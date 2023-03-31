@@ -1,5 +1,6 @@
-import discord
 from typing import Callable
+
+import discord
 
 
 def create_view(placeholder: str, select_options: list[dict], guild_id: int, handler: Callable):

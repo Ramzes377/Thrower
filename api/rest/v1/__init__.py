@@ -1,16 +1,15 @@
 from fastapi import APIRouter
 
+from api.rest.v1.activity import router as activity_router
+from api.rest.v1.activityinfo import router as activityinfo_router
+from api.rest.v1.emoji import router as emoji_router
+from api.rest.v1.leadership import router as leadership_router
+from api.rest.v1.music import router as music_router
+from api.rest.v1.prescence import router as prescence_router
+from api.rest.v1.role import router as role_router
+from api.rest.v1.sent_message import router as sent_message_router
 from api.rest.v1.session import router as sess_router
 from api.rest.v1.user import router as user_router
-from api.rest.v1.activityinfo import router as activityinfo_router
-from api.rest.v1.activity import router as activity_router
-from api.rest.v1.prescence import router as prescence_router
-from api.rest.v1.leadership import router as leadership_router
-from api.rest.v1.role import router as role_router
-from api.rest.v1.emoji import router as emoji_router
-from api.rest.v1.music import router as music_router
-from api.rest.v1.sent_message import router as sent_message_router
-
 
 router = APIRouter(prefix='/v1')
 router.include_router(sess_router)

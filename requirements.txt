@@ -13,6 +13,6 @@ pydantic-sqlalchemy==0.0.9
 cachetools==5.2.1
 pytest==7.2.1
 sqlmodel==0.0.8
-pytest-asyncio == 0.20.3
+pytest-asyncio==0.20.3
 lavalink==4.0.5
 pynacl==1.5.0
