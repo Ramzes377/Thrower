@@ -63,7 +63,7 @@ class ChannelsManager(DiscordFeaturesMixin):
             try:  # transfer user channel
                 new_leader = next(member for member in channel.members if member.id not in bots_ids)
                 self.bot.dispatch("activity", None, new_leader)
-                self.bot.dispatch("leader_change", channel.id, new_leader.id)
+                self.bot.dispatch("leader_change", channel.id, new_leader)
                 overwrites = {member: self.bot.permissions.default, new_leader: self.bot.permissions.leader}
                 await self.edit_channel_name_category(new_leader, channel, overwrites=overwrites)
             except StopIteration:  # channel is "empty"

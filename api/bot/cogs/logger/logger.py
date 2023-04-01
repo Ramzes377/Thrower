@@ -143,7 +143,6 @@ class Logger(LoggerEventHandlers):
                                     after: discord.VoiceState):
         # User join to foreign channel (leave considered the same)
         if after.channel and after.channel != self.bot.create_channel:
-            # await asyncio.sleep(3)
             await self._member_join_channel(member.id, after.channel.id)
 
         if before.channel and before.channel != self.bot.create_channel:
@@ -231,9 +230,7 @@ class Logger(LoggerEventHandlers):
         after_app_id = self.get_app_id(after)
 
         if after_app_id and not self.cache.get(after):
-            # for some reason discord rest calling
-            # event on_prescence_update twice with
-            # same data
+            # for some reason discord rest calling event on_prescence_update twice with same data
             self.cache[after] = dt.isoformat()
             await self.db.member_activity(member_id=after.id, id=after_app_id, begin=dt, end=None)
             if voice_channel is not None:  # logging activities of user in channel
@@ -244,13 +241,15 @@ class Logger(LoggerEventHandlers):
             await self.db.member_activity(member_id=before.id, id=before_app_id, end=dt)
 
     @commands.Cog.listener()
-    async def on_leader_change(self, channel_id: int, leader_id: int | None):
+    async def on_leader_change(self, channel_id: int, leader: discord.Member):
         session = await self.db.get_session(channel_id)
         if not session:
             return
 
         msg = await self.bot.logger_channel.fetch_message(session['message_id'])
-        embed = msg.embeds[0]
-        embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader_id}>')
+        name = await self.get_user_sess_name(leader)
+        embed: discord.Embed = msg.embeds[0]
+        embed.title = f"Активен сеанс: {name}"
+        embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader.id}>')
         await msg.edit(embed=embed)
-        await self.db.update_leader(channel_id=channel_id, member_id=leader_id, begin=now())
+        await self.db.update_leader(channel_id=channel_id, member_id=leader.id, begin=now())

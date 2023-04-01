@@ -38,7 +38,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
             return
         return self.bot.get_channel(session['channel_id'])
 
-    async def get_user_sess_name(self, user: discord.member.Member) -> str:
+    async def get_user_sess_name(self, user: discord.Member) -> str:
         if user.activity and user.activity.type is discord.ActivityType.playing:
             sess_name = f"[{re.compile('[^a-zA-Z0-9а-яА-Я +]').sub('', user.activity.name)}]"
         else:
@@ -61,7 +61,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
         activity_type = user.activity.type if user.activity else None
         return categories.get(activity_type, categories[None])
 
-    async def edit_channel_name_category(self, user: discord.member.Member, channel: discord.VoiceChannel,
+    async def edit_channel_name_category(self, user: discord.Member, channel: discord.VoiceChannel,
                                          overwrites=None, check_user=False) -> None:
         if check_user:
             # calling of itself handler
