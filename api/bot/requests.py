@@ -36,11 +36,9 @@ class BasicRequests(metaclass=GettersWrapping):
                       params: dict | None = None) -> dict | None:
         try:
             return await request(url, method, data, params)
-        except IntegrityError as e:
-            if not e.orig.args[0].startswith('UNIQUE constraint failed:'):
-                print(f'Error: {e.args[0]}\n\t --> {e.statement[:-9] + str(e.params)}')
         except Exception as e:
             print(f'Raised exc {e}. {url} {method} {data} {params}')
+            raise e
 
     async def update_leader(self, *, channel_id, member_id, begin, update_sess=True) -> None:
         if update_sess and member_id is not None:  # close session

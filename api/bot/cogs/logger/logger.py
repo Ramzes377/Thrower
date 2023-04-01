@@ -1,9 +1,11 @@
 import asyncio
 import datetime
+from contextlib import suppress
 
 import discord
 from cachetools import TTLCache
 from discord.ext import commands
+from sqlalchemy.exc import IntegrityError
 
 from settings import tzMoscow
 from .views import LoggerView
@@ -88,7 +90,8 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
     async def add_members(self):
         tasks = (self.db.user_create(id=member.id, name=member.display_name)
                  for member in self.bot.guilds[0].members)
-        await asyncio.gather(*tasks)
+        with suppress(IntegrityError):
+            await asyncio.gather(*tasks)
 
     async def update_embed_members(self, session_id: int):
 
@@ -119,11 +122,16 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             if emoji := await self.db.get_activity_emoji(app_id):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
-    async def _member_join_channel(self, member_id: discord.Member, session_id: int):
-        if not await self.db.session_add_member(session_id, member_id):  # session still not created
+    async def _member_join_channel(self, member_id: int, session_id: int):
+        try:
+            add = await self.db.session_add_member(session_id, member_id)
+        except IntegrityError:
+            add = True
+
+        if not add:  # session still not created
             await self.wait_for_session_created(session_id)
             await self.db.session_add_member(session_id, member_id)
-        await self.update_embed_members(session_id)
+            await self.update_embed_members(session_id)
 
         await self.db.prescence_update(channel_id=session_id, member_id=member_id, begin=now())
 
