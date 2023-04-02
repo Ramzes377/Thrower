@@ -1,11 +1,9 @@
 import asyncio
 import datetime
-from contextlib import suppress
 
 import discord
 from cachetools import TTLCache
 from discord.ext import commands
-from sqlalchemy.exc import IntegrityError
 
 from settings import tzMoscow
 from .views import LoggerView
@@ -90,16 +88,12 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
     async def add_members(self):
         tasks = (self.db.user_create(id=member.id, name=member.display_name)
                  for member in self.bot.guilds[0].members)
-        with suppress(IntegrityError):
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
     async def update_embed_members(self, session_id: int):
 
         session = await self.db.get_session(session_id)
-        try:
-            msg_id = session['message_id']
-        except TypeError:
-            _, msg_id = await self.wait_for_session_created(session_id)
+        msg_id = session['message_id']
 
         message = await self.bot.logger_channel.fetch_message(msg_id)
         members = await self.db.get_session_members(session_id)
@@ -123,15 +117,16 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
                 await msg.add_reaction(self.bot.get_emoji(emoji['id']))
 
     async def _member_join_channel(self, member_id: int, session_id: int):
-        try:
-            add = await self.db.session_add_member(session_id, member_id)
-        except IntegrityError:
-            add = True
+        async def _add_member():
+            resp = bool(await self.db.session_add_member(session_id, member_id))
+            if resp:
+                await self.update_embed_members(session_id)
 
-        if not add:  # session still not created
-            await self.wait_for_session_created(session_id)
-            await self.db.session_add_member(session_id, member_id)
-            await self.update_embed_members(session_id)
+        try:
+            await _add_member()
+        except ValueError:
+            await self.wait_for_session_created(session_id)  # session still not created
+            await _add_member()
 
         await self.db.prescence_update(channel_id=session_id, member_id=member_id, begin=now())
 

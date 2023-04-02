@@ -1,4 +1,5 @@
-from pydantic import ValidationError
+from contextlib import suppress
+
 from sqlalchemy.exc import IntegrityError
 
 from api.rest.base import request
@@ -15,13 +16,14 @@ def deco(func):
         if not exist(res):
             res = None
         return res
+
     return wrapper
 
 
 class GettersWrapping(type):
     def __new__(cls, name, bases, attrs):
         new_attrs = {}
-        include = ['session_add_member']
+        include = []
         for attr_name, attr_value in attrs.items():
             if callable(attr_value) and (attr_name.startswith('get_') or attr_name in include):
                 new_attrs[attr_name] = deco(attr_value)
@@ -32,8 +34,12 @@ class GettersWrapping(type):
 
 class BasicRequests(metaclass=GettersWrapping):
     @staticmethod
-    async def request(url: str, method: str = 'get', data: dict | None = None,
-                      params: dict | None = None) -> dict | None:
+    async def request(
+            url: str,
+            method: str = 'get',
+            data: dict | None = None,
+            params: dict | None = None
+    ) -> dict | None:
         try:
             return await request(url, method, data, params)
         except Exception as e:
@@ -63,7 +69,8 @@ class BasicRequests(metaclass=GettersWrapping):
         return sess
 
     async def user_create(self, **user: dict[int | str]) -> None:
-        await self.request('user/', 'post', data=user)
+        with suppress(IntegrityError):
+            await self.request('user/', 'post', data=user)
 
     async def user_update(self, **user: dict[int | str]) -> None:
         user_id: int = user.pop('id')
@@ -86,7 +93,11 @@ class BasicRequests(metaclass=GettersWrapping):
         await self.request('prescence/', method, data=prescence)
 
     async def session_add_member(self, channel_id: int, member_id: int):
-        return await self.request(f'session/{channel_id}/members/{member_id}', 'post')
+        with suppress(IntegrityError):
+            r = await self.request(f'session/{channel_id}/members/{member_id}', 'post')
+            if 'detail' in r:
+                raise ValueError('Session still not exist probably!')
+            return r
 
     async def create_sent_message(self, msg_id: int):
         return await self.request(f'sent_message/', 'post', data={'id': msg_id})
