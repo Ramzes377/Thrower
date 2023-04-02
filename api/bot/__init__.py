@@ -2,7 +2,7 @@ from discord.ext import commands
 
 from .cogs import CogContainer as cog
 
-MUSIC_ONLY = True
+MUSIC_ONLY = False
 
 
 async def setup(bot: commands.Bot):

@@ -1,10 +1,17 @@
+import datetime
+from contextlib import suppress
 from dataclasses import dataclass
-from zoneinfo import ZoneInfo
 
 import discord
 from envparse import Env
 
-tzMoscow = ZoneInfo("Europe/Moscow")
+offset = datetime.timedelta(hours=3)
+tzMoscow = datetime.timezone(offset, name='МСК')
+
+
+def now() -> datetime:
+    return datetime.datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
+
 
 DEBUG = False
 
@@ -29,11 +36,6 @@ guild = discord.Object(id=envs['guild_id'])
 database_URL = env.str('database_url', default='sqlite:///local.sqlite3')
 bots_ids = [int(bot_id) for bot_id in env.list('bots_ids')]
 
-categories = {
-    None: envs['idle_category_id'],
-    discord.ActivityType.playing: envs['playing_category_id']
-}
-
 
 @dataclass(frozen=True)
 class Permissions:
@@ -49,4 +51,35 @@ class Permissions:
     )
 
 
-intents = discord.Intents.all()
+def _init_channels(bot: discord.Client) -> dataclass:
+    @dataclass(frozen=True)
+    class Channels:
+        create: discord.VoiceChannel = bot.get_channel(envs['create_channel_id'])
+        logger: discord.VoiceChannel = bot.get_channel(envs['logger_id'])
+        request: discord.VoiceChannel = bot.get_channel(envs['role_request_id'])
+        commands: discord.VoiceChannel = bot.get_channel(envs['command_id'])
+
+    return Channels
+
+
+def _init_categories(bot: discord.Client) -> dict:
+    return {
+        None: bot.get_channel(envs['idle_category_id']),
+        discord.ActivityType.playing: bot.get_channel(envs['playing_category_id'])
+    }
+
+
+async def clear_unregistered_messages(bot):
+    from api.rest.base import request
+    guild = bot.get_guild(envs['guild_id'])
+    text_channels = [channel for channel in guild.channels if channel.type.name == 'text']
+    messages = await request('sent_message/')
+    for message in messages:
+        for channel in text_channels:
+            with suppress(discord.NotFound):
+                if msg := await channel.fetch_message(message['id']):
+                    print(msg)
+                    # deletion process
+                    # await msg.delete()
+                else:
+                    print(await request(f'sent_message/{msg.id}', 'delete'))

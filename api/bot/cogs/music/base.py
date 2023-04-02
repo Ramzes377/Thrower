@@ -67,7 +67,8 @@ class MusicBase(DiscordFeaturesMixin):
     async def events_handler(self, event: lavalink.events.Event):
         if isinstance(event, lavalink.events.NodeConnectedEvent):
             await self.bot.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.watching, name=" за заказами 🎶"))
+                activity=discord.Activity(type=discord.ActivityType.watching, name=" за заказами 🎶")
+            )
             print('Ready to accept orders . . .')
 
         if isinstance(event, lavalink.events.QueueEndEvent):
@@ -142,7 +143,7 @@ class MusicBase(DiscordFeaturesMixin):
                  .set_thumbnail(url=thumbnail_url)
                  .set_footer(text=f'Великий бот - {self.bot.user.display_name}', icon_url=self.bot.user.avatar))
 
-        channel = player.fetch('channel') or self.bot.commands_channel
+        channel = player.fetch('channel') or self.bot.channel.command
         message = await self.log_message(channel.send(embed=embed, view=self.view))
         player.store('message', message)
 

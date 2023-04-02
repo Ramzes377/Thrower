@@ -105,7 +105,7 @@ class GameRoleHandlers(BaseCogMixin):
         await self.add_emoji_rolerequest(emoji, user.activity.name)
 
     async def add_emoji_rolerequest(self, emoji: discord.Emoji, app_name: str) -> None:
-        msg = await self.bot.request_channel.send(f'[{app_name}]')
+        msg = await self.bot.channel.request.send(f'[{app_name}]')
         await msg.add_reaction(emoji)
 
 

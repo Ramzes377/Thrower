@@ -96,7 +96,7 @@ class Delete(Read):
             self._session.rollback()
             raise e
 
-    def delete(self, specification: Specification) -> int:
+    def delete(self, specification: Specification) -> None:
         obj = self.get(specification)
         self.erase(obj)
 

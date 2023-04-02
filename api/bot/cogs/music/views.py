@@ -24,7 +24,7 @@ class Dropdown(discord.ui.Select):
             title, query = option['title'], option['query']
             options.append(discord.SelectOption(label=title))
             self._map[title] = query
-        super().__init__(placeholder=placeholder, max_values=None, options=options)
+        super().__init__(placeholder=placeholder, max_values=100, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         for title in self.values:

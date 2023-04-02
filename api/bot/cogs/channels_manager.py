@@ -38,7 +38,7 @@ class ChannelsManager(DiscordFeaturesMixin):
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self):
-        if members := self.bot.create_channel.members:
+        if members := self.bot.channel.create.members:
             user = members[0]
             channel = await self.make_channel(user)
             for member in members:
@@ -56,7 +56,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         if before.channel == after.channel:  # handling only channel changing, not mute or deaf member
             return
 
-        if after.channel == self.bot.create_channel:  # user join to create own channel
+        if after.channel == self.bot.channel.create:  # user join to create own channel
             await self.user_create_channel(member)
         elif (channel := await self.get_user_channel(member.id)) and member not in channel.members:
             # User join to foreign channel (leave considered the same)
@@ -77,7 +77,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         channel = await self.make_channel(user)
         self._cache[user.id] = user.id  # create a cooldown for user
         await user.move_to(channel)  # send user to his channel
-        self.bot.dispatch("session_begin", user.id, channel)
+        self.bot.dispatch("session_begin", user, channel)
 
     async def make_channel(self, user: discord.Member) -> discord.VoiceChannel:
         name = await self.get_user_sess_name(user)

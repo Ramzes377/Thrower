@@ -6,7 +6,6 @@ from typing import Awaitable
 import discord
 from discord.ext import commands
 
-from bot import categories
 from settings import bots_ids
 from .requests import BasicRequests
 
@@ -56,10 +55,9 @@ class DiscordFeaturesMixin(BaseCogMixin):
         is_empty = len(members) == 0
         return True if is_empty else all(channel.guild.get_member(id) in members for id in bots_ids)
 
-    @staticmethod
-    def get_category(user: discord.Member) -> discord.CategoryChannel:
+    def get_category(self, user: discord.Member) -> discord.CategoryChannel:
         activity_type = user.activity.type if user.activity else None
-        return categories.get(activity_type, categories[None])
+        return self.bot.categories.get(activity_type, self.bot.categories[None])
 
     async def edit_channel_name_category(self, user: discord.Member, channel: discord.VoiceChannel,
                                          overwrites=None, check_user=False) -> None:

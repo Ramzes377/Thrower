@@ -1,50 +1,27 @@
-from contextlib import suppress
-
 import discord
 from discord.ext import commands
 
-from api.rest.base import request
-from settings import envs, token, categories, intents, Permissions
+from settings import token, Permissions, _init_channels, _init_categories, clear_unregistered_messages
 
-bot = commands.Bot(command_prefix='!', intents=intents, fetch_offline_members=False)
-bot.permissions = Permissions
+bot = commands.Bot(command_prefix='!', intents=discord.Intents.all(), fetch_offline_members=False)
 
 
 @bot.event
 async def on_ready():
-    bot.create_channel = bot.get_channel(envs['create_channel_id'])
-    bot.logger_channel = bot.get_channel(envs['logger_id'])
-    bot.request_channel = bot.get_channel(envs['role_request_id'])
-    bot.commands_channel = bot.get_channel(envs['command_id'])
-
-    for category in categories:
-        categories[category] = bot.get_channel(categories[category])
+    bot.permissions = Permissions
+    bot.channel = _init_channels(bot)
+    bot.categories = _init_categories(bot)
 
     await bot.load_extension('api.bot')
-    print('Commands ', await bot.tree.sync())
+    await bot.tree.sync()
+    await clear_unregistered_messages(bot)
 
-    await clear_unregistered_messages()
     print('Bot have been started!')
 
 
 @bot.tree.error
 async def on_command_error(ctx, error):
-    print(ctx, error)
-
-
-async def clear_unregistered_messages():
-    guild = bot.get_guild(envs['guild_id'])
-    text_channels = [channel for channel in guild.channels if channel.type.name == 'text']
-    messages = await request('sent_message/')
-    for message in messages:
-        for channel in text_channels:
-            with suppress(discord.NotFound):
-                if msg := await channel.fetch_message(message['id']):
-                    print(msg)
-                    # deletion process
-                    # await msg.delete()
-                else:
-                    print(await request(f'sent_message/{msg.id}', 'delete'))
+    pass  # useless message about command not found
 
 
 def run():

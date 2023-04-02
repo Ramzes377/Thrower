@@ -1,17 +1,15 @@
 import asyncio
 import datetime
+from contextlib import suppress
+from sqlalchemy.exc import IntegrityError
 
 import discord
 from cachetools import TTLCache
 from discord.ext import commands
 
-from settings import tzMoscow
+from settings import now
 from .views import LoggerView
 from ...mixins import DiscordFeaturesMixin
-
-
-def now() -> datetime:
-    return datetime.datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
 
 
 class LoggerHelpers:
@@ -61,7 +59,7 @@ class LoggerHelpers:
                 .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
             )
 
-            msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
+            msg = await self.bot.channel.logger.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
             await self.db.session_update(channel_id=session['channel_id'], message_id=msg.id)
 
     async def wait_for_session_created(self, session_id: int):
@@ -88,14 +86,15 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
     async def add_members(self):
         tasks = (self.db.user_create(id=member.id, name=member.display_name)
                  for member in self.bot.guilds[0].members)
-        await asyncio.gather(*tasks)
+        with suppress(IntegrityError):
+            await asyncio.gather(*tasks)
 
     async def update_embed_members(self, session_id: int):
 
         session = await self.db.get_session(session_id)
         msg_id = session['message_id']
 
-        message = await self.bot.logger_channel.fetch_message(msg_id)
+        message = await self.bot.channel.logger.fetch_message(msg_id)
         members = await self.db.get_session_members(session_id)
         embed = message.embeds[0]
 
@@ -109,7 +108,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
         app_info = await self.db.get_activity_info(app_id)
         if session and app_info:
             message_id, thumbnail_url = session['message_id'], app_info['icon_url']
-            msg = await self.bot.logger_channel.fetch_message(message_id)
+            msg = await self.bot.channel.logger.fetch_message(message_id)
             embed = msg.embeds[0]
             embed.set_thumbnail(url=thumbnail_url)
             await msg.edit(embed=embed)
@@ -145,10 +144,10 @@ class Logger(LoggerEventHandlers):
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
                                     after: discord.VoiceState):
         # User join to foreign channel (leave considered the same)
-        if after.channel and after.channel != self.bot.create_channel:
+        if after.channel and after.channel != self.bot.channel.create:
             await self._member_join_channel(member.id, after.channel.id)
 
-        if before.channel and before.channel != self.bot.create_channel:
+        if before.channel and before.channel != self.bot.channel.create:
             await self._member_abandon_channel(member.id, before.channel.id)
 
     @commands.Cog.listener()
@@ -160,9 +159,8 @@ class Logger(LoggerEventHandlers):
         pass
 
     @commands.Cog.listener()
-    async def on_session_begin(self, creator_id: discord.Member, channel: discord.VoiceChannel):
+    async def on_session_begin(self, creator: discord.Member, channel: discord.VoiceChannel):
         begin = now()
-        creator = channel.guild.get_member(creator_id)
         name = channel.name
 
         embed = (
@@ -173,11 +171,11 @@ class Logger(LoggerEventHandlers):
             .set_footer(text=creator.display_name + " - Создатель сессии", icon_url=creator.display_avatar)
         )
 
-        msg = await self.bot.logger_channel.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
+        msg = await self.bot.channel.logger.send(embed=embed, view=LoggerView(self.bot, self.datetime_handler))
         await self.db.session_update(
             name=name,
-            creator_id=creator_id,
-            leader_id=creator_id,
+            creator_id=creator.id,
+            leader_id=creator.id,
             channel_id=channel.id,
             begin=begin,
             message_id=msg.id
@@ -193,7 +191,7 @@ class Logger(LoggerEventHandlers):
 
         sess_name, msg_id = session['name'], session['message_id']
         try:
-            msg = await self.bot.logger_channel.fetch_message(msg_id)
+            msg = await self.bot.channel.logger.fetch_message(msg_id)
         except discord.NotFound:
             return
 
@@ -249,7 +247,7 @@ class Logger(LoggerEventHandlers):
         if not session:
             return
 
-        msg = await self.bot.logger_channel.fetch_message(session['message_id'])
+        msg = await self.bot.channel.logger.fetch_message(session['message_id'])
         name = await self.get_user_sess_name(leader)
         embed: discord.Embed = msg.embeds[0]
         embed.title = f"Активен сеанс: {name}"

@@ -1,6 +1,6 @@
 from contextlib import suppress
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import exc
 
 from api.rest.base import request
 from api.rest.v1.dependencies import default_period
@@ -21,7 +21,7 @@ def deco(func):
 
 
 class GettersWrapping(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(mcs, name, bases, attrs):
         new_attrs = {}
         include = []
         for attr_name, attr_value in attrs.items():
@@ -29,7 +29,7 @@ class GettersWrapping(type):
                 new_attrs[attr_name] = deco(attr_value)
             else:
                 new_attrs[attr_name] = attr_value
-        return super().__new__(cls, name, bases, new_attrs)
+        return super().__new__(mcs, name, bases, new_attrs)
 
 
 class BasicRequests(metaclass=GettersWrapping):
@@ -39,12 +39,8 @@ class BasicRequests(metaclass=GettersWrapping):
             method: str = 'get',
             data: dict | None = None,
             params: dict | None = None
-    ) -> dict | None:
-        try:
-            return await request(url, method, data, params)
-        except Exception as e:
-            print(f'Raised exc {e}. {url} {method} {data} {params}')
-            raise e
+    ) -> list[dict] | dict:
+        return await request(url, method, data, params)
 
     async def update_leader(self, *, channel_id, member_id, begin, update_sess=True) -> None:
         if update_sess and member_id is not None:  # close session
@@ -69,20 +65,19 @@ class BasicRequests(metaclass=GettersWrapping):
         return sess
 
     async def user_create(self, **user: dict[int | str]) -> None:
-        with suppress(IntegrityError):
-            await self.request('user/', 'post', data=user)
+        await self.request('user/', 'post', data=user)
 
     async def user_update(self, **user: dict[int | str]) -> None:
         user_id: int = user.pop('id')
         await self.request(f'user/{user_id}', 'patch', data=user)
 
-    async def role_create(self, role_id: int, app_id: int) -> dict:
+    async def role_create(self, role_id: int, app_id: int):
         await self.request('role/', 'post', data={'id': role_id, 'app_id': app_id})
 
     async def role_delete(self, role_id: int) -> dict:
         return await self.request(f'role/{role_id}', 'delete')
 
-    async def emoji_create(self, emoji_id: int, role_id: int) -> dict:
+    async def emoji_create(self, emoji_id: int, role_id: int):
         await self.request('emoji/', 'post', data={'id': emoji_id, 'role_id': role_id})
 
     async def music_create(self, data: dict) -> dict:
@@ -93,7 +88,7 @@ class BasicRequests(metaclass=GettersWrapping):
         await self.request('prescence/', method, data=prescence)
 
     async def session_add_member(self, channel_id: int, member_id: int):
-        with suppress(IntegrityError):
+        with suppress(exc.IntegrityError):
             r = await self.request(f'session/{channel_id}/members/{member_id}', 'post')
             if 'detail' in r:
                 raise ValueError('Session still not exist probably!')

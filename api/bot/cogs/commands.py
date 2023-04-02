@@ -44,7 +44,7 @@ class Commands(DiscordFeaturesMixin):
         try:
             role_id = int(role_mention[3:-1])
             role = guild.get_role(role_id)
-        except:
+        except ValueError:
             await interaction.response.send_message('Неверный формат упоминания игровой роли!', ephemeral=True,
                                                     delete_after=30)
             return
@@ -68,7 +68,7 @@ class Commands(DiscordFeaturesMixin):
         session = await self.db.session_update(channel_id=channel_id, name=name)
         await self.db.user_update(id=session["leader_id"], default_sess_name=session['name'])
 
-        msg = await self.bot.logger_channel.fetch_message(session['message_id'])
+        msg = await self.bot.channel.logger.fetch_message(session['message_id'])
         dct = msg.embeds[0].to_dict()
         dct['title'] = f"Активен сеанс: {name}"
         embed = discord.Embed.from_dict(dct)
