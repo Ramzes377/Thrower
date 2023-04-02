@@ -2,34 +2,9 @@ from contextlib import suppress
 
 from sqlalchemy import exc
 
+from api.bot.requests_meta import GettersWrapping
 from api.rest.base import request
 from api.rest.v1.dependencies import default_period
-
-
-def exist(obj: dict) -> bool:
-    return obj is not None and 'detail' not in obj
-
-
-def deco(func):
-    async def wrapper(*args, **kwargs):
-        res = await func(*args, **kwargs)
-        if not exist(res):
-            res = None
-        return res
-
-    return wrapper
-
-
-class GettersWrapping(type):
-    def __new__(mcs, name, bases, attrs):
-        new_attrs = {}
-        include = []
-        for attr_name, attr_value in attrs.items():
-            if callable(attr_value) and (attr_name.startswith('get_') or attr_name in include):
-                new_attrs[attr_name] = deco(attr_value)
-            else:
-                new_attrs[attr_name] = attr_value
-        return super().__new__(mcs, name, bases, new_attrs)
 
 
 class BasicRequests(metaclass=GettersWrapping):
@@ -57,28 +32,47 @@ class BasicRequests(metaclass=GettersWrapping):
 
         if create_channel:  # create
             sess = await self.request('session/', 'post', data=session)
-            await self.update_leader(channel_id=session['channel_id'], member_id=session['leader_id'],
-                                     begin=session['begin'], update_sess=False)
+            await self.update_leader(
+                channel_id=session['channel_id'],
+                member_id=session['leader_id'],
+                begin=session['begin'],
+                update_sess=False,
+            )
         else:  # update
             channel_id = session.pop('channel_id')  # pop it to not override it into db
-            sess = await self.request(f'session/{channel_id}', 'patch', data=session)
+            sess = await self.request(
+                f'session/{channel_id}',
+                'patch', data=session,
+            )
         return sess
 
     async def user_create(self, **user: dict[int | str]) -> None:
-        await self.request('user/', 'post', data=user)
+        await self.request(
+            'user/',
+            'post',
+            data=user
+        )
 
     async def user_update(self, **user: dict[int | str]) -> None:
         user_id: int = user.pop('id')
         await self.request(f'user/{user_id}', 'patch', data=user)
 
     async def role_create(self, role_id: int, app_id: int):
-        await self.request('role/', 'post', data={'id': role_id, 'app_id': app_id})
+        await self.request(
+            'role/',
+            'post',
+            data={'id': role_id, 'app_id': app_id}
+        )
 
     async def role_delete(self, role_id: int) -> dict:
         return await self.request(f'role/{role_id}', 'delete')
 
     async def emoji_create(self, emoji_id: int, role_id: int):
-        await self.request('emoji/', 'post', data={'id': emoji_id, 'role_id': role_id})
+        await self.request(
+            'emoji/',
+            'post',
+            data={'id': emoji_id, 'role_id': role_id}
+        )
 
     async def music_create(self, data: dict) -> dict:
         return await self.request(f'favoritemusic/', 'post', data=data)
@@ -89,7 +83,10 @@ class BasicRequests(metaclass=GettersWrapping):
 
     async def session_add_member(self, channel_id: int, member_id: int):
         with suppress(exc.IntegrityError):
-            r = await self.request(f'session/{channel_id}/members/{member_id}', 'post')
+            r = await self.request(
+                f'session/{channel_id}/members/{member_id}',
+                'post'
+            )
             if 'detail' in r:
                 raise ValueError('Session still not exist probably!')
             return r
@@ -110,7 +107,10 @@ class BasicRequests(metaclass=GettersWrapping):
         return await self.request(f'session/unclosed/{user_id}')
 
     async def get_all_sessions(self, begin=None, end=None) -> list[dict]:
-        return await self.request('session/', params=default_period(begin, end))
+        return await self.request(
+            'session/',
+            params=default_period(begin, end)
+        )
 
     async def get_session_members(self, session_id: int) -> list[dict]:
         return await self.request(f'session/{session_id}/members')
@@ -122,7 +122,8 @@ class BasicRequests(metaclass=GettersWrapping):
         return await self.request(f'activity/{app_id}/emoji')
 
     async def get_activity_duration(self, user_id: int, role_id: int) -> dict:
-        return await self.request(f'user/{user_id}/activities/duration/{role_id}')
+        url = f'user/{user_id}/activities/duration/{role_id}'
+        return await self.request(url)
 
     async def get_emoji_role(self, emoji_id: int) -> dict:
         return await self.request(f'emoji/{emoji_id}/role')

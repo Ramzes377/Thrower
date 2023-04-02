@@ -51,8 +51,12 @@ class ChannelsManager(DiscordFeaturesMixin):
             await self.edit_channel_name_category(after, channel)
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
-                                    after: discord.VoiceState):
+    async def on_voice_state_update(
+            self,
+            member: discord.Member,
+            before: discord.VoiceState,
+            after: discord.VoiceState
+    ):
         if before.channel == after.channel:  # handling only channel changing, not mute or deaf member
             return
 

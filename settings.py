@@ -13,6 +13,7 @@ def now() -> datetime:
     return datetime.datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
 
 
+MUSIC_ONLY = True
 DEBUG = False
 
 env = Env()

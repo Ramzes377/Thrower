@@ -1,11 +1,11 @@
 import asyncio
 import datetime
 from contextlib import suppress
-from sqlalchemy.exc import IntegrityError
 
 import discord
-from cachetools import TTLCache
 from discord.ext import commands
+from cachetools import TTLCache
+from sqlalchemy.exc import IntegrityError
 
 from settings import now
 from .views import LoggerView
@@ -143,6 +143,9 @@ class Logger(LoggerEventHandlers):
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState,
                                     after: discord.VoiceState):
+        if before.channel == after.channel:  # mute or deaf
+            return
+
         # User join to foreign channel (leave considered the same)
         if after.channel and after.channel != self.bot.channel.create:
             await self._member_join_channel(member.id, after.channel.id)

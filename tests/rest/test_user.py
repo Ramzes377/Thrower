@@ -1,21 +1,10 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
 
 
-def get_user_112(client):
+def get_user_112(client: TestClient):
     return client.get(f"{base_url}/user/112")
-
-
-@pytest.fixture
-def post_user(client: TestClient):
-    try:
-        response = client.post(f"{base_url}/user/", json={'id': 112, 'name': 'USER',
-                                                          'default_sess_name': 'Session name'})
-        assert response.status_code == 201
-    except:
-        pass
 
 
 def test_post_user(client: TestClient):

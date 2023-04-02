@@ -1,5 +1,3 @@
-from functools import partial
-
 import fastapi
 from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
@@ -13,17 +11,23 @@ base_url = f'{base}/{api_ver}'
 app = fastapi.FastAPI()
 app.include_router(router)
 
-AsyncHttpClient = partial(AsyncClient, app=app, base_url=base_url)
 
+async def request(
+        url: str,
+        method: str = 'get',
+        data: dict | None = None,
+        params: dict | None = None
+) -> dict:
 
-async def request(url: str, method: str = 'get', data: dict | None = None, params: dict | None = None):
-    async with AsyncHttpClient() as client:
+    async with AsyncClient(app=app, base_url=base_url) as client:
+
         if method in ('get', 'delete'):
             response = await client.request(method, url, params=params)
         else:
             data = jsonable_encoder(data)
             response = await client.request(method, url, params=params, json=data)
-        return response.json()
+
+    return response.json()
 
 
 @app.get('/')

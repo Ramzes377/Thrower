@@ -10,8 +10,12 @@ from ...mixins import DiscordFeaturesMixin
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
-not_connected = discord.app_commands.AppCommandError('Сначала войдите в голосовой канал!')
-not_same_voicechat = discord.app_commands.AppCommandError('Вы должны быть в том же голосовом чате!')
+not_connected = discord.app_commands.AppCommandError(
+    'Сначала войдите в голосовой канал!'
+)
+not_same_voicechat = discord.app_commands.AppCommandError(
+    'Вы должны быть в том же голосовом чате!'
+)
 
 
 def code(func):
@@ -36,10 +40,21 @@ class LavalinkVoiceClient(discord.VoiceClient):
         data = {'t': 'VOICE_STATE_UPDATE', 'd': data}
         await self.lavalink.voice_update_handler(data)
 
-    async def connect(self, *, timeout: float, reconnect: bool, self_deaf: bool = False,
-                      self_mute: bool = False) -> None:
+    async def connect(
+            self,
+            *,
+            timeout: float,
+            reconnect: bool,
+            self_deaf: bool = False,
+            self_mute: bool = False
+    ) -> None:
+
         self.lavalink.player_manager.create(guild_id=self.channel.guild.id)
-        await self.channel.guild.change_voice_state(channel=self.channel, self_mute=self_mute, self_deaf=self_deaf)
+        await self.channel.guild.change_voice_state(
+            channel=self.channel,
+            self_mute=self_mute,
+            self_deaf=self_deaf
+        )
 
     async def disconnect(self, *, force: bool = False) -> None:
         player = self.lavalink.player_manager.get(self.channel.guild.id)
@@ -58,16 +73,26 @@ class MusicBase(DiscordFeaturesMixin):
         if not hasattr(bot, 'lavalink'):
             # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
-            bot.lavalink.add_node('host.docker.internal', 2333,
-                                  'youshallnotpass', 'eu', 'default-node',
-                                  10, 'Client', 30)
+            bot.lavalink.add_node(
+                'host.docker.internal',
+                2333,
+                'youshallnotpass',
+                'eu',
+                'default-node',
+                10,
+                'Client',
+                30
+            )
 
         lavalink.add_event_hook(self.events_handler)
 
     async def events_handler(self, event: lavalink.events.Event):
         if isinstance(event, lavalink.events.NodeConnectedEvent):
             await self.bot.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.watching, name=" за заказами 🎶")
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=" за заказами 🎶"
+                )
             )
             print('Ready to accept orders . . .')
 
@@ -76,7 +101,9 @@ class MusicBase(DiscordFeaturesMixin):
             guild = self.bot.get_guild(player.guild_id)
 
             await self.clear_player_message(player)
-            await guild.voice_client.disconnect(force=True)
+
+            with suppress(AttributeError):
+                await guild.voice_client.disconnect(force=True)
 
         if isinstance(event, lavalink.events.TrackStartEvent):
             await self.update_msg(event.player)
@@ -88,13 +115,21 @@ class MusicBase(DiscordFeaturesMixin):
             await self.ensure_voice(ctx)
         return guild_check
 
-    async def cog_app_command_error(self, interaction: discord.Interaction,
-                                    error: discord.app_commands.AppCommandError):
-        with suppress(discord.InteractionResponded):
-            await interaction.response.send_message(error, delete_after=15, ephemeral=True)
+    async def cog_app_command_error(
+            self, interaction: discord.Interaction,
+            error: discord.app_commands.AppCommandError
+    ):
+        with suppress(discord.InteractionResponded, discord.NotFound):
+            await interaction.response.send_message(
+                error,
+                delete_after=15,
+                ephemeral=True,
+            )
 
     async def ensure_voice(self, ctx):
-        """ This check ensures that the bot and command author are in the same voicechannel. """
+        """ This check ensures that the bot and
+        command author are in the same voice channel. """
+
         player = self.bot.lavalink.player_manager.create(ctx.guild.id)
 
         if not ctx.author.voice or not ctx.author.voice.channel:
@@ -124,7 +159,8 @@ class MusicBase(DiscordFeaturesMixin):
 
         message = player.fetch('message')
         if message:
-            # when we calling it and message already exists then we expect to change ONLY current track or playing status
+            # when we calling it and message already exists then we
+            # expect to change ONLY current track or playing status
             embed = message.embeds[0]
             embed.set_field_at(0, name='Текущий трек', value=current_track)
             embed.set_field_at(1, name='Статус', value=status, inline=False)
@@ -132,16 +168,20 @@ class MusicBase(DiscordFeaturesMixin):
             embed.set_thumbnail(url=thumbnail_url)
             try:
                 await message.edit(embed=embed)
-            except discord.errors.NotFound:  # message were deleted for some reason, just recreate it
+            except discord.errors.NotFound:
+                # message were deleted for some reason, just recreate it
                 await self.clear_player_message(player)
             return
 
-        embed = (discord.Embed(color=discord.Color.blurple())
-                 .add_field(name='Текущий трек', value=current_track)
-                 .add_field(name='Статус', value=status, inline=False)
-                 .add_field(name='Поставил', value=requester, inline=False)
-                 .set_thumbnail(url=thumbnail_url)
-                 .set_footer(text=f'Великий бот - {self.bot.user.display_name}', icon_url=self.bot.user.avatar))
+        embed = (
+            discord.Embed(color=discord.Color.blurple())
+            .add_field(name='Текущий трек', value=current_track)
+            .add_field(name='Статус', value=status, inline=False)
+            .add_field(name='Поставил', value=requester, inline=False)
+            .set_thumbnail(url=thumbnail_url)
+            .set_footer(text=f'Великий бот - {self.bot.user.display_name}',
+                        icon_url=self.bot.user.avatar)
+        )
 
         channel = player.fetch('channel') or self.bot.channel.command
         message = await self.log_message(channel.send(embed=embed, view=self.view))
@@ -160,9 +200,17 @@ class MusicBase(DiscordFeaturesMixin):
         except ValueError:
             guild = self.bot.get_guild(interaction.guild_id)
             command = type('Command', tuple(), {'name': command_name})
-            ctx = type('Context', tuple(), {'guild': guild, 'author': guild.get_member(interaction.user.id),
-                                            'command': command, 'voice_client': None, 'channel': interaction.channel,
-                                            'me': interaction.client.user})
+            ctx = type(
+                'Context',
+                tuple(),
+                {
+                    'guild': guild,
+                    'author': guild.get_member(interaction.user.id),
+                    'command': command, 'voice_client': None,
+                    'channel': interaction.channel,
+                    'me': interaction.client.user
+                }
+            )
         return ctx
 
 
@@ -181,8 +229,14 @@ class MusicCommandsHandlers(MusicBase):
         self.view = PlayerButtonsView(self._pause, self._skip,
                                       self._queue, self._favorite)
 
-    async def _get_embed(self, user_id: int, results: lavalink.models.LoadResult,
-                         player: lavalink.DefaultPlayer, query: str) -> discord.Embed:
+    async def _get_embed(
+            self,
+            user_id: int,
+            results: lavalink.models.LoadResult,
+            player: lavalink.DefaultPlayer,
+            query: str
+    ) -> discord.Embed:
+
         embed = discord.Embed(color=discord.Color.blurple())
         if results.load_type == 'PLAYLIST_LOADED':
             tracks = results.tracks
@@ -221,11 +275,17 @@ class MusicCommandsHandlers(MusicBase):
         embed = await self._get_embed(interaction.user.id, results, player, query)
 
         try:
-            msg = await interaction.response.send_message(embed=embed, ephemeral=False, delete_after=30)
+            msg = await interaction.response.send_message(
+                embed=embed,
+                ephemeral=False,
+                delete_after=30
+            )
             await self.db.create_sent_message(msg.id)
-        finally:
-            if not player.is_playing:
-                await player.play()
+        except:
+            pass
+        if not player.is_playing:
+            await player.play()
+            print('NORMAL PLAYING')
 
     async def _stop(self, interaction: discord.Interaction) -> None:
         """ Disconnects the player from the voice channel and clears its queue. """
@@ -245,7 +305,13 @@ class MusicCommandsHandlers(MusicBase):
             await player.stop()
             await ctx.voice_client.disconnect(force=True)
             msg = 'Принудительно завершено исполнение!'
-            await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=30))
+            await self.log_message(
+                interaction.response.send_message(
+                    msg,
+                    ephemeral=False,
+                    delete_after=30
+                )
+            )
 
     async def _queue(self, interaction: discord.Interaction) -> None:
         ctx = await self._get_context(interaction, command_name='queue')
@@ -255,7 +321,13 @@ class MusicCommandsHandlers(MusicBase):
             raise discord.app_commands.AppCommandError('Очередь пуста!')
 
         queue_msg = queue_repr(player.queue, player.current.title)
-        await self.log_message(interaction.response.send_message(queue_msg, ephemeral=False, delete_after=30))
+        await self.log_message(
+            interaction.response.send_message(
+                queue_msg,
+                ephemeral=False,
+                delete_after=30
+            )
+        )
 
     async def _favorite(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message('Список избранных треков отправлен в ЛС',
@@ -267,8 +339,12 @@ class MusicCommandsHandlers(MusicBase):
                                interaction.guild_id, handler=self._play)
             await self.log_message(user.send(view=view, delete_after=60))
         except AttributeError:
-            await self.log_message(user.send('У вас нет избранных треков. Возможно, вы не ставили никаких треков.',
-                                             delete_after=60))
+            await self.log_message(
+                user.send(
+                    'У вас нет избранных треков. Возможно, вы не ставили никаких треков.',
+                    delete_after=60
+                )
+            )
 
     async def _pause(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(interaction.guild_id)
@@ -276,7 +352,13 @@ class MusicCommandsHandlers(MusicBase):
         status = "приостановлено" if player.paused else "вознобновлено"
         with suppress(AttributeError):
             msg = f'Воспроизведение {status}! \nПользователь: {interaction.user.mention}'
-            await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
+            await self.log_message(
+                interaction.response.send_message(
+                    msg,
+                    ephemeral=False,
+                    delete_after=15
+                )
+            )
         await player.set_pause(player.paused)
         await self.update_msg(player)
 
@@ -284,6 +366,12 @@ class MusicCommandsHandlers(MusicBase):
         player = self.bot.lavalink.player_manager.get(interaction.guild_id)
         with suppress(AttributeError):
             msg = f'Пропущено воспроизведение трека {player.current.title}! \nПользователь: {interaction.user.mention}'
-            await self.log_message(interaction.response.send_message(msg, ephemeral=False, delete_after=15))
+            await self.log_message(
+                interaction.response.send_message(
+                    msg,
+                    ephemeral=False,
+                    delete_after=15
+                )
+            )
         await player.skip()
         await self.update_msg(player)

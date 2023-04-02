@@ -36,6 +36,12 @@ class Create(BaseService):
 
 
 class Read(BaseService):
+    def _is_exist(self, obj: BaseTable, specification: Specification):
+        if not obj:
+            specs = ', '.join(f'[{k} = {v}]' for k, v in specification().items())
+            details = f"Row of table {self.table.__name__} with follows params ({specs}) not found"
+            raise HTTPException(status_code=404, detail=details)
+
     @property
     def _query(self) -> Query:
         query = self._base_query
@@ -49,10 +55,7 @@ class Read(BaseService):
     def get(self, specification: Specification, *args: Any, **kwargs: Any) -> BaseTable:
         query = self._get(specification)
         obj = query.first()
-        if not obj:
-            specs = ', '.join(f'{k} = {v}' for k, v in specification().items())
-            details = f"Row of table {self.table.__name__} with follows params ({specs}) not found"
-            raise HTTPException(status_code=404, detail=details)
+        self._is_exist(obj, specification)
         return obj
 
     def all(self, filter: BinaryExpression = None, *args, query: Query | None = None, **kwargs) -> list[BaseTable]:
@@ -83,6 +86,7 @@ class Update(Read):
     ) -> BaseTable:
         get = self.get if get_method is None else get_method
         obj: BaseService = get(specification)
+        self._is_exist(obj, specification)
         self.update(obj, data)
         return obj
 

@@ -11,21 +11,19 @@ from discord.ext import commands
 from ..mixins import BaseCogMixin
 
 
-def get_dominant_color(raw_img, colors_num=5, resize=64) -> tuple[int, int, int] | list:
+def get_dominant_color(raw_img, colors_num=15, resize=64) -> tuple[int, int, int] | list:
     img = Image.open(BytesIO(raw_img))
     img = img.copy()
     img.thumbnail((resize, resize))
     paletted = img.convert('P', palette=Image.ADAPTIVE, colors=colors_num)
     palette = paletted.getpalette()
     color_counts = sorted(paletted.getcolors(), reverse=True)
-    colors = []
     for i in range(colors_num):
         palette_index = color_counts[i][1]
         dominant_color = dc = tuple(palette[palette_index * 3:palette_index * 3 + 3])
         sq_dist = dc[0] * dc[0] + dc[1] * dc[1] + dc[2] * dc[2]
         if sq_dist > 8:  # drop too dark colors
-            colors.append(dominant_color)
-    return colors[0]
+            return dominant_color
 
 
 class GameRoleHandlers(BaseCogMixin):

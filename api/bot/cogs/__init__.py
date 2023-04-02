@@ -12,7 +12,7 @@ from .music import Music
 
 
 @dataclass(frozen=True)
-class CogContainer:
+class CogsContainer:
     ChannelsManager: Cog | Callable = ChannelsManager
     Commands: Cog | Callable = Commands
     FloodManager: Cog | Callable = FloodManager

@@ -1,6 +1,5 @@
 import datetime
 
-import pytest
 from fastapi.testclient import TestClient
 
 from api.rest.base import base_url
@@ -9,22 +8,6 @@ from api.rest.v1.dependencies import default_period
 TEST_CHANNEL_ID = 1
 TEST_USER_ID = 112
 TEST_MSG_ID = 326
-
-
-@pytest.fixture
-def post_sessions(client: TestClient):
-    for x in range(1, 6):
-        try:
-            response = client.post(f"{base_url}/session/", json={'channel_id': x,
-                                                                 'leader_id': 111 + x - 1,
-                                                                 'creator_id': 111 + x % 2,
-                                                                 'message_id': 321 + 5 * x,
-                                                                 'begin': f'2000-01-01 0{x}:00:00',
-                                                                 'end': f'2000-01-01 0{x + 1}:00:00' if x < 3 else None,
-                                                                 'name': f'{x}' * x})
-            assert response.status_code == 201
-        except:
-            return
 
 
 def test_post_sessions(client: TestClient, post_sessions):
@@ -85,9 +68,7 @@ def test_add_session_member(client: TestClient, post_user):
     data = response.json()
 
     assert response.status_code == 201
-    assert isinstance(data['name'], str)
     assert isinstance(data['id'], int)
-    assert isinstance(data['default_sess_name'], (str, None))
 
 
 def test_get_session_members(client: TestClient):

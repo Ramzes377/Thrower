@@ -53,14 +53,20 @@ class DiscordFeaturesMixin(BaseCogMixin):
     def _is_empty_channel(channel: discord.VoiceChannel):
         members = channel.members
         is_empty = len(members) == 0
-        return True if is_empty else all(channel.guild.get_member(id) in members for id in bots_ids)
+        return True if is_empty else all(channel.guild.get_member(_id) in members for _id in bots_ids)
 
     def get_category(self, user: discord.Member) -> discord.CategoryChannel:
         activity_type = user.activity.type if user.activity else None
         return self.bot.categories.get(activity_type, self.bot.categories[None])
 
-    async def edit_channel_name_category(self, user: discord.Member, channel: discord.VoiceChannel,
-                                         overwrites=None, check_user=False) -> None:
+    async def edit_channel_name_category(
+            self,
+            user: discord.Member,
+            channel: discord.VoiceChannel,
+            overwrites=None,
+            check_user=False
+    ) -> None:
+
         if check_user:
             # calling of itself handler
             sess = await self.db.get_session(channel.id)
