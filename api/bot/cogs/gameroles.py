@@ -6,6 +6,7 @@ import aiohttp
 import discord
 from PIL import Image
 from cachetools import TTLCache
+from discord import HTTPException
 from discord.ext import commands
 
 from ..mixins import BaseCogMixin
@@ -78,7 +79,7 @@ class GameRoleHandlers(BaseCogMixin):
             raise TypeError('Adding only a roles registered by discord API')
 
         dominant_color = get_dominant_color(content)
-        guild = user.guild  # TODO: another way to get guild?
+        guild = user.guild
 
         kw = dict(
             name=user.activity.name,
@@ -97,10 +98,10 @@ class GameRoleHandlers(BaseCogMixin):
         await self.db.role_create(role.id, app_id)
         await user.add_roles(role)
 
-        emoji = await guild.create_custom_emoji(name=name, image=content)
-        await self.db.emoji_create(emoji.id, role.id)
-
-        await self.add_emoji_rolerequest(emoji, user.activity.name)
+        with suppress(HTTPException):
+            emoji = await guild.create_custom_emoji(name=name, image=content)
+            await self.db.emoji_create(emoji.id, role.id)
+            await self.add_emoji_rolerequest(emoji, user.activity.name)
 
     async def add_emoji_rolerequest(self, emoji: discord.Emoji, app_name: str) -> None:
         msg = await self.bot.channel.request.send(f'[{app_name}]')
