@@ -1,3 +1,4 @@
+import warnings
 from contextlib import suppress
 
 import discord
@@ -29,7 +30,7 @@ async def on_ready():
     await bot.tree.sync()
     await clear_unregistered_messages(bot)
 
-    print('Bot have been started!')
+    warnings.warn("Bot have been started!", ResourceWarning)
 
 
 @bot.tree.error

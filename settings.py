@@ -1,9 +1,14 @@
 import datetime
+import os
+import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 
 import discord
 from envparse import Env
+
+warnings.simplefilter("default")  # Change the filter in this process
+os.environ["PYTHONWARNINGS"] = "default"  # Also affect subprocesses
 
 offset = datetime.timedelta(hours=3)
 tzMoscow = datetime.timezone(offset, name='МСК')

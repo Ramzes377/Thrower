@@ -20,7 +20,7 @@ class BasicRequests(metaclass=GettersWrapping):
     async def update_leader(self, *, channel_id, member_id, begin, update_sess=True) -> None:
         if update_sess and member_id is not None:  # close session
             await self.session_update(channel_id=channel_id, leader_id=member_id)
-        data = {'channel_id': channel_id, 'member_id': member_id, 'begin': begin}
+        data = dict(channel_id=channel_id, member_id=member_id, begin=begin)
         await self.request('leadership/', 'post', data=data)
 
     async def member_activity(self, **activity: dict[int | str]) -> None:

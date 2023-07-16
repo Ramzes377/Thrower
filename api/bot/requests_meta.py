@@ -20,7 +20,8 @@ class GettersWrapping(type):
 
     @staticmethod
     def attr_handler(attr_name, attr_value):
-        if callable(attr_value) and (attr_name.startswith('get_') or attr_name in include):
+        if callable(attr_value) and \
+                (attr_name.startswith('get_') or attr_name in include):
             return deco(attr_value)
         return attr_value
 

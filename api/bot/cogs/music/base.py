@@ -1,4 +1,5 @@
 import re
+import warnings
 from contextlib import suppress
 
 import discord
@@ -67,22 +68,23 @@ class LavalinkVoiceClient(discord.VoiceClient):
 
 class MusicBase(DiscordFeaturesMixin):
     view = None
+    params = dict(
+        host='host.docker.internal',
+        port=2333,
+        password='youshallnotpass',
+        region='eu',
+        resume_key='default-node',
+        resume_timeout=10,
+        name='Client',
+        reconnect_attempts=30
+    )
 
     def __init__(self, bot):
         super(MusicBase, self).__init__(bot)
         if not hasattr(bot, 'lavalink'):
             # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
-            bot.lavalink.add_node(
-                'host.docker.internal',
-                2333,
-                'youshallnotpass',
-                'eu',
-                'default-node',
-                10,
-                'Client',
-                30
-            )
+            bot.lavalink.add_node(**self.params)
 
         lavalink.add_event_hook(self.events_handler)
 
@@ -94,7 +96,7 @@ class MusicBase(DiscordFeaturesMixin):
                     name=" за заказами 🎶"
                 )
             )
-            print('Ready to accept orders . . .')
+            warnings.warn("Ready to accept orders . . .", ResourceWarning)
 
         if isinstance(event, lavalink.events.QueueEndEvent):
             player = event.player
@@ -120,7 +122,7 @@ class MusicBase(DiscordFeaturesMixin):
             error: discord.app_commands.AppCommandError
     ):
         with suppress(discord.InteractionResponded, discord.NotFound):
-            await interaction.response.send_message(
+            await interaction.response.send_message(    # noqa
                 error,
                 delete_after=15,
                 ephemeral=True,
@@ -274,18 +276,16 @@ class MusicCommandsHandlers(MusicBase):
 
         embed = await self._get_embed(interaction.user.id, results, player, query)
 
-        try:
-            msg = await interaction.response.send_message(
+        with suppress(AttributeError):
+            msg = await interaction.response.send_message(      # noqa
                 embed=embed,
                 ephemeral=False,
                 delete_after=30
             )
             await self.db.create_sent_message(msg.id)
-        except:
-            pass
+
         if not player.is_playing:
             await player.play()
-            print('NORMAL PLAYING')
 
     async def _stop(self, interaction: discord.Interaction) -> None:
         """ Disconnects the player from the voice channel and clears its queue. """
@@ -306,7 +306,7 @@ class MusicCommandsHandlers(MusicBase):
             await ctx.voice_client.disconnect(force=True)
             msg = 'Принудительно завершено исполнение!'
             await self.log_message(
-                interaction.response.send_message(
+                interaction.response.send_message(  # noqa
                     msg,
                     ephemeral=False,
                     delete_after=30
@@ -322,7 +322,7 @@ class MusicCommandsHandlers(MusicBase):
 
         queue_msg = queue_repr(player.queue, player.current.title)
         await self.log_message(
-            interaction.response.send_message(
+            interaction.response.send_message(  # noqa
                 queue_msg,
                 ephemeral=False,
                 delete_after=30
@@ -341,7 +341,8 @@ class MusicCommandsHandlers(MusicBase):
         except AttributeError:
             await self.log_message(
                 user.send(
-                    'У вас нет избранных треков. Возможно, вы не ставили никаких треков.',
+                    'У вас нет избранных треков. '
+                    'Возможно, вы не ставили никаких треков.',
                     delete_after=60
                 )
             )
@@ -351,9 +352,10 @@ class MusicCommandsHandlers(MusicBase):
         player.paused = not player.paused
         status = "приостановлено" if player.paused else "вознобновлено"
         with suppress(AttributeError):
-            msg = f'Воспроизведение {status}! \nПользователь: {interaction.user.mention}'
+            msg = f'Воспроизведение {status}! \n' \
+                  f'Пользователь: {interaction.user.mention}'
             await self.log_message(
-                interaction.response.send_message(
+                interaction.response.send_message(  # noqa
                     msg,
                     ephemeral=False,
                     delete_after=15
@@ -365,9 +367,10 @@ class MusicCommandsHandlers(MusicBase):
     async def _skip(self, interaction: discord.Interaction) -> None:
         player = self.bot.lavalink.player_manager.get(interaction.guild_id)
         with suppress(AttributeError):
-            msg = f'Пропущено воспроизведение трека {player.current.title}! \nПользователь: {interaction.user.mention}'
+            msg = f'Пропущено воспроизведение трека {player.current.title}! \n' \
+                  f'Пользователь: {interaction.user.mention}'
             await self.log_message(
-                interaction.response.send_message(
+                interaction.response.send_message(  # noqa
                     msg,
                     ephemeral=False,
                     delete_after=15
