@@ -7,7 +7,7 @@ from typing import Awaitable
 import discord
 from discord.ext import commands
 
-from settings import bots_ids
+from settings import bots_ids, CustomWarning
 from .requests import BasicRequests
 
 sess_re = re.compile('[^a-zA-Z0-9а-яА-Я +]')
@@ -21,7 +21,7 @@ class BaseCogMixin(commands.Cog):
         self.bot = bot
         if not sub_cog:
             warnings.warn(f'Cog {type(self).__name__} have been started!',
-                          ResourceWarning)
+                          CustomWarning)
 
     @staticmethod
     def get_app_id(user: discord.Member) -> int | None:

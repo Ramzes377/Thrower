@@ -7,8 +7,6 @@ from dataclasses import dataclass
 import discord
 from envparse import Env
 
-warnings.simplefilter("default")  # Change the filter in this process
-os.environ["PYTHONWARNINGS"] = "default"  # Also affect subprocesses
 
 offset = datetime.timedelta(hours=3)
 tzMoscow = datetime.timezone(offset, name='МСК')
@@ -89,3 +87,26 @@ async def clear_unregistered_messages(bot):
                     # await msg.delete()
                 else:
                     print(await request(f'sent_message/{msg.id}', 'delete'))
+
+
+class CustomWarning(Warning):
+    default_format = warnings.formatwarning
+
+    @classmethod
+    def formatwarning(
+            cls: 'CustomWarning',
+            msg: str,
+            category: Warning,
+            filename: str,
+            lineno: int,
+            file: str = None,
+            line: int = None,
+            **kwargs
+    ):
+        if issubclass(category, cls):
+            return f'{filename}: {lineno}: {msg}\n'
+
+        return cls.default_format(msg, category, filename, lineno, **kwargs)
+
+
+warnings.formatwarning = CustomWarning.formatwarning

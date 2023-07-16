@@ -8,7 +8,7 @@ from settings import (
     token, Permissions,
     _init_channels,
     _init_categories,
-    clear_unregistered_messages
+    clear_unregistered_messages, CustomWarning
 )
 
 bot = commands.Bot(
@@ -30,7 +30,7 @@ async def on_ready():
     await bot.tree.sync()
     await clear_unregistered_messages(bot)
 
-    warnings.warn("Bot have been started!", ResourceWarning)
+    warnings.warn("Bot have been started!", CustomWarning)
 
 
 @bot.tree.error
