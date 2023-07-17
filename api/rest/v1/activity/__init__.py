@@ -27,7 +27,7 @@ def activity(app_id: AppID = Depends(), service: SrvActivities = Depends()):
     return service.get(app_id)
 
 
-@router.get('/{app_id}/info', response_model=ActivityInfo)
+@router.get('/{app_id}/info', response_model=ActivityInfo | None)
 def activity_info(app_id: AppID = Depends(), service: SrvActivities = Depends()):
     activity = service.get(app_id)
     return activity.info

@@ -1,13 +1,12 @@
 import asyncio
 import re
-import warnings
 from contextlib import suppress
 from typing import Awaitable
 
 import discord
 from discord.ext import commands
 
-from settings import bots_ids, CustomWarning
+from settings import bots_ids, logger
 from .requests import BasicRequests
 
 sess_re = re.compile('[^a-zA-Z0-9а-яА-Я +]')
@@ -20,8 +19,7 @@ class BaseCogMixin(commands.Cog):
         super(BaseCogMixin, self).__init__()
         self.bot = bot
         if not sub_cog:
-            warnings.warn(f'Cog {type(self).__name__} have been started!',
-                          CustomWarning)
+            logger.info(f'Cog {type(self).__name__} have been started!')
 
     @staticmethod
     def get_app_id(user: discord.Member) -> int | None:

@@ -2,13 +2,15 @@ import warnings
 from contextlib import suppress
 
 import discord
+from aiohttp import ClientConnectorError
 from discord.ext import commands
+from discord.ext.commands import ExtensionAlreadyLoaded
 
 from settings import (
     token, Permissions,
     _init_channels,
     _init_categories,
-    clear_unregistered_messages, CustomWarning
+    clear_unregistered_messages, CustomWarning, logger
 )
 
 bot = commands.Bot(
@@ -24,18 +26,20 @@ async def on_ready():
     bot.channel = _init_channels(bot)
     bot.categories = _init_categories(bot)
 
-    with suppress(discord.ext.commands.ExtensionAlreadyLoaded):
+    with suppress(ExtensionAlreadyLoaded):
         await bot.load_extension('api.bot')
+    with suppress(ClientConnectorError):
+        await bot.tree.sync()
 
-    await bot.tree.sync()
     await clear_unregistered_messages(bot)
 
-    warnings.warn("Bot have been started!", CustomWarning)
+    #warnings.warn("Bot have been started!", CustomWarning)
+    logger.info("Bot have been started!")
 
 
 @bot.tree.error
 async def on_command_error(ctx, error):
-    pass  # useless message about command not found
+    warnings.warn(error, CustomWarning)
 
 
 def run():

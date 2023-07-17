@@ -1,5 +1,5 @@
 import datetime
-import os
+import logging
 import warnings
 from contextlib import suppress
 from dataclasses import dataclass
@@ -73,6 +73,9 @@ def _init_categories(bot: discord.Client) -> dict:
     }
 
 
+logger = logging.getLogger('discord.client')
+
+
 async def clear_unregistered_messages(bot):
     from api.rest.base import request
     guild = bot.get_guild(envs['guild_id'])
@@ -82,11 +85,13 @@ async def clear_unregistered_messages(bot):
         for channel in text_channels:
             with suppress(discord.NotFound):
                 if msg := await channel.fetch_message(message['id']):
-                    print(msg)
+                    logger.info(msg)
                     # deletion process
                     # await msg.delete()
                 else:
-                    print(await request(f'sent_message/{msg.id}', 'delete'))
+                    logger.warning(
+                        await request(f'sent_message/{msg.id}', 'delete')
+                    )
 
 
 class CustomWarning(Warning):
