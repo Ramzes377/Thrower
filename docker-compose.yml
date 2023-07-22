@@ -2,18 +2,18 @@ version: '3.8'
 
 services:
 
-  lavalink_server:
-    build: .
-    container_name: lavalink_server
-    command: java -jar /usr/src/app/api/bot/cogs/music/Lavalink.jar
-    ports:
-      - '2333:2333'
+  lavalink:
+    container_name: lavalink
+    build:
+      dockerfile: lavalink/Dockerfile
     volumes:
-      - .:/usr/src/app
+      - ./lavalink:/usr/src/lavalink
 
-  main_app:
-    build: .
-    container_name: discord_bot
-    command: python startup.py
+  bot:
+    container_name: bot
+    build:
+      dockerfile: bot/Dockerfile
+    environment:
+      ENV_PATH: ./env/stable.env
     volumes:
-      - .:/usr/src/app
+      - ./bot:/usr/src/bot
