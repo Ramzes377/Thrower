@@ -52,7 +52,8 @@ class ChannelsManager(DiscordFeaturesMixin):
                     for channel in server.channels
                     if isinstance(channel, discord.VoiceChannel)
                     and channel != self.bot.channel.create
-                    and channel.id not in unclosed_ids)
+                    and channel.id not in unclosed_ids
+                    and channel.guild == server)
 
         for channel in channels:
             await channel.delete()

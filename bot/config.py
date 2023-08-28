@@ -9,8 +9,8 @@ load_dotenv(getenv('ENV_PATH', './env/stable.env'))
 
 @dataclass
 class Config:
-    DEBUG = getenv('DEBUG', 'False') == 'True'
-    MUSIC_ONLY = getenv('MUSIC_ONLY', 'False') == 'True'
+    DEBUG = getenv('DEBUG', 'false').lower() == 'true'
+    MUSIC_ONLY = getenv('MUSIC_ONLY', 'false').lower() == 'true'
 
     TOKEN = getenv('TOKEN')
 

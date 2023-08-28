@@ -8,7 +8,8 @@ COPY /bot /usr/src/bot
 
 # install pre-dependencies
 RUN pip install --upgrade pip && \
-    pip install poetry
+    pip install poetry && \
+    poetry config virtualenvs.create false
 
 
 
