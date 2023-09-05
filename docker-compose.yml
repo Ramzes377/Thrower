@@ -2,19 +2,19 @@ version: '3.8'
 
 services:
 
-  lavalink:
-    container_name: lavalink
-    build:
-      dockerfile: lavalink/Dockerfile
-    volumes:
-      - ./lavalink:/usr/src/lavalink
-
   bot:
     container_name: bot
     build:
-      dockerfile: bot/Dockerfile
+      context: .
     environment:
-      ENV_PATH: ./env/test.env
-      MUSIC_ONLY: false
-    volumes:
-      - ./bot:/usr/src/bot
+      ENV_PATH: env/test.env
+      PYTHONUNBUFFERED: 1
+
+  lavalink:
+    image: fredboat/lavalink:master
+    restart: always
+    environment:
+      LAVA_PORT: 2333
+      LAVA_PASSWORD: youshallnotpass
+    ports:
+      - "2333:2333"
