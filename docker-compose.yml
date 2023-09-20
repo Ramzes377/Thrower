@@ -2,19 +2,18 @@ version: '3.8'
 
 services:
 
-  lavalink:
-    container_name: lavalink
-    build:
-      dockerfile: lavalink/Dockerfile
-    volumes:
-      - ./lavalink:/usr/src/lavalink
-
   bot:
     container_name: bot
     build:
-      dockerfile: bot/Dockerfile
+      context: .
     environment:
-      ENV_PATH: ./env/test.env
-      MUSIC_ONLY: false
-    volumes:
-      - ./bot:/usr/src/bot
+      ENV_PATH: env/music.env
+      PYTHONUNBUFFERED: 1
+
+  lavalink:
+    container_name: lavalink
+    image: ghcr.io/lavalink-devs/lavalink:3-alpine
+    restart: always
+    environment:
+      SERVER_PORT: 2333
+      LAVALINK_SERVER_PASSWORD: youshallnotpass
