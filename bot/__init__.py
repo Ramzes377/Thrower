@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from .cogs import CogsContainer as cog  # noqa
+from .cogs import cog
 
 from config import Config
 

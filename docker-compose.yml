@@ -7,14 +7,13 @@ services:
     build:
       context: .
     environment:
-      ENV_PATH: env/test.env
+      ENV_PATH: env/music.env
       PYTHONUNBUFFERED: 1
 
   lavalink:
-    image: fredboat/lavalink:master
+    container_name: lavalink
+    image: ghcr.io/lavalink-devs/lavalink:3-alpine
     restart: always
     environment:
-      LAVA_PORT: 2333
-      LAVA_PASSWORD: youshallnotpass
-    ports:
-      - "2333:2333"
+      SERVER_PORT: 2333
+      LAVALINK_SERVER_PASSWORD: youshallnotpass

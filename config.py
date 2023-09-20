@@ -1,43 +1,66 @@
-from dataclasses import dataclass
-from pathlib import Path
-from os import getenv, path
+import json
+import os
+
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, DotEnvSettingsSource
+from pydantic import HttpUrl, IPvAnyAddress
 
 import discord
-from dotenv import load_dotenv
-
-root = Path(__file__).parent
-load_dotenv(path.join(root, getenv('ENV_PATH', 'env/stable.env')))
 
 
-@dataclass
-class Config:
-    DEBUG = getenv('DEBUG', 'false').lower() == 'true'
-    MUSIC_ONLY = getenv('MUSIC_ONLY', 'false').lower() == 'true'
+class CustomSources(DotEnvSettingsSource):
+    def prepare_field_value(
+        self, field_name: str, field: FieldInfo, value, is_complex: bool
+    ):
+        if field_name == 'BOT_IDS':
+            return json.loads(f'[{value}]')
+        return super().prepare_field_value(field_name, field, value, is_complex)
 
-    TOKEN = getenv('TOKEN')
 
-    GUILD_ID = int(getenv('GUILD_ID'))
-    LOGGER_ID = int(getenv('LOGGER_ID'))
-    COMMAND_ID = int(getenv('COMMAND_ID'))
-    ROLE_REQUEST_ID = int(getenv('ROLE_REQUEST_ID'))
-    CREATE_CHANNEL_ID = int(getenv('CREATE_CHANNEL_ID'))
-    IDLE_CATEGORY_ID = int(getenv('IDLE_CATEGORY_ID'))
-    PLAYING_CATEGORY_ID = int(getenv('PLAYING_CATEGORY_ID'))
+class Settings(BaseSettings):
 
-    GUILD = discord.Object(id=GUILD_ID)
-    DB_ENGINE = getenv('DB_ENGINE', 'sqlite+aiosqlite:///')
-    DB_URI = getenv('DB_URI', f'{DB_ENGINE}{root}/local.sqlite3')
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, **kw
+    ):
+        env_file = kw['dotenv_settings'].env_file
+        return CustomSources(settings_cls=settings_cls, env_file=env_file),
 
-    BOT_IDS = list(map(int, getenv('BOT_IDS').split(',')))
+    DEBUG: bool
 
-    MIN_SESS_DURATION = int(getenv('MIN_SESS_DURATION', 5 * 60))
+    TOKEN: str
+    GUILD_ID: int
+    LOGGER_ID: int
+    COMMAND_ID: int
+    ROLE_REQUEST_ID: int
+    CREATE_CHANNEL_ID: int
+    IDLE_CATEGORY_ID: int
+    PLAYING_CATEGORY_ID: int
+    BOT_IDS: list[int]
 
-    LAVALINK_URI = getenv('LAVALINK_URI', '0.0.0.0')
-    LAVALINK_PORT = int(getenv('LAVALINK_PORT', '2333'))
-    LAVALINK_PASSWORD = getenv('LAVALINK_PASSWORD', 'youshallnotpass')
+    MUSIC_ONLY: bool
+    MIN_SESS_DURATION: int = 300  # 5 minutes in seconds
 
-    API_HOST = getenv('API_HOST', '127.0.0.1')
-    API_PORT = int(getenv('API_PORT', '8000'))
-    API_VERSION = getenv('API_VERSION', '')
+    API_HOST: IPvAnyAddress = '127.0.0.1'
+    API_PORT: int = 8000
 
-    BASE_URI = f"http://{API_HOST}:{API_PORT}"
+    DB_ENGINE: str = 'sqlite+aiosqlite:///'
+
+    LAVALINK_URI: str = 'lavalink'
+    LAVALINK_PORT: int = 2333
+    LAVALINK_PASSWORD: str = 'youshallnotpass'
+
+    GUILD: discord.Object | None = None
+    DB_URI: str | None = None
+    BASE_URI: HttpUrl | None = None
+
+
+Config = Settings(
+    _env_file=os.environ.get('ENV_PATH', 'env/stable.env'),
+    _env_file_encoding='utf-8'
+)
+
+Config.GUILD = discord.Object(id=Config.GUILD_ID)
+Config.BASE_URI = f'http://{Config.API_HOST}:{Config.API_PORT}'
+Config.DB_URI = f'{Config.DB_ENGINE}./local.sqlite3'
+

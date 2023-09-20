@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Callable
 
 from discord.ext.commands import Cog
 
@@ -12,16 +11,26 @@ from bot.cogs.gameroles import GameRoles
 from bot.cogs.logger import Logger
 
 
-@dataclass(frozen=True)
+@dataclass
 class CogsContainer:
-    channels_manager: Cog | Callable = ChannelsManager
-    commands: Cog | Callable = Commands
-    flood_manager: Cog | Callable = FloodManager
-    game_roles: Cog | Callable = GameRoles
-    logger: Cog | Callable = Logger
-    music: Cog | Callable = None
+    channels_manager: Cog
+    commands: Cog
+    flood_manager: Cog
+    game_roles: Cog
+    logger: Cog
+    music: Cog = None
 
-    def __post_init__(self):
-        if Config.MUSIC_ONLY:
-            from .music import Music
-            self.music = Music      # noqa
+
+cog = CogsContainer(
+    channels_manager=ChannelsManager,
+    commands=Commands,
+    flood_manager=FloodManager,
+    game_roles=GameRoles,
+    logger=Logger,
+)
+
+if Config.MUSIC_ONLY:
+
+    from bot.cogs.music import Music
+
+    cog.music = Music

@@ -1,3 +1,4 @@
+import asyncio
 import re
 from contextlib import suppress
 
@@ -35,7 +36,6 @@ class LavalinkVoiceClient(discord.VoiceClient):
         client: discord.Client,
         channel: discord.abc.Connectable
     ):
-
         super().__init__(client, channel)
         self.lavalink = self.client.lavalink
 
@@ -94,31 +94,38 @@ class MusicBase(DiscordFeaturesMixin):
         lavalink.add_event_hook(self.events_handler)
 
     async def events_handler(self, event: lavalink.events.Event):
-        if isinstance(event, lavalink.events.NodeConnectedEvent):
-            await self.bot.change_presence(
-                activity=discord.Activity(
-                    type=discord.ActivityType.watching,
-                    name=" за заказами 🎶"
+
+        match type(event):
+
+            case lavalink.events.NodeConnectedEvent:
+
+                await self.bot.change_presence(
+                    activity=discord.Activity(
+                        type=discord.ActivityType.watching,
+                        name=" за заказами 🎶"
+                    )
                 )
-            )
-            logger.info("Ready to accept orders . . .")
+                logger.info("Ready to accept orders . . .")
 
-        if isinstance(event, lavalink.events.QueueEndEvent):
-            player = event.player
-            guild = self.bot.get_guild(player.guild_id)
+            case lavalink.events.QueueEndEvent:
 
-            await self.clear_player_message(player)
+                player = event.player
+                guild = self.bot.get_guild(player.guild_id)
 
-            with suppress(AttributeError):
-                await guild.voice_client.disconnect(force=True)
+                await self.clear_player_message(player)
 
-        if isinstance(event, lavalink.events.TrackStartEvent):
-            await self.update_msg(event.player)
+                with suppress(AttributeError):
+                    await asyncio.sleep(10)
+                    await guild.voice_client.disconnect(force=True)
+
+            case lavalink.events.TrackStartEvent:
+
+                await self.update_msg(event.player)
+
 
     async def cog_before_invoke(self, ctx):
         """ Command before-invoke handler. """
-        guild_check = ctx.guild is not None
-        if guild_check:
+        if guild_check := (ctx.guild is not None):
             await self.ensure_voice(ctx)
         return guild_check
 
