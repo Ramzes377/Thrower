@@ -1,4 +1,5 @@
 DC = docker compose
+reqs = requirements.txt
 
 
 compose:
@@ -6,5 +7,5 @@ compose:
 
 
 compile-core-requirements:
-	poetry export -f requirements.txt --output requirements.txt --without music,dev --without-hashes
+	poetry export -f ${reqs} --output ${reqs} --without music,dev --without-hashes
 

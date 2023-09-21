@@ -115,13 +115,16 @@ class MusicBase(DiscordFeaturesMixin):
                 await self.clear_player_message(player)
 
                 with suppress(AttributeError):
-                    await asyncio.sleep(10)
-                    await guild.voice_client.disconnect(force=True)
+                    await asyncio.sleep(3 * 60)  # wait 3 minutes and leave
+                    # if queue is empty
+
+                    u = self.bot.lavalink.player_manager.get(player.guild_id)
+                    if not u.current:
+                        await guild.voice_client.disconnect(force=True)
 
             case lavalink.events.TrackStartEvent:
 
                 await self.update_msg(event.player)
-
 
     async def cog_before_invoke(self, ctx):
         """ Command before-invoke handler. """
@@ -155,8 +158,9 @@ class MusicBase(DiscordFeaturesMixin):
 
         v_client = ctx.voice_client
         if not v_client:
-            player.store('channel', ctx.guild.get_channel(ctx.channel.id))
-            await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
+            with suppress(discord.errors.ClientException):
+                player.store('channel', ctx.guild.get_channel(ctx.channel.id))
+                await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
         elif v_client.channel.id != ctx.author.voice.channel.id:
             raise not_same_voicechat
 
@@ -169,7 +173,7 @@ class MusicBase(DiscordFeaturesMixin):
         current_track = player.current.title
         thumbnail_url = f"http://i3.ytimg.com/vi/{player.current.identifier}/maxresdefault.jpg"
         requester = f'<@{player.current.requester}>'
-        status = ':musical_note: Играет :musical_note:' if not player.paused else ':pause_button: Пауза :pause_button:'
+        status = ':musical_note:' if not player.paused else ':pause_button:'
 
         message = player.fetch('message')
         if message:
@@ -194,13 +198,12 @@ class MusicBase(DiscordFeaturesMixin):
             .add_field(name='Статус', value=status, inline=False)
             .add_field(name='Поставил', value=requester, inline=False)
             .set_thumbnail(url=thumbnail_url)
-            .set_footer(text=f'Великий бот - {self.bot.user.display_name}',
-                        icon_url=self.bot.user.avatar)
         )
 
-        channel = player.fetch('channel') or self.bot.channel.command
+        channel = player.fetch('channel') or self.bot.channel.commands
         message = await self.log_message(
-            channel.send(embed=embed, view=self.view))
+            channel.send(embed=embed, view=self.view)
+        )
         player.store('message', message)
 
     @staticmethod
@@ -294,13 +297,21 @@ class MusicCommandsHandlers(MusicBase):
         embed = await self._get_embed(interaction.user.id, results, player,
                                       query)
 
-        with suppress(AttributeError):
+        try:
             msg = await interaction.response.send_message(  # noqa
                 embed=embed,
                 ephemeral=False,
                 delete_after=30
             )
             await self.db.create_sent_message(msg.id)
+        except discord.InteractionResponded:
+            msg = await interaction.followup.send(  # noqa
+                embed=embed,
+                ephemeral=False
+            )
+            await self.db.create_sent_message(msg.id)
+        except AttributeError:
+            pass
 
         if not player.is_playing:
             await player.play()

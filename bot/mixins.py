@@ -90,5 +90,6 @@ class DiscordFeaturesMixin(BaseCogMixin):
 
     async def log_message(self, sendable: Awaitable):
         msg = await sendable
-        await self.db.request(f'sent_message', 'post', data={'id': msg.id})
+        with suppress(AttributeError):
+            await self.db.request(f'sent_message', 'post', data={'id': msg.id})
         return msg
