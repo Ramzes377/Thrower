@@ -34,7 +34,7 @@ class User(EncoderBase):
     default_sess_name: str | None = None
 
 
-class SentMessage(EncoderBase):
+class ID(EncoderBase):
     id: int
 
 
@@ -107,3 +107,7 @@ class EndActivity(EncoderBase):
 
 class EndSession(EncoderBase):
     end: datetime
+
+
+class GuildForeign(ID):
+    guild_id: int

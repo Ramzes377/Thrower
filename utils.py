@@ -1,20 +1,17 @@
-import datetime
 import logging
 import warnings
 from contextlib import suppress
+from datetime import datetime, timedelta, timezone
 
 import discord
-
-
 from config import Config
 
-
-offset = datetime.timedelta(hours=3)
-tzMoscow = datetime.timezone(offset, name='МСК')
+offset = timedelta(hours=3)
+tzMoscow = timezone(offset, name='МСК')
 
 
 def now() -> datetime:
-    return datetime.datetime.now(tz=tzMoscow).replace(microsecond=0,
+    return datetime.now(tz=tzMoscow).replace(microsecond=0,
                                                       tzinfo=None)
 
 
@@ -23,6 +20,9 @@ logger = logging.getLogger('discord.client')
 
 async def clear_messages(bot):
     from api.base import request
+
+    if Config.GUILD_ID is None:
+        return
 
     guild = bot.get_guild(Config.GUILD_ID)
     text_channels = [channel for channel in guild.channels if
@@ -46,14 +46,14 @@ class CustomWarning(Warning):
 
     @classmethod
     def formatwarning(
-            cls: 'CustomWarning',
-            msg: str,
-            category: Warning,
-            filename: str,
-            lineno: int,
-            file: str = None,
-            line: int = None,
-            **kwargs
+        cls: 'CustomWarning',
+        msg: str,
+        category: Warning,
+        filename: str,
+        lineno: int,
+        file: str = None,
+        line: int = None,
+        **kwargs
     ):
         if issubclass(category, cls):
             return f'{filename}: {lineno}: {msg}\n'

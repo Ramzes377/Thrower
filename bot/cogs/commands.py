@@ -6,9 +6,76 @@ import discord
 from discord import app_commands
 
 from bot.mixins import DiscordFeaturesMixin
+from config import Config
 
 
 class Commands(DiscordFeaturesMixin):
+
+    async def _create_channels(self, member: discord.Member):
+
+        try:
+            guild: discord.Guild = self.bot.get_guild(Config.GUILD_ID)
+
+            create = await guild.create_voice_channel('Create own channel')
+
+            idle_category = await guild.create_category('Idle')
+            playing_category = await guild.create_category('Playing')
+
+            features_category = await guild.create_category('Bot features')
+
+            logger = await guild.create_voice_channel('Logger',
+                                                      category=features_category)
+            role_request = await guild.create_voice_channel('Role-request',
+                                                            category=features_category)
+            commands = await guild.create_voice_channel('Commands',
+                                                        category=features_category)
+        except Exception as e:
+            await member.send(f'Ошибка: {str(e)}', delete_after=30)
+
+            await commands.delete()
+            await role_request.delete()
+            await logger.delete()
+            await features_category.delete()
+            await playing_category.delete()
+            await idle_category.delete()
+            await create.delete()
+            return
+
+        await self.db.post_guild_ids({'id': guild.id})
+        await self.db.post_create_id(
+            {'id': create.id, 'guild_id': guild.id}
+        )
+        await self.db.post_idle_category_id(
+            {'id': idle_category.id, 'guild_id': guild.id}
+        )
+        await self.db.post_playing_category_id(
+            {'id': playing_category.id, 'guild_id': guild.id}
+        )
+        await self.db.post_logger_id(
+            {'id': logger.id, 'guild_id': guild.id}
+        )
+        await self.db.post_role_request_id(
+            {'id': role_request.id, 'guild_id': guild.id}
+        )
+        await self.db.post_commands_id(
+            {'id': commands.id, 'guild_id': guild.id}
+        )
+        await member.send(f'Успешно созданы каналы!', delete_after=30)
+
+    @app_commands.command(description='Инициализация каналов для '
+                                      'функционирования бота')
+    @app_commands.checks.has_permissions(administrator=True)
+    async def init_channels(self, interaction: discord.Interaction) -> None:
+
+        guilds = await self.db.get_guild_ids()
+
+        if guilds:
+            await interaction.response.send_message(
+                f'Каналы уже созданы!', ephemeral=True, delete_after=15
+            )
+            return
+
+        await self._create_channels(interaction.user)
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
@@ -117,4 +184,5 @@ class Commands(DiscordFeaturesMixin):
 async def setup(bot):
     from config import Config
 
-    await bot.add_cog(Commands(bot), guilds=[Config.GUILD])
+    cog = Commands(bot)
+    await bot.add_cog(cog, guilds=[Config.GUILD])

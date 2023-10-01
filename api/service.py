@@ -1,15 +1,18 @@
 from typing import Callable, Any
 
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
+from starlette import status
 
-from .specification import Specification
+from config import Config
+from . import tables
+from .specification import Specification, ID
 from .tables import Base as BaseTable
-from api.database import get_session
+from api.database import get_session, async_session
 
 
 class Service:
@@ -135,3 +138,90 @@ class CreateReadUpdate(Update, CreateRead):
 
 class CRUD(Delete, CreateReadUpdate):
     pass
+
+
+def create_simple_crud(
+    table,
+    endpoint_prefix: str,
+    path: str,
+    response_model: Any = dict,
+    include_in_schema: bool = True,
+):
+    sub = '{' + path + '}'
+    filter_path = f'/{sub}'
+
+    router = APIRouter(prefix=f'/{endpoint_prefix}', tags=[endpoint_prefix])
+
+    Service = type(endpoint_prefix, (CRUD,), {'table': table})
+
+    @router.get(
+        '',
+        response_model=list[response_model],
+        include_in_schema=include_in_schema
+    )
+    async def all_rows(service: Service = Depends()):
+        return await service.all()
+
+    @router.post(
+        '',
+        status_code=status.HTTP_201_CREATED,
+        response_model=response_model,
+        include_in_schema=include_in_schema,
+    )
+    async def post_object(
+        message: response_model,
+        service: Service = Depends()
+    ):
+        return await service.post(message)
+
+    @router.get(
+        filter_path,
+        response_model=response_model,
+        include_in_schema=include_in_schema,
+    )
+    async def get_object(
+        id: ID = Depends(),
+        service: Service = Depends()
+    ):
+        return await service.get(id)
+
+    @router.patch(
+        filter_path,
+        response_model=response_model,
+        include_in_schema=include_in_schema
+    )
+    async def patch_object(
+        data: dict,
+        id: ID = Depends(),
+        service: Service = Depends()
+    ):
+        return await service.patch(id, data)
+
+    @router.delete(filter_path, include_in_schema=include_in_schema)
+    async def delete_object(
+        id: ID = Depends(),
+        service: Service = Depends()
+    ):
+        return await service.delete(id)
+
+    return router
+
+
+async def init_configs():
+    guild_id = Config.GUILD_ID
+
+    async with async_session() as session:
+        stmt = await session.scalars(
+            select(tables.Guild).filter_by(id=guild_id)
+        )
+        guild = stmt.first()
+
+    Config.CREATE_CHANNEL_ID = guild.create.id
+
+    Config.LOGGER_ID = guild.logger.id
+    Config.ROLE_REQUEST_ID = guild.role_request.id
+    Config.COMMAND_ID = guild.command.id
+
+    Config.IDLE_CATEGORY_ID = guild.idle_category.id
+    Config.PLAYING_CATEGORY_ID = guild.playing_category.id
+

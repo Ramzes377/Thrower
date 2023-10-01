@@ -7,6 +7,7 @@ from aiohttp import ClientConnectorError
 from discord.ext import commands
 from discord.ext.commands import ExtensionAlreadyLoaded
 
+from api.service import init_configs
 from config import Config
 from utils import CustomWarning, clear_messages, logger
 
@@ -45,13 +46,15 @@ def _init_channels(bot: discord.Client) -> dataclass:
 def _init_categories(bot: discord.Client) -> dict:
     return {
         None: bot.get_channel(Config.IDLE_CATEGORY_ID),
-        discord.ActivityType.playing: bot.get_channel(
-            Config.PLAYING_CATEGORY_ID)
+        discord.ActivityType.playing: bot.get_channel(Config.PLAYING_CATEGORY_ID)
     }
 
 
 @bot.event
 async def on_ready():
+
+    await init_configs()
+
     bot.permissions = Permissions
     bot.channel = _init_channels(bot)
     bot.categories = _init_categories(bot)

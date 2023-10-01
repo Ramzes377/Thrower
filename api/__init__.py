@@ -11,6 +11,8 @@ from api.sent_message import router as sent_message_router
 from api.session import router as sess_router
 from api.user import router as user_router
 
+from api.simple_cruds import routers
+
 
 router = APIRouter(prefix='')
 router.include_router(sess_router)
@@ -23,3 +25,6 @@ router.include_router(role_router)
 router.include_router(emoji_router)
 router.include_router(music_router)
 router.include_router(sent_message_router)
+
+for _router in routers:
+    router.include_router(_router)

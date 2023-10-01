@@ -161,3 +161,59 @@ class BasicRequests(metaclass=GettersWrapping):
 
     async def get_session_prescence(self, message_id: int) -> list[dict]:
         return await self.request(f'session/{message_id}/prescence')
+
+    async def get_guild_ids(self) -> int | None:
+        r = await self.request('guild')
+        return r[0] if r else None
+
+    async def get_logger_id(self) -> int:
+        r = await self.request('logger')
+        return r[0] if r else None
+
+    async def get_role_request_id(self) -> int:
+        r = await self.request('role_request')
+        return r[0] if r else None
+
+    async def get_commands_id(self) -> int:
+        r = await self.request('command')
+        return r[0] if r else None
+
+    async def get_create_id(self) -> int:
+        r = await self.request('create_channel')
+        return r[0] if r else None
+
+    async def get_idle_category_id(self) -> int:
+        r = await self.request('idle_category')
+        return r[0] if r else None
+
+    async def get_playing_category_id(self) -> int:
+        r = await self.request('playing_category')
+        return r[0] if r else None
+
+    async def post_guild_ids(self, data: dict) -> int | None:
+        r = await self.request('guild', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_logger_id(self, data: dict) -> int:
+        r = await self.request('logger', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_role_request_id(self, data: dict) -> int:
+        r = await self.request('role_request', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_commands_id(self, data: dict) -> int:
+        r = await self.request('command', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_create_id(self, data: dict) -> int:
+        r = await self.request('create_channel', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_idle_category_id(self, data: dict) -> int:
+        r = await self.request('idle_category', 'post', data=data)
+        return r['id'] if r else None
+
+    async def post_playing_category_id(self, data: dict) -> int:
+        r = await self.request('playing_category', 'post', data=data)
+        return r['id'] if r else None
