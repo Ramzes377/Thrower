@@ -7,8 +7,7 @@ import discord
 from discord.ext import commands
 
 from .requests import BasicRequests
-from utils import logger
-from config import Config
+from utils import logger, request
 
 sess_re = re.compile('[^a-zA-Z0-9а-яА-Я +]')
 
@@ -29,7 +28,8 @@ class BaseCogMixin(commands.Cog):
 
     @staticmethod
     def user_is_playing(user: discord.Member) -> bool:
-        return user.activity and user.activity.type == discord.ActivityType.playing
+        activity = user.activity
+        return activity and activity.type == discord.ActivityType.playing
 
 
 class DiscordFeaturesMixin(BaseCogMixin):
@@ -55,14 +55,20 @@ class DiscordFeaturesMixin(BaseCogMixin):
     @staticmethod
     def _is_empty_channel(channel: discord.VoiceChannel):
         members = channel.members
-        is_empty = len(members) == 0
-        return True if is_empty else all(
-            channel.guild.get_member(_id) in members for _id in Config.BOT_IDS
-        )
 
-    def get_category(self, user: discord.Member) -> discord.CategoryChannel:
-        activity_type = user.activity.type if user.activity else None
-        return self.bot.categories.get(activity_type, self.bot.categories[None])
+        if len(members) == 0:   # empty channel
+            return True
+
+        return all(member.bot for member in members)
+
+    def get_category(
+            self,
+            user: discord.Member,
+            guild_id: int
+    ) -> discord.CategoryChannel:
+
+        channels = self.bot.guild_channels[guild_id]
+        return channels.playing_category if user.activity else channels.idle_category
 
     async def edit_channel_name_category(
         self,
@@ -72,7 +78,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
     ) -> None:
 
         channel_name = await self.get_user_sess_name(user)
-        category = self.get_category(user)
+        category = self.get_category(user, channel.guild.id)
         coro = channel.edit(
             name=channel_name,
             category=category,
@@ -91,5 +97,5 @@ class DiscordFeaturesMixin(BaseCogMixin):
     async def log_message(self, sendable: Awaitable):
         msg = await sendable
         with suppress(AttributeError):
-            await self.db.request(f'sent_message', 'post', data={'id': msg.id})
+            await request(f'sent_message', 'post', data={'id': msg.id})
         return msg

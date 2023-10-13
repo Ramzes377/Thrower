@@ -1,3 +1,5 @@
+import asyncio
+
 from discord.ext import commands
 
 from .cogs import cog
@@ -11,6 +13,8 @@ async def setup(bot: commands.Bot):
     if Config.MUSIC_ONLY:
         await bot.add_cog(cog.music(bot))
     else:
-        await bot.add_cog(cog.channels_manager(bot))
-        await bot.add_cog(cog.game_roles(bot))
-        await bot.add_cog(cog.logger(bot))
+        await asyncio.gather(
+            bot.add_cog(cog.channels_manager(bot)),
+            bot.add_cog(cog.game_roles(bot)),
+            bot.add_cog(cog.logger(bot))
+        )

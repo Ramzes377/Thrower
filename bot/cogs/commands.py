@@ -6,76 +6,85 @@ import discord
 from discord import app_commands
 
 from bot.mixins import DiscordFeaturesMixin
-from config import Config
+from utils import _init_channels
 
 
 class Commands(DiscordFeaturesMixin):
 
-    async def _create_channels(self, member: discord.Member):
+    async def _create_channels(
+            self, member: discord.Member,
+            guild_id: int
+    ) -> None:
+
+        guild: discord.Guild = self.bot.get_guild(guild_id)
+        initialized = []
 
         try:
-            guild: discord.Guild = self.bot.get_guild(Config.GUILD_ID)
+            initialized.append(guild)
+            initialized.append(
+                await guild.create_voice_channel('Create own channel')
+            )
+            initialized.append(await guild.create_category('Idle'))
+            initialized.append(await guild.create_category('Playing'))
+            initialized.append(await guild.create_category('Bot features'))
+            features_category = initialized[-1]
 
-            create = await guild.create_voice_channel('Create own channel')
-
-            idle_category = await guild.create_category('Idle')
-            playing_category = await guild.create_category('Playing')
-
-            features_category = await guild.create_category('Bot features')
-
-            logger = await guild.create_voice_channel('Logger',
-                                                      category=features_category)
-            role_request = await guild.create_voice_channel('Role-request',
-                                                            category=features_category)
-            commands = await guild.create_voice_channel('Commands',
-                                                        category=features_category)
+            initialized.append(
+                await guild.create_text_channel(
+                    'Logger',
+                    category=features_category
+                )
+            )
+            initialized.append(
+                await guild.create_text_channel(
+                    'Role-request',
+                    category=features_category
+                )
+            )
+            initialized.append(
+                await guild.create_text_channel(
+                    'Commands',
+                    category=features_category
+                )
+            )
         except Exception as e:
             await member.send(f'Ошибка: {str(e)}', delete_after=30)
-
-            await commands.delete()
-            await role_request.delete()
-            await logger.delete()
-            await features_category.delete()
-            await playing_category.delete()
-            await idle_category.delete()
-            await create.delete()
+            for to_delete in initialized:
+                await to_delete.delete()
             return
 
-        await self.db.post_guild_ids({'id': guild.id})
-        await self.db.post_create_id(
-            {'id': create.id, 'guild_id': guild.id}
-        )
-        await self.db.post_idle_category_id(
-            {'id': idle_category.id, 'guild_id': guild.id}
-        )
-        await self.db.post_playing_category_id(
-            {'id': playing_category.id, 'guild_id': guild.id}
-        )
-        await self.db.post_logger_id(
-            {'id': logger.id, 'guild_id': guild.id}
-        )
-        await self.db.post_role_request_id(
-            {'id': role_request.id, 'guild_id': guild.id}
-        )
-        await self.db.post_commands_id(
-            {'id': commands.id, 'guild_id': guild.id}
-        )
+        (guild, create, idle_category, playing_category, features_category,
+         logger, role_request, commands) = initialized
+
+        data = {
+            'id': guild_id,
+            'initialized_channels': {
+                "create": create.id,
+                "logger": logger.id,
+                "role_request": role_request.id,
+                "commands": commands.id,
+                "idle_category": idle_category.id,
+                "playing_category": playing_category.id
+            }
+        }
+
+        await self.db.post_guild_ids(data)
         await member.send(f'Успешно созданы каналы!', delete_after=30)
 
-    @app_commands.command(description='Инициализация каналов для '
-                                      'функционирования бота')
+    @app_commands.command(description='Инициализация каналов для функционирования бота')
     @app_commands.checks.has_permissions(administrator=True)
     async def init_channels(self, interaction: discord.Interaction) -> None:
 
-        guilds = await self.db.get_guild_ids()
+        guild_id = interaction.guild_id
 
-        if guilds:
+        if self.bot.guild_channels.get(guild_id):
             await interaction.response.send_message(
                 f'Каналы уже созданы!', ephemeral=True, delete_after=15
             )
             return
 
-        await self._create_channels(interaction.user)
+        await self._create_channels(interaction.user, guild_id)
+        self.bot.guild_channels = await _init_channels(self.bot)
 
     @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
@@ -142,7 +151,7 @@ class Commands(DiscordFeaturesMixin):
             embed.add_field(
                 name='Вы не играли в эту игру или Discord не смог это обнаружить',
                 value='Если вам нужна эта функция,'
-                      'то зайдите в Настройки пользователя/Игровая активность/Отображать '
+                      'то зайдите в Настройки пользователя\Игровая активность\Отображать '
                       'в статусе игру в которую сейчас играете',
                 inline=False)
         embed.set_footer(text='Великий бот - ' + self.bot.user.display_name,
@@ -150,12 +159,18 @@ class Commands(DiscordFeaturesMixin):
         await interaction.response.send_message(embed=embed, ephemeral=True,
                                                 delete_after=30)
 
-    async def update_sess_name(self, channel_id: int, name: str):
-        session = await self.db.session_update(channel_id=channel_id, name=name)
+    async def update_sess_name(self, channel: discord.VoiceChannel, name: str):
+        session = await self.db.session_update(channel_id=channel.id, name=name)
         await self.db.user_update(id=session["leader_id"],
                                   default_sess_name=session['name'])
 
-        msg = await self.bot.channel.logger.fetch_message(session['message_id'])
+        guild_id = channel.guild.id
+        if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
+            return
+
+        logger_channel = guild_channels.logger
+
+        msg = await logger_channel.fetch_message(session['message_id'])
         dct = msg.embeds[0].to_dict()
         dct['title'] = f"Активен сеанс: {name}"
         embed = discord.Embed.from_dict(dct)
@@ -178,11 +193,8 @@ class Commands(DiscordFeaturesMixin):
         channel = await self.get_user_channel(interaction.user.id)
         if channel:
             await self.rename_channel(channel, name)
-            await self.update_sess_name(channel.id, name)
+            await self.update_sess_name(channel, name)
 
 
 async def setup(bot):
-    from config import Config
-
-    cog = Commands(bot)
-    await bot.add_cog(cog, guilds=[Config.GUILD])
+    await bot.add_cog(Commands(bot))

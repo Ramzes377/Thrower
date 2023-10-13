@@ -12,3 +12,7 @@ def default_period(begin: datetime | None = None, end: datetime | None = None):
 
 def limit(amount: int = 20) -> int:
     return amount
+
+
+def params_guild_id(guild_id: int = 0) -> int:
+    return guild_id

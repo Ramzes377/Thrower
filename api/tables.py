@@ -3,7 +3,7 @@ import datetime
 
 from sqlalchemy import (
     Table, Text, and_, or_, Column, DateTime, Integer, ForeignKey, select,
-    TypeDecorator,
+    TypeDecorator, JSON,
 )
 
 from sqlalchemy.orm import relationship, remote, declared_attr, declarative_base
@@ -209,6 +209,13 @@ class Role(Base):
         uselist=False
     )
 
+    guild_id = Column(Integer, ForeignKey('guild.id'), default=257878464667844618)
+    guild = relationship(
+        "Guild",
+        lazy="selectin",
+        uselist=False
+    )
+
 
 class Emoji(Base):
     __tablename__ = 'emoji'
@@ -238,6 +245,7 @@ class SentMessage(Base):
     __tablename__ = 'sent_message'
 
     id = Column(Integer, primary_key=True, index=True)
+    guild_id = Column(Integer, ForeignKey('guild.id'))
 
 
 class Guild(Base):
@@ -245,59 +253,7 @@ class Guild(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    create = relationship("Create", lazy="selectin", uselist=False)
-
-    logger = relationship("Logger", lazy="selectin", uselist=False)
-    command = relationship("Command", lazy="selectin", uselist=False)
-    role_request = relationship("RoleRequest", lazy="selectin", uselist=False)
-
-    idle_category = relationship("IdleCategory", lazy="selectin", uselist=False)
-    playing_category = relationship("PlayingCategory", lazy="selectin",
-                                    uselist=False)
-
-
-class Logger(Base):
-    __tablename__ = 'logger'
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
-
-
-class Command(Base):
-    __tablename__ = 'command'
-
-    id = Column(Integer, primary_key=True,
-                index=True)
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
-
-
-class RoleRequest(Base):
-    __tablename__ = 'role_request'
-
-    id = Column(Integer, primary_key=True, index=True)
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
-
-
-class Create(Base):
-    __tablename__ = 'create'
-
-    id = Column(Integer, primary_key=True, index=True)
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
-
-
-class IdleCategory(Base):
-    __tablename__ = 'idle_category'
-
-    id = Column(Integer, primary_key=True, index=True)
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
-
-
-class PlayingCategory(Base):
-    __tablename__ = 'playing_category'
-
-    id = Column(Integer, primary_key=True, index=True)
-    guild_id = Column(Integer, ForeignKey("guild.id"), primary_key=True)
+    initialized_channels = Column(JSON, nullable=False, default={})
 
 
 class SessionFabric:

@@ -200,7 +200,12 @@ class MusicBase(DiscordFeaturesMixin):
             .set_thumbnail(url=thumbnail_url)
         )
 
-        channel = player.fetch('channel') or self.bot.channel.commands
+        if (channel := player.fetch('channel')) is None:
+            guild_id = player.fetch('guild').id
+            if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
+                return
+            channel = guild_channels.commands
+
         message = await self.log_message(
             channel.send(embed=embed, view=self.view)
         )

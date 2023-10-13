@@ -14,6 +14,7 @@ class EncoderBase(BaseModel):
 class Role(EncoderBase):
     id: int
     app_id: int
+    guild_id: int
 
 
 class Emoji(EncoderBase):
@@ -111,3 +112,8 @@ class EndSession(EncoderBase):
 
 class GuildForeign(ID):
     guild_id: int
+
+
+class GuildChannels(EncoderBase):
+    id: int
+    initialized_channels: dict

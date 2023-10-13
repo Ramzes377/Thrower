@@ -37,6 +37,7 @@ class SrvUser(CreateReadUpdate):
     ) -> list[DurationActivity]:
         activities = await self._session.scalars(
             select(tables.Activity).filter_by(**specification())
+            .filter(tables.Activity.end.isnot(None))
         )
         return activities.all()
 

@@ -6,7 +6,7 @@ from httpx import AsyncClient
 async def test_post_role(client: AsyncClient):
     response = await client.post(
         f"/role",
-        json={'id': 20_001, 'app_id': 12_345}
+        json={'id': 20_001, 'app_id': 12_345, 'guild_id': 1}
     )
     data = response.json()
     assert response.status_code == 201
@@ -14,7 +14,7 @@ async def test_post_role(client: AsyncClient):
 
     response = await client.post(
         f"/role",
-        json={'id': 20_005, 'app_id': 32_534}
+        json={'id': 20_005, 'app_id': 32_534, 'guild_id': 1}
     )
     data = response.json()
     assert response.status_code == 201

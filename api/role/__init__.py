@@ -4,6 +4,7 @@ from .services import SrvRole
 from api import tables
 from api.schemas import Role, Emoji, ActivityInfo
 from api.specification import RoleID, ActivityID
+from ..dependencies import params_guild_id
 
 router = APIRouter(prefix='/role', tags=['role'])
 
@@ -19,8 +20,12 @@ async def role(role: Role, service: SrvRole = Depends()):
 
 
 @router.get('/by_app/{app_id}', response_model=Role)
-async def role(app_id: ActivityID = Depends(), service: SrvRole = Depends()):
-    return await service.get(app_id)
+async def role(
+        app_id: ActivityID = Depends(),
+        guild_id: params_guild_id = Depends(),
+        service: SrvRole = Depends()
+):
+    return await service.get(app_id, guild_id)
 
 
 @router.delete('/{role_id}', status_code=status.HTTP_204_NO_CONTENT)

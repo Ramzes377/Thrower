@@ -48,6 +48,7 @@ SessionID = specification_fabric('session_id', 'channel_id')
 UserID = specification_fabric('user_id', 'member_id')
 
 Unclosed = specification_fabric('end', 'end')
+GuildID = specification_fabric('guild_id', 'id')
 ActivityID = specification_fabric('app_id', 'app_id')
 MessageID = specification_fabric('message_id', 'message_id')
 LeaderID = specification_fabric('leader_id', 'leader_id')
