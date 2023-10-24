@@ -4,7 +4,7 @@ import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from typing import Callable, Type
 
 import discord
 import fastapi
@@ -84,13 +84,12 @@ class CustomWarning(Warning):
 
     @classmethod
     def formatwarning(
-            cls: 'CustomWarning',
+            cls: Type['CustomWarning'],
             msg: str,
-            category: Warning,
+            category: Type[Warning],
             filename: str,
             lineno: int,
-            file: str = None,
-            line: int = None,
+            *args,
             **kwargs
     ):
         if issubclass(category, cls):

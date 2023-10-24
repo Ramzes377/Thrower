@@ -328,9 +328,7 @@ class MusicCommandsHandlers(MusicBase):
         if not ctx.voice_client:
             raise not_connected
 
-        if not ctx.author.voice or (
-                player.is_connected and ctx.author.voice.channel.id != int(
-            player.channel_id)):
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
             raise not_same_voicechat
 
         player.queue.clear()

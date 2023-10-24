@@ -57,8 +57,8 @@ async def test_get_user_sessions(client: AsyncClient, add_session_member):
 
 
 @pytest.mark.asyncio
-async def test_get_user_activities(
-    client: AsyncClient, post_activity, end_activity):
+async def test_get_user_activities(client: AsyncClient, post_activity,
+                                   end_activity):
     response = await client.get(f"/user/112/activities")
     data = response.json()
 

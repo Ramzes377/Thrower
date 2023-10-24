@@ -2,7 +2,7 @@ from typing import Callable, Any
 
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
-from sqlalchemy import select
+from sqlalchemy import select, Select, Sequence
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
@@ -29,7 +29,7 @@ class Create(Service):
             self,
             obj: BaseModel,
             suppress_unique_error: bool = True
-    ) -> None:
+    ) -> BaseModel | None:
         try:
             self._session.add(obj)
             await self._session.commit()
@@ -58,13 +58,13 @@ class Read(Service):
             raise HTTPException(status_code=404, detail=details)
 
     @property
-    def _query(self) -> Query:
+    def _query(self) -> Select:
         query = self._base_query
         if self._order_by is not None:
             query = query.order_by(self._order_by)
         return query
 
-    def _get(self, specification: Specification, *_, **kw) -> Query:
+    def _get(self, specification: Specification, *_, **kw) -> Select:
         return self._query.filter_by(**specification()).filter_by(**kw)
 
     async def get(
@@ -83,9 +83,9 @@ class Read(Service):
             self,
             filter_: BinaryExpression = None,
             *,
-            query: Query | None = None,
+            query: Select | None = None,
             **kwargs
-    ) -> list[BaseTable]:
+    ) -> Sequence:
 
         query = self._query if query is None else query
         if filter_ is not None:

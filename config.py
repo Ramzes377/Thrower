@@ -8,7 +8,7 @@ from pydantic import HttpUrl, IPvAnyAddress
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(validate_default=False)
 
-    TOKEN: str
+    TOKEN: str | None = None
 
     DEBUG: bool = False
     MUSIC_ONLY: bool = False

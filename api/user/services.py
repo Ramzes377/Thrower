@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy import select, text
+from sqlalchemy import select, text, Sequence
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import BinaryExpression
 
@@ -26,22 +26,26 @@ class SrvUser(CreateReadUpdate):
         self,
         user_id: Specification,
         filters: BinaryExpression = None
-    ) -> list[Session]:
+    ) -> Sequence:
+
         user = await self.get(user_id)
         filtered = await self._session.scalars(user.sessions.filter(filters))
+
         return filtered.all()
 
     async def user_activities(
         self,
         specification: Specification
-    ) -> list[DurationActivity]:
+    ) -> Sequence:
+
         activities = await self._session.scalars(
             select(tables.Activity).filter_by(**specification())
             .filter(tables.Activity.end.isnot(None))
         )
+
         return activities.all()
 
-    async def durations(self, member_id: Specification) -> list[IngameSeconds]:
+    async def durations(self, member_id: Specification) -> Sequence:
         stmt = text(
             f"""
             SELECT a.id app_id, {duration} seconds

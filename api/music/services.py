@@ -1,3 +1,5 @@
+from sqlalchemy import Sequence
+
 from api.specification import MusicUserID, QueryFilter
 from api import tables
 from api.specification import Specification
@@ -15,7 +17,7 @@ class SrvFavoriteMusic(CreateReadUpdate):
         user_id: Specification = None,
         amount: int = None,
         *args,
-    ) -> list[FavoriteMusic]:
+    ) -> Sequence:
         records = await self._session.scalars(self._get(user_id).limit(amount))
         return records.all()
 

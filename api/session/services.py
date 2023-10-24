@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status, Depends
-from sqlalchemy import select
+from sqlalchemy import select, Sequence
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
 
@@ -30,7 +30,7 @@ class SrvSession(CreateReadUpdate):
             .order_by(tables.Session.begin.desc())
         )
 
-    async def unclosed(self) -> list[Session]:
+    async def unclosed(self) -> Sequence:
         unclosed = await self._session.scalars(self._unclosed())
         return unclosed.all()
 

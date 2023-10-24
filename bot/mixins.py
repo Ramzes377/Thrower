@@ -94,7 +94,8 @@ class DiscordFeaturesMixin(BaseCogMixin):
             with suppress(discord.NotFound):
                 await channel.edit(category=category, overwrites=overwrites)
 
-    async def log_message(self, sendable: Awaitable):
+    @staticmethod
+    async def log_message(sendable: Awaitable):
         msg = await sendable
         with suppress(AttributeError):
             await request(f'sent_message', 'post', data={'id': msg.id})

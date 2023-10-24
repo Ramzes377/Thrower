@@ -1,3 +1,5 @@
+from sqlalchemy import Sequence
+
 from api import tables
 from api.specification import Specification
 from api.responses import modify_response
@@ -31,7 +33,7 @@ class SrvLeadership(CreateReadUpdate):
         await self.update(_leadership, {'end': leadership.begin})
         return _leadership
 
-    async def history(self, specification: Specification) -> list[Leadership]:
+    async def history(self, specification: Specification) -> Sequence:
         return await super().all(query=self._get(specification))
 
     async def post(

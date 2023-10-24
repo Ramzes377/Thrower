@@ -5,10 +5,13 @@ Revises:
 Create Date: 2023-10-15 15:48:59.604543
 
 """
+from contextlib import suppress
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.exc import OperationalError
+
 import api.tables
 
 # revision identifiers, used by Alembic.
@@ -19,10 +22,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        'role',
-        sa.Column('guild_id', sa.Integer(), nullable=True)
-    )
+    with suppress(OperationalError):
+        op.add_column(
+            'role',
+            sa.Column('guild_id', sa.Integer(), nullable=True)
+        )
 
 
 def downgrade() -> None:

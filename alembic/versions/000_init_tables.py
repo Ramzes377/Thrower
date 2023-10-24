@@ -13,7 +13,7 @@ import api.tables
 
 # revision identifiers, used by Alembic.
 revision: str = '000'
-down_revision: Union[str, None] = None # do not erase already existed data
+down_revision: Union[str, None] = None  # do not erase already existed data
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -218,7 +218,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-
     op.drop_table('emoji')
     op.drop_table('role')
     op.drop_index(op.f('ix_prescence_channel_id'), table_name='prescence')
@@ -241,4 +240,3 @@ def downgrade() -> None:
     op.drop_table('guild')
     op.drop_index(op.f('ix_activity_info_app_id'), table_name='activity_info')
     op.drop_table('activity_info')
-
