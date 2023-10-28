@@ -131,14 +131,18 @@ async def _fill_activity_info():
         response = await client.request('get', url)
         data = response.json()
 
+    ids = []
     coroutines = []
     for x in data:
-        if x['id'] in activity_ids:
-            continue
         if not (icon := x.get('icon', x.get('cover_image'))):
             continue
 
         app_id, app_name = int(x['id']), x['name']
+
+        if app_id in activity_ids:
+            continue
+
+        ids.append(app_id)
         icon_url = f'https://cdn.discordapp.com/app-icons/{app_id}/{icon}.png?size=4096'
         game_data = {'icon_url': icon_url, 'app_id': app_id,
                      'app_name': app_name}
