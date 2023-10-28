@@ -44,23 +44,23 @@ class ChannelsManager(DiscordFeaturesMixin):
                 if self._is_empty_channel(channel):
                     await self.end_session(channel)
 
-        to_delete = []  # unregistered channels
-        for guild_id, channels in self.bot.guild_channels.items():
-            server = self.bot.get_guild(guild_id)
-            unclosed_ids = [session['channel_id']
-                            for session in
-                            await self.db.get_unclosed_sessions()]
-            to_delete.extend(
-                [channel
-                 for channel in server.channels
-                 if isinstance(channel, discord.VoiceChannel)
-                 and channel != channels.create
-                 and channel.id not in unclosed_ids
-                 and channel.guild == server]
-            )
-
-        for channel in to_delete:
-            await channel.delete()
+        # to_delete = []  # unregistered channels
+        # for guild_id, channels in self.bot.guild_channels.items():
+        #     server = self.bot.get_guild(guild_id)
+        #     unclosed_ids = [session['channel_id']
+        #                     for session in
+        #                     await self.db.get_unclosed_sessions()]
+        #     to_delete.extend(
+        #         [channel
+        #          for channel in server.channels
+        #          if isinstance(channel, discord.VoiceChannel)
+        #          and channel != channels.create
+        #          and channel.id not in unclosed_ids
+        #          and channel.guild == server]
+        #     )
+        #
+        # for channel in to_delete:
+        #     await channel.delete()
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self) -> None:

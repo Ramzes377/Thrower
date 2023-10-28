@@ -4,7 +4,7 @@ from .services import SrvRole
 from api import tables
 from api.schemas import Role, Emoji, ActivityInfo
 from api.specification import RoleID, ActivityID
-from ..dependencies import params_guild_id
+from api.dependencies import params_guild_id
 
 router = APIRouter(prefix='/role', tags=['role'])
 

@@ -141,7 +141,7 @@ class Session(Base, BaseTimePeriod):
     )
     members = relationship(
         "Member",
-        secondary=member_session,
+        secondary='member_session',
         back_populates='sessions',
         uselist=True,
         lazy='subquery'
@@ -201,6 +201,13 @@ class Role(Base):
         ForeignKey("activity_info.app_id"),
         primary_key=True
     )
+    guild_id = Column(
+        Integer,
+        ForeignKey('guild.id'),
+        primary_key=True,
+        default=257878464667844618
+    )
+
     emoji = relationship(
         "Emoji",
         back_populates="role",
@@ -208,8 +215,6 @@ class Role(Base):
         cascade="all, delete",
         uselist=False
     )
-
-    guild_id = Column(Integer, ForeignKey('guild.id'), default=257878464667844618)
     guild = relationship(
         "Guild",
         lazy="selectin",

@@ -5,8 +5,12 @@ import discord
 
 
 def create_view(
-    placeholder: str, select_options: list[dict], guild_id: int,
-    handler: Callable):
+        placeholder: str,
+        select_options: list[dict],
+        guild_id: int,
+        handler: Callable
+) -> discord.ui.View:
+
     dropdown = Dropdown(placeholder, select_options, guild_id, handler)
     view = discord.ui.View()
     view.add_item(dropdown)
@@ -15,11 +19,11 @@ def create_view(
 
 class Dropdown(discord.ui.Select):
     def __init__(
-        self,
-        placeholder: str,
-        select_options: list[dict],
-        guild_id: int,
-        handler: Callable
+            self,
+            placeholder: str,
+            select_options: list[dict],
+            guild_id: int,
+            handler: Callable
     ) -> None:
         self._play = handler
         self._guild_id = guild_id
@@ -29,7 +33,8 @@ class Dropdown(discord.ui.Select):
             title, query = option['title'], option['query']
             options.append(discord.SelectOption(label=title))
             self._map[title] = query
-        super().__init__(placeholder=placeholder, max_values=len(select_options),
+        super().__init__(placeholder=placeholder,
+                         max_values=len(select_options),
                          options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -45,11 +50,11 @@ class Dropdown(discord.ui.Select):
 
 class PlayerButtonsView(discord.ui.View):
     def __init__(
-        self,
-        pause: Callable,
-        skip: Callable,
-        queue: Callable,
-        favorite: Callable
+            self,
+            pause: Callable,
+            skip: Callable,
+            queue: Callable,
+            favorite: Callable
     ) -> None:
         super().__init__(timeout=None)
         self._pause, self._skip, self._queue, self._favorite = pause, skip, queue, favorite

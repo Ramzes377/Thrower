@@ -1,11 +1,10 @@
-from typing import Callable, Any
+from typing import Callable, Any, Union
 
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select, Select, Sequence
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
 from starlette import status
 
@@ -84,7 +83,7 @@ class Read(Service):
             filter_: BinaryExpression = None,
             *,
             query: Select | None = None,
-            **kwargs
+            **kwargs    # noqa
     ) -> Sequence:
 
         query = self._query if query is None else query
@@ -96,7 +95,11 @@ class Read(Service):
 
 
 class Update(Read):
-    async def update(self, obj: Service, data: BaseModel | dict) -> None:
+    async def update(
+            self,
+            obj: Union[Service, Any],
+            data: BaseModel | dict
+    ) -> None:
         try:
             iterable = data.items() if isinstance(data, dict) else data
             for k, v in iterable:

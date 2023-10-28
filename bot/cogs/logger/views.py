@@ -6,7 +6,7 @@ import discord
 from jinja2 import FileSystemLoader, Environment
 from table2ascii import table2ascii as t2a, PresetStyle
 
-from ...mixins import BaseCogMixin
+from bot.mixins import BaseCogMixin
 
 loader = FileSystemLoader(os.getcwd() + 'api/bot/cogs/logger/templates')
 env = Environment(loader=loader)
@@ -44,13 +44,14 @@ class LoggerView(discord.ui.View, BaseCogMixin):
             response: list[dict],
             header: str,
             col: str,
-            user: discord.Member,
+            guild: discord.Guild,
             activity_flag: bool = False
     ) -> tuple[str, list]:
         data, body = [], []
         for row in response:
-            user_id, begin, end = row['member_id'], self._fmt(
-                row['begin']), self._fmt(row['end'])
+            user_id, begin, end = (row['member_id'], self._fmt(row['begin']),
+                                   self._fmt(row['end']))
+            user = guild.get_member(user_id)
             url = f'''<a href="https://discordapp.com/users/{user_id}/"> {user.display_name} </a>'''
             if not activity_flag:
                 data.append((url, begin, end))
@@ -77,9 +78,10 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     async def leadership(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Лидеры сессии', 'Лидер'
         leadership = await self.db.get_session_leadership(
-            interaction.message.id)
+            interaction.message.id
+        )
         as_str, data = await self.format_data(leadership, header, column,
-                                              interaction.user)
+                                              interaction.guild)
         await _response_handle(interaction, as_str, data, header, column)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, emoji="🎮",
@@ -87,9 +89,10 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     async def activities(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Активности сессии', 'Активность'
         activities = await self.db.get_session_activities(
-            interaction.message.id)
+            interaction.message.id
+        )
         as_str, data = await self.format_data(activities, header, column,
-                                              interaction.user,
+                                              interaction.guild,
                                               activity_flag=True)
         await _response_handle(interaction, as_str, data, header, column,
                                'activity_template.html')
@@ -99,5 +102,5 @@ class LoggerView(discord.ui.View, BaseCogMixin):
     async def prescence(self, interaction: discord.Interaction, _) -> None:
         header, column = 'Участники сессии', 'Участник'
         prescence = await self.db.get_session_prescence(interaction.message.id)
-        as_str, data = await self.format_data(prescence, header, column, interaction.user)
+        as_str, data = await self.format_data(prescence, header, column, interaction.guild)
         await _response_handle(interaction, as_str, data, header, column)

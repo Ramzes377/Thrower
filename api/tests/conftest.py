@@ -83,7 +83,7 @@ async def post_sessions(client: AsyncClient):
 @pytest_asyncio.fixture()
 async def post_activity(client: AsyncClient):
     try:
-        r = await client.post(
+        await client.post(
             f"/activity",
             json={'id': ACTIVITY_ID, 'member_id': TEST_USER_ID,
                   'begin': '2000-01-01 02:00:00', 'end': None}

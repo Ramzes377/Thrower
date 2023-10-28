@@ -89,7 +89,7 @@ class CustomWarning(Warning):
             category: Type[Warning],
             filename: str,
             lineno: int,
-            *args,
+            *args,  # noqa
             **kwargs
     ):
         if issubclass(category, cls):
@@ -123,6 +123,7 @@ async def _init_channels(bot: discord.Client) -> dict[int, dataclass]:
 
 async def _fill_activity_info():
     all_activities = await request('activity_info')
+    activity_ids = {row['app_id'] for row in all_activities}
 
     url = 'https://discord.com/api/v10/applications/detectable'
 
@@ -132,12 +133,15 @@ async def _fill_activity_info():
 
     coroutines = []
     for x in data:
-        if icon := x.get('icon', x.get('cover_image')):
-            app_id, app_name = int(x['id']), x['name']
-            icon_url = f'https://cdn.discordapp.com/app-icons/{app_id}/{icon}.png?size=4096'
-            game_data = {'icon_url': icon_url, 'app_id': app_id,
-                         'app_name': app_name}
-            coroutines.append(request('activity_info', 'post', data=game_data))
+        if x['id'] in activity_ids:
+            continue
+        if not (icon := x.get('icon', x.get('cover_image'))):
+            continue
 
-    if len(all_activities) != len(coroutines):
-        await asyncio.gather(*coroutines)
+        app_id, app_name = int(x['id']), x['name']
+        icon_url = f'https://cdn.discordapp.com/app-icons/{app_id}/{icon}.png?size=4096'
+        game_data = {'icon_url': icon_url, 'app_id': app_id,
+                     'app_name': app_name}
+        coroutines.append(request('activity_info', 'post', data=game_data))
+
+    await asyncio.gather(*coroutines)

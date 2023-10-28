@@ -32,9 +32,9 @@ def code(func):
 
 class LavalinkVoiceClient(discord.VoiceClient):
     def __init__(
-        self,
-        client: discord.Client,
-        channel: discord.abc.Connectable
+            self,
+            client: discord.Client,
+            channel: discord.abc.Connectable
     ):
         super().__init__(client, channel)
         self.lavalink = self.client.lavalink
@@ -48,12 +48,12 @@ class LavalinkVoiceClient(discord.VoiceClient):
         await self.lavalink.voice_update_handler(data)
 
     async def connect(
-        self,
-        *,
-        timeout: float,
-        reconnect: bool,
-        self_deaf: bool = False,
-        self_mute: bool = False
+            self,
+            *,
+            timeout: float,
+            reconnect: bool,
+            self_deaf: bool = False,
+            self_mute: bool = False
     ) -> None:
         self.lavalink.player_manager.create(guild_id=self.channel.guild.id)
         await self.channel.guild.change_voice_state(
@@ -133,8 +133,8 @@ class MusicBase(DiscordFeaturesMixin):
         return guild_check
 
     async def cog_app_command_error(
-        self, interaction: discord.Interaction,
-        error: discord.app_commands.AppCommandError
+            self, interaction: discord.Interaction,
+            error: discord.app_commands.AppCommandError
     ):
         with suppress(discord.InteractionResponded, discord.NotFound):
             await interaction.response.send_message(  # noqa
@@ -202,7 +202,8 @@ class MusicBase(DiscordFeaturesMixin):
 
         if (channel := player.fetch('channel')) is None:
             guild_id = player.fetch('guild').id
-            if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
+            if (
+            guild_channels := self.bot.guild_channels.get(guild_id)) is None:
                 return
             channel = guild_channels.commands
 
@@ -219,8 +220,10 @@ class MusicBase(DiscordFeaturesMixin):
         player.store('message', None)
 
     async def _get_context(
-        self, interaction: discord.Interaction,
-        command_name: str):
+            self,
+            interaction: discord.Interaction,
+            command_name: str
+    ):
         try:
             ctx = await self.bot.get_context(interaction)
         except ValueError:
@@ -257,11 +260,11 @@ class MusicCommandsHandlers(MusicBase):
                                       self._queue, self._favorite)
 
     async def _get_embed(
-        self,
-        user_id: int,
-        results: lavalink.models.LoadResult,
-        player: lavalink.DefaultPlayer,
-        query: str
+            self,
+            user_id: int,
+            results: lavalink.models.LoadResult,
+            player: lavalink.DefaultPlayer,
+            query: str
     ) -> discord.Embed:
 
         embed = discord.Embed(color=discord.Color.blurple())
@@ -328,7 +331,9 @@ class MusicCommandsHandlers(MusicBase):
         if not ctx.voice_client:
             raise not_connected
 
-        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+        if (not ctx.author.voice or
+                (player.is_connected and
+                 ctx.author.voice.channel.id != int(player.channel_id))):
             raise not_same_voicechat
 
         player.queue.clear()

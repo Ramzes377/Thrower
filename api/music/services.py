@@ -5,7 +5,7 @@ from api import tables
 from api.specification import Specification
 from api.responses import modify_response
 from api.schemas import FavoriteMusic
-from api.service import CreateReadUpdate
+from api.service import CreateReadUpdate, Service
 
 
 class SrvFavoriteMusic(CreateReadUpdate):

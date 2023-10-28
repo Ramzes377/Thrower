@@ -1,7 +1,6 @@
 from fastapi import Depends
 from sqlalchemy import select, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from api import tables
 from api.specification import Specification

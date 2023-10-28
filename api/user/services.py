@@ -1,11 +1,10 @@
 from fastapi import Depends
 from sqlalchemy import select, text, Sequence
-from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import BinaryExpression
 
 from api import tables
 from api.service import CreateReadUpdate
-from api.schemas import IngameSeconds, DurationActivity
+from api.schemas import IngameSeconds
 from api.specification import Specification
 from api.dependencies import default_period
 

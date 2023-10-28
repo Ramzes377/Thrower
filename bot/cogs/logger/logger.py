@@ -5,7 +5,6 @@ from contextlib import suppress
 import discord
 from cachetools import TTLCache
 from discord.ext import commands
-from sqlalchemy.exc import IntegrityError
 
 from .views import LoggerView
 from config import Config
