@@ -5,6 +5,7 @@ import cachetools
 import discord
 from discord.ext import tasks, commands
 
+from constants import constants
 from bot.mixins import DiscordFeaturesMixin
 from config import Config
 
@@ -14,7 +15,7 @@ class ChannelsManager(DiscordFeaturesMixin):
     def __init__(self, bot: commands.Bot):
         super(ChannelsManager, self).__init__(bot)
         self._cache = cachetools.TTLCache(maxsize=1e4,
-                                          ttl=Config.CREATION_COOLDOWN)
+                                          ttl=Config.creation_cooldown)
         self.handle_created_channels.start()
 
     @tasks.loop(minutes=10)
@@ -122,11 +123,11 @@ class ChannelsManager(DiscordFeaturesMixin):
     async def user_create_channel(self, user: discord.Member, guild_id: int):
         if await self.db.get_user_session(user.id) and self._cache.get(user.id):
             await user.send(
-                f'Для создания нужно подождать {Config.CREATION_COOLDOWN} секунд!',
+                constants.wait_cooldown(cooldown=Config.creation_cooldown),
                 delete_after=10
-            )
+                )
             # for too quickly channel creation
-            await asyncio.sleep(Config.CREATION_COOLDOWN)
+            await asyncio.sleep(Config.creation_cooldown)
 
         channel = await self.make_channel(user, guild_id)
         self._cache[user.id] = user.id  # create a cooldown for user
@@ -147,7 +148,8 @@ class ChannelsManager(DiscordFeaturesMixin):
             user: self.bot.permissions.leader,
             user.guild.default_role: self.bot.permissions.default
         }
-        channel = await user.guild.create_voice_channel(name, category=category,
+        channel = await user.guild.create_voice_channel(name,
+                                                        category=category,
                                                         overwrites=permissions)
         return channel
 

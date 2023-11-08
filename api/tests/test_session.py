@@ -11,7 +11,7 @@ TEST_MSG_ID = 326
 
 
 @pytest.mark.asyncio
-async def test_post_sessions(client, post_sessions):
+async def test_post_sessions(client: AsyncClient, post_sessions):
     response = await client.post(f"/session",
                                  json={'channel_id': 'Invalid data'}
                                  )
@@ -81,7 +81,7 @@ async def test_patch_session(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_add_session_member(client, post_user):
+async def test_add_session_member(client: AsyncClient, post_user):
     response = await client.post(
         f"/session/{TEST_CHANNEL_ID}/members/{TEST_USER_ID}"
     )

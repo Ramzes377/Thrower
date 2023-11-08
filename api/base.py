@@ -1,3 +1,5 @@
+import asyncio
+
 import fastapi
 
 from api import router
@@ -12,12 +14,18 @@ def home():
     return fastapi.responses.RedirectResponse("docs")
 
 
+@app.on_event("startup")
+async def startup_event():
+    from api.service import Service
+    asyncio.create_task(Service.deferrer.start())
+
+
 if __name__ == '__main__':
     import uvicorn
 
     uvicorn.run(
         app='api.base:app',
-        host=Config.API_HOST,
-        port=Config.API_PORT,
+        host=Config.api_host,
+        port=Config.api_port,
         reload=True,
     )

@@ -4,10 +4,12 @@ import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Callable, Type
 
 import discord
-import fastapi
+from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
 
 from config import Config
@@ -15,9 +17,21 @@ from config import Config
 offset = timedelta(hours=3)
 tzMoscow = timezone(offset, name='МСК')
 
+NotFoundException = HTTPException(status_code=404, detail='Not found!')
+
+
+class CrudType(Enum):
+    CR = 'CR'
+    CRU = 'CRU'
+    CRUD = 'CRUD'
+
 
 def now() -> datetime:
     return datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
+
+
+def table_to_json(table) -> dict:
+    return jsonable_encoder(table.__dict__, exclude={'_sa_instance_state'})
 
 
 logger = logging.getLogger('discord.client')
@@ -46,7 +60,7 @@ async def request(
         method: str = 'get',
         data: dict | None = None,
         params: dict | None = None,
-        base_url: str = Config.BASE_URI,
+        base_url: str = Config.base_uri,
 ) -> dict | list[dict]:
     from api.base import app
 
@@ -54,7 +68,7 @@ async def request(
         if method in ('get', 'delete'):
             response = await client.request(method, url, params=params)
         else:
-            data = fastapi.encoders.jsonable_encoder(data)  # noqa
+            data = jsonable_encoder(data)  # noqa
             response = await client.request(
                 method,
                 url,
@@ -121,6 +135,19 @@ async def _init_channels(bot: discord.Client) -> dict[int, dataclass]:
     return channels
 
 
+async def create_if_not_exists(
+        get_url: str,
+        post_url: str,
+        object_: dict
+) -> dict | None:
+
+    data = await request(url=get_url)
+    if 'detail' not in data:
+        return
+
+    return await request(post_url, 'post', data=object_)
+
+
 async def _fill_activity_info():
     all_activities = await request('activity_info')
     activity_ids = {row['app_id'] for row in all_activities}
@@ -144,6 +171,13 @@ async def _fill_activity_info():
         icon_url = f'https://cdn.discordapp.com/app-icons/{app_id}/{icon}.png?size=4096'
         game_data = {'icon_url': icon_url, 'app_id': app_id,
                      'app_name': app_name}
-        coroutines.append(request('activity_info', 'post', data=game_data))
+
+        coroutines.append(
+            create_if_not_exists(
+                get_url=f'activity_info/{app_id}',
+                post_url='activity_info',
+                object_=game_data
+            )
+        )
 
     await asyncio.gather(*coroutines)

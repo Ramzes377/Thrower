@@ -2,13 +2,14 @@ import asyncio
 import datetime
 from contextlib import suppress
 
-import discord
 from cachetools import TTLCache
+import discord
 from discord.ext import commands
 
+from constants import constants
 from .views import LoggerView
 from config import Config
-from utils import now
+from utils import now, create_if_not_exists
 from bot.mixins import DiscordFeaturesMixin
 
 
@@ -23,7 +24,6 @@ def create_embed(
         footer_text: str = None,
         footer_url: str = None,
 ) -> discord.Embed:
-
     embed = discord.Embed()
     embed.add_field(name=f'├ Время начала', value=f'├ **`{begin}`**')
 
@@ -71,7 +71,7 @@ class LoggerHelpers:
             to_date: datetime.datetime | None = None
     ):
         # TODO: replace guild get
-        guild = 'guild'
+        guild: discord.Guild = 'guild'
         for session in await self.db.get_all_sessions(from_date, to_date):
 
             name = session['name']
@@ -131,13 +131,21 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             self.bot.add_view(view, message_id=session['message_id'])
 
     async def add_members(self):
-        tasks = (self.db.user_create(id=member.id, name=member.display_name)
-                 for guild in self.bot.guilds for member in guild.members)
+        tasks = (
+            create_if_not_exists(
+                get_url=f'user/{member.id}',
+                post_url='user',
+                object_={'id': member.id, 'name': member.display_name}
+            )
+            for guild in self.bot.guilds
+            for member in guild.members
+        )
         await asyncio.gather(*tasks)
 
     async def update_embed_members(self, channel: discord.VoiceChannel):
 
-        if (guild_channels := self.bot.guild_channels.get(channel.guild.id)) is None:
+        if (guild_channels := self.bot.guild_channels.get(
+                channel.guild.id)) is None:
             return
 
         session = await self.db.get_session(channel.id)
@@ -168,7 +176,9 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             message_id, icon_url = session['message_id'], app_info['icon_url']
 
             guild_id = channel.guild.id
-            if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
+            if (
+                    guild_channels := self.bot.guild_channels.get(
+                        guild_id)) is None:
                 return
 
             logger_channel = guild_channels.logger
@@ -211,7 +221,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
 
 
 class Logger(LoggerEventHandlers):
-    MIN_SESS_DURATION = Config.MIN_SESS_DURATION  # in seconds
+    MIN_SESS_DURATION = Config.min_sess_duration  # in seconds
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -240,7 +250,8 @@ class Logger(LoggerEventHandlers):
             await self._member_abandon_channel(member.id, before.channel.id)
 
     @commands.Cog.listener()
-    async def on_member_join_channel(self, member_id: int, channel: discord.VoiceChannel):
+    async def on_member_join_channel(self, member_id: int,
+                                     channel: discord.VoiceChannel):
         await self._member_join_channel(member_id, channel)
 
     @commands.Cog.listener()
@@ -350,11 +361,11 @@ class Logger(LoggerEventHandlers):
             # different guilds
 
             await self.db.member_activity(
-                    member_id=after.id,
-                    id=after_app_id,
-                    begin=dt,
-                    end=None,
-                )
+                member_id=after.id,
+                id=after_app_id,
+                begin=dt,
+                end=None,
+            )
 
             if voice_channel:
                 await self.update_activity_icon(voice_channel, after_app_id)
@@ -384,7 +395,7 @@ class Logger(LoggerEventHandlers):
         msg = await logger_channel.fetch_message(session['message_id'])
         name = await self.get_user_sess_name(leader)
         embed: discord.Embed = msg.embeds[0]
-        embed.title = f"Активен сеанс: {name}"
+        embed.title = constants.active_session(name=name)
         embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader.id}>')
         await msg.edit(embed=embed)
         await self.db.update_leader(

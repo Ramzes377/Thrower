@@ -18,33 +18,35 @@ async def user(user_data: User, service: SrvUser = Depends()):
 
 
 @router.get('/{user_id}', response_model=User)
-async def user(user_id: SessionMember = Depends(), service: SrvUser = Depends()):
+async def user_get(
+        user_id: SessionMember = Depends(),
+        service: SrvUser = Depends()
+):
     return await service.get(user_id)
 
 
 @router.patch('/{user_id}', response_model=User)
-async def user(
-    userdata: dict,
-    user_id: SessionMember = Depends(),
-    service: SrvUser = Depends()
+async def user_update(
+        userdata: dict,
+        user_id: SessionMember = Depends(),
+        service: SrvUser = Depends()
 ):
     return await service.patch(user_id, userdata)
 
 
 @router.get('/{user_id}/sessions', response_model=list[Session])
 async def user_sessions(
-    user_id: SessionMember = Depends(),
-    timestamps: SrvUser.filter_by_timeperiod = Depends(),
-    service: SrvUser = Depends()
+        user_id: SessionMember = Depends(),
+        timestamps: SrvUser.filter_by_timeperiod = Depends(),
+        service: SrvUser = Depends()
 ):
-    sessions = await service.get_sessions(user_id, timestamps)
-    return sessions
+    return await service.get_sessions(user_id, timestamps)
 
 
 @router.get('/{user_id}/activities', response_model=list[DurationActivity])
 async def user_activities(
-    user_id: UserID = Depends(),
-    service: SrvUser = Depends()
+        user_id: UserID = Depends(),
+        service: SrvUser = Depends()
 ):
     return await service.user_activities(user_id)
 
@@ -52,9 +54,9 @@ async def user_activities(
 @router.get('/{user_id}/activities/{app_id}',
             response_model=list[DurationActivity])
 async def user_concrete_activity(
-    user_id: UserID = Depends(),
-    app_id: AppID = Depends(),
-    service: SrvUser = Depends()
+        user_id: UserID = Depends(),
+        app_id: AppID = Depends(),
+        service: SrvUser = Depends()
 ):
     specification = user_id & app_id
     return await service.user_activities(specification)
@@ -63,8 +65,8 @@ async def user_concrete_activity(
 @router.get('/{user_id}/activities/duration/',
             response_model=list[IngameSeconds])
 async def user_activities_durations(
-    user_id: UserID = Depends(),
-    service: SrvUser = Depends()
+        user_id: UserID = Depends(),
+        service: SrvUser = Depends()
 ):
     a = await service.durations(user_id)
     return a
@@ -75,8 +77,8 @@ async def user_activities_durations(
     response_model=IngameSeconds | None
 )
 async def user_concrete_activity_duration(
-    user_id: UserID = Depends(),
-    role_id: RoleID = Depends(),
-    service: SrvUser = Depends()
+        user_id: UserID = Depends(),
+        role_id: RoleID = Depends(),
+        service: SrvUser = Depends()
 ):
     return await service.concrete_duration(user_id, role_id)

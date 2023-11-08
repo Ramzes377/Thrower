@@ -4,8 +4,8 @@ from api.specification import GuildID
 
 router = crud_fabric(
     table=tables.Guild,
-    prefix='guild',
-    path='/{guild_id}',
+    relative_path='guild',
+    get_path='/{guild_id}',
     response_model=GuildChannels,
     specification=GuildID
 )

@@ -31,7 +31,7 @@ async def test_get_activity(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_activity_info(client, post_activity_info):
+async def test_get_activity_info(client: AsyncClient, post_activity_info):
     response = await client.get(f"/activity/{activity_id}/info")
     data = response.json()
     assert response.status_code == 200

@@ -40,7 +40,7 @@ class Dropdown(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         for title in self.values:
             with suppress(discord.InteractionResponded):
-                await interaction.response.send_message(
+                await interaction.response.send_message(   # noqa
                     f'{title} будет добавлена в очередь!',
                     delete_after=15
                 )

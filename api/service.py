@@ -1,60 +1,115 @@
-from typing import Callable, Any, Union
+from functools import partial
+from typing import Callable, Any, Coroutine, Annotated, Optional, Protocol
 
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Query, status
 from sqlalchemy import select, Select, Sequence
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import BinaryExpression
-from starlette import status
 
+from config import Config
+from utils import NotFoundException, CrudType
+from constants import constants
+from .deffered import DeferredTasksProcessor
 from .specification import Specification
 from .tables import Base as BaseTable
-from api.database import get_session
+from .dependencies import db_sessions
 
 
 class Service:
     table = None
     order_by = None
 
-    def __init__(self, session: AsyncSession = Depends(get_session)):
-        self._session = session
+    deferrer = DeferredTasksProcessor(sleep_seconds=Config.defer_sleep_seconds)
+
+    @staticmethod
+    async def wait_coro(coro: Coroutine, *args, **kwargs) -> Any:
+        return await coro
+
+    async def reflect_execute(
+            self,
+            coro_fabric: Callable,
+            is_ordered: bool = True
+    ) -> Any:
+        """
+        Repeats simple coroutine execution if coro have
+        positional first argument session.
+        """
+
+        resp = await coro_fabric(session=self._session)
+
+        for other_session in self._other_sessions:
+            await self.coro_handler(
+                coro_fabric(session=other_session),
+                is_ordered=is_ordered
+            )
+
+        return resp
+
+    def __init__(
+            self,
+            sessions: tuple[AsyncSession, ...] = Depends(db_sessions),
+            defer_handle: Annotated[
+                bool, Query(include_in_schema=False)
+            ] = True,
+    ) -> None:
+        self._session, *self._other_sessions = sessions
+        self.defer_handle = defer_handle
+
+        self.coro_handler = self.deferrer.add if defer_handle \
+            else self.wait_coro
+
         self._base_query = select(self.table)
         self._order_by = Service.order_by
 
 
+class GetORM(Protocol):
+    async def __call__(self,
+                       specification: Specification,
+                       session_: AsyncSession = None,
+                       suppress_error: bool = False,
+                       **additional_filters: Any) -> Service:
+        ...
+
+
 class Create(Service):
-    async def create(
-            self,
-            obj: BaseModel,
-            suppress_unique_error: bool = True
-    ) -> BaseModel | None:
-        try:
-            self._session.add(obj)
-            await self._session.commit()
-            return obj
-        except IntegrityError as e:
-            if not suppress_unique_error:
-                raise e
-            return obj
-        except Exception as e:
-            await self._session.rollback()
-            raise e
+
+    async def _create(self,
+                      session: AsyncSession,
+                      data: Optional[dict] = None,
+                      object_: Optional[BaseTable] = None,
+                      suppress_unique_error: bool = True,
+                      suppress_any_error: bool = False) -> BaseModel | None:
+        if object_ is None:
+            object_: BaseTable = self.table(**data)
+
+        async with session.begin_nested():
+            try:
+                session.add(object_)
+                await session.commit()
+            except IntegrityError as e:
+                await session.rollback()
+                if not suppress_unique_error:
+                    raise e
+            except Exception as e:
+                await session.rollback()
+                if not suppress_any_error:
+                    raise e
+
+        return object_
 
     async def post(self, data: BaseModel) -> BaseTable:
-        orm = self.table(**data.model_dump())
-        return await self.create(orm)
+        create = partial(self._create, data=data.model_dump())
+        return await self.reflect_execute(create)
 
 
 class Read(Service):
-    def _is_exist(self, obj: BaseTable, specification: Specification):
-        if not obj:
-            specs = ', '.join(
-                f'[{k} = {v}]' for k, v in specification().items()
-            )
-            details = f"Row of table {self.table.__name__} " \
-                      f"with follows params ({specs}) not found"
-            raise HTTPException(status_code=404, detail=details)
+    def _not_exists(self, specification: Specification):
+        specs = ', '.join(f'{k} = {v}' for k, v in specification().items())
+        details = constants.item_not_found(table_name=self.table.__name__,
+                                           specs=specs)
+        raise HTTPException(status_code=404, detail=details)
 
     @property
     def _query(self) -> Select:
@@ -63,111 +118,136 @@ class Read(Service):
             query = query.order_by(self._order_by)
         return query
 
-    def _get(self, specification: Specification, *_, **kw) -> Select:
+    def query(self, specification: Specification, *_, **kw) -> Select:
         return self._query.filter_by(**specification()).filter_by(**kw)
 
-    async def get(
-            self,
-            specification: Specification,
-            *args: Any,
-            **kw: Any
-    ) -> BaseTable:
+    async def get(self,
+                  specification: Optional[Specification] = None,
+                  session_: AsyncSession = None,
+                  suppress_error: bool = False,
+                  *,
+                  _query: Optional[Select] = None,
+                  _multiple_result: bool = False,
+                  **additional_filters: Any) -> BaseTable:
 
-        r = await self._session.scalars(self._get(specification, **kw))
-        obj = r.first()
-        self._is_exist(obj, specification)
-        return obj
+        session = session_ or self._session
 
-    async def all(
-            self,
-            filter_: BinaryExpression = None,
-            *,
-            query: Select | None = None,
-            **kwargs    # noqa
-    ) -> Sequence:
+        if (query := _query) is None:
+            query = self.query(specification, **additional_filters)
 
+        async with session.begin():
+            r = await session.execute(query)
+            object_ = r.scalars().first()
+
+        if object_ is None and not suppress_error:
+            self._not_exists(specification)
+
+        return object_
+
+    async def all(self,
+                  filter_: Optional[BinaryExpression] = None,
+                  specification: Optional[Specification] = None,
+                  *,
+                  query: Select | None = None,
+                  **kwargs) -> Sequence:
         query = self._query if query is None else query
         if filter_ is not None:
             query = query.filter(filter_)
+        if specification is not None:
+            query = query.filter_by(**specification())
 
-        r = await self._session.scalars(query)
+        async with self._session.begin():
+            r = (await self._session.execute(query)).scalars()
         return r.all()
 
 
 class Update(Read):
-    async def update(
-            self,
-            obj: Union[Service, Any],
-            data: BaseModel | dict
-    ) -> None:
-        try:
-            iterable = data.items() if isinstance(data, dict) else data
-            for k, v in iterable:
-                setattr(obj, k, v)
-            await self._session.commit()
-        except Exception as e:
-            await self._session.rollback()
-            raise e
+    @staticmethod
+    async def update(object_: Service,
+                     data: BaseModel | dict,
+                     session: AsyncSession) -> None:
+        """ Update orm object  """
 
-    async def patch(
-            self,
-            specification: Specification,
-            data: BaseModel | dict,
-            *args,
-            get_method: Callable = None,
-            **kwargs
-    ) -> BaseTable:
+        iterable = data.items() if isinstance(data, dict) else data
+        for k, v in iterable:
+            setattr(object_, k, v)
+
+        async with session.begin_nested():
+            try:
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
+
+    async def patch(self,
+                    specification: Specification,
+                    data: BaseModel | dict,
+                    session_: Optional[AsyncSession] = None,
+                    *,
+                    get_method: Optional[GetORM] = None,
+                    suppress_error: bool = False,
+                    _multiple_result: bool = False,
+                    **kwargs) -> BaseTable:
+
+        async def _patch(_get: GetORM, session: AsyncSession) -> BaseTable:
+            object_ = await _get(specification, session, suppress_error,
+                                 _multiple_result=_multiple_result)
+
+            if suppress_error and object_ is None:
+                return None
+
+            await self.update(object_, data, session)
+            return object_
+
         get = get_method or self.get
-        obj: Service = await get(specification)
-        self._is_exist(obj, specification)
-        await self.update(obj, data)
-        return obj
+        patch = partial(_patch, _get=get)
+
+        return await self.reflect_execute(patch)
 
 
 class Delete(Read):
-    async def erase(self, obj: BaseTable) -> None:
-        try:
-            await self._session.delete(obj)
-            await self._session.commit()
-        except Exception as e:
-            await self._session.rollback()
-            raise e
+    @staticmethod
+    async def erase(object_: BaseTable, session: AsyncSession) -> None:
+        async with session.begin():
+            try:
+                await session.delete(object_)
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
 
     async def delete(self, specification: Specification) -> None:
-        obj = await self.get(specification)
-        await self.erase(obj)
+        async def _delete(session: AsyncSession):
+            if object_ := await self.get(specification, session_=session):
+                return await self.erase(object_, session)
+
+            raise NotFoundException
+
+        await self.reflect_execute(_delete)
 
 
 class CreateRead(Create, Read):
-    pass
+    ...
 
 
 class CreateReadUpdate(Update, CreateRead):
-    pass
+    ...
 
 
 class CRUD(Delete, CreateReadUpdate):
-    pass
+    ...
 
 
-def crud_fabric(
-        table,
-        prefix: str,
-        path: str,
-        response_model: Any = dict,
-        specification: Any = None,
-        include_in_schema: bool = True,
-):
-    router = APIRouter(prefix=f'/{prefix}', tags=[prefix])
-    service_ = type(prefix.capitalize(), (CRUD,), {'table': table})
-
-    @router.get(
-        '',
-        response_model=list[response_model],
-        include_in_schema=include_in_schema
-    )
-    async def all_rows(service: service_ = Depends()):
-        return await service.all()
+def crud_fabric(table,
+                relative_path: str,
+                get_path: str,
+                response_model: Any = dict,
+                specification: Any = None,
+                include_in_schema: bool = True,
+                with_all: bool = True,
+                crud_type: CrudType = CrudType.CRUD):
+    router = APIRouter(prefix=f'/{relative_path}', tags=[relative_path])
+    service_ = type(relative_path.capitalize(), (CRUD,), {'table': table})
 
     @router.post(
         '',
@@ -182,33 +262,48 @@ def crud_fabric(
         return await service.post(message)
 
     @router.get(
-        path,
+        get_path,
         response_model=response_model,
         include_in_schema=include_in_schema,
     )
     async def get_object(
-            id: specification = Depends(),
+            id_: specification = Depends(),
             service: service_ = Depends()
     ):
-        return await service.get(id)
+        return await service.get(id_)
+
+    if with_all:
+        @router.get(
+            '',
+            response_model=list[response_model],
+            include_in_schema=include_in_schema
+        )
+        async def all_rows(service: service_ = Depends()):
+            return await service.all()
+
+    if crud_type == CrudType.CR:
+        return router
 
     @router.patch(
-        path,
+        get_path,
         response_model=response_model,
         include_in_schema=include_in_schema
     )
     async def patch_object(
             data: dict,
-            id: specification = Depends(),
+            id_: specification = Depends(),
             service: service_ = Depends()
     ):
-        return await service.patch(id, data)
+        return await service.patch(id_, data)
 
-    @router.delete(path, include_in_schema=include_in_schema)
+    if crud_type == CrudType.CRU:
+        return router
+
+    @router.delete(get_path, include_in_schema=include_in_schema)
     async def delete_object(
-            id: specification = Depends(),
+            id_: specification = Depends(),
             service: service_ = Depends()
     ):
-        return await service.delete(id)
+        return await service.delete(id_)
 
     return router

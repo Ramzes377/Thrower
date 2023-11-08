@@ -7,6 +7,7 @@ import discord
 from aiohttp import ClientConnectorError
 from discord.ext import commands
 
+from api.service import Service
 from config import Config
 from utils import CustomWarning, logger, _init_channels, _fill_activity_info
 
@@ -34,6 +35,8 @@ class Permissions:
 @bot.event
 async def on_ready():
 
+    bot.loop.create_task(Service.deferrer.start())
+
     bot.permissions = Permissions
 
     bot.guild_channels, *_ = await asyncio.gather(
@@ -55,4 +58,5 @@ async def on_command_error(_, error):
 
 
 if __name__ == '__main__':
-    bot.run(Config.TOKEN, reconnect=True)
+    with suppress(ClientConnectorError):
+        bot.run(Config.token, reconnect=True)

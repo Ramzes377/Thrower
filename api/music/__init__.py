@@ -14,7 +14,7 @@ async def get(
     _limit: int = Depends(limit),
     service: SrvFavoriteMusic = Depends()
 ):
-    return await service.get(user_id, amount=_limit)
+    return await service.first_of_all(user_id, amount=_limit)
 
 
 @router.post('', response_model=FavoriteMusic,

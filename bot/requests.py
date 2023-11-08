@@ -1,7 +1,3 @@
-from contextlib import suppress
-
-from sqlalchemy import exc
-
 from api.dependencies import default_period
 from bot.meta import GettersWrapping
 from utils import request
@@ -80,14 +76,13 @@ class BasicRequests(metaclass=GettersWrapping):
         await request('prescence', method, data=prescence)
 
     async def session_add_member(self, channel_id: int, member_id: int):
-        with suppress(exc.IntegrityError):
-            r = await request(
-                f'session/{channel_id}/members/{member_id}',
-                'post'
-            )
-            if 'detail' in r:
-                raise ValueError('Session still not exist probably!')
-            return r
+        r = await request(
+            f'session/{channel_id}/members/{member_id}',
+            'post'
+        )
+        if 'detail' in r:
+            raise ValueError('Session still not exist probably!')
+        return r
 
     async def create_sent_message(self, msg_id: int):
         return await request(

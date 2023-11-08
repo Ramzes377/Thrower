@@ -1,11 +1,11 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 
 activity_id = 12345
 
 
 @pytest.mark.asyncio
-async def test_post_activity_info(post_activity_info):
+async def test_post_activity_info(post_activity_info: Response):
     response = post_activity_info
     data = response.json()
     assert response.status_code in (200, 201)

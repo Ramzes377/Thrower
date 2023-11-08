@@ -5,6 +5,7 @@ from contextlib import suppress
 import discord
 from discord import app_commands
 
+from constants import constants
 from bot.mixins import DiscordFeaturesMixin
 from utils import _init_channels
 
@@ -48,7 +49,8 @@ class Commands(DiscordFeaturesMixin):
                 )
             )
         except Exception as e:
-            await member.send(f'Ошибка: {str(e)}', delete_after=30)
+            await member.send(constants.channel_creation_error(error=str(e)),
+                              delete_after=30)
             for to_delete in initialized:
                 await to_delete.delete()
             return
@@ -69,17 +71,21 @@ class Commands(DiscordFeaturesMixin):
         }
 
         await self.db.post_guild_ids(data)
-        await member.send(f'Успешно созданы каналы!', delete_after=30)
+        await member.send(
+            constants.successfully_created_channels, delete_after=30
+        )
 
-    @app_commands.command(description='Инициализация каналов для функционирования бота')
+    @app_commands.command(
+        description='Инициализация каналов для функционирования бота'
+    )
     @app_commands.checks.has_permissions(administrator=True)
     async def init_channels(self, interaction: discord.Interaction) -> None:
 
         guild_id = interaction.guild_id
 
         if self.bot.guild_channels.get(guild_id):
-            await interaction.response.send_message(
-                f'Каналы уже созданы!', ephemeral=True, delete_after=15
+            await interaction.response.send_message(  # noqa
+                constants.already_created, ephemeral=True, delete_after=15
             )
             return
 
@@ -90,33 +96,34 @@ class Commands(DiscordFeaturesMixin):
     @app_commands.checks.has_permissions(administrator=True)
     async def sync(self, interaction: discord.Interaction) -> None:
         sync = await self.bot.tree.sync(guild=interaction.guild)
-        await interaction.response.send_message(
+        await interaction.response.send_message(  # noqa
             sync, ephemeral=True, delete_after=30
         )
 
     @app_commands.command(description='Удаление n предшествующих сообщений')
     @app_commands.checks.has_permissions(manage_messages=True)
     async def clear(self, interaction: discord.Interaction, n: int = 0) -> None:
-        await interaction.response.send_message(f'Будет удалено {n} сообщений!',
-                                                ephemeral=True, delete_after=30)
+        await interaction.response.send_message(  # noqa
+            constants.messages_to_delete(n=n),
+            ephemeral=True, delete_after=30
+        )
         async for message in interaction.channel.history(limit=n):
             with suppress(discord.NotFound):
                 await message.delete()
 
     @app_commands.command(description='Очистка переписки с этим ботом')
     async def clear_private(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message(
-            f'Начата очистка переписки . . .',
-            ephemeral=True, delete_after=30
-        )
+        await interaction.response.send_message(constants.cleaning_started,  # noqa
+                                                ephemeral=True,
+                                                delete_after=30)
         await interaction.user.send('!')
         counter = 0
         async for message in interaction.user.dm_channel.history(limit=None):
             with suppress(discord.NotFound):
                 await message.delete()
                 counter += 1
-        await interaction.response.send_message(
-            f'Успешно удалено {counter} сообщений!',
+        await interaction.response.send_message(  # noqa
+            constants.successfully_deleted(counter=counter),
             ephemeral=True,
             delete_after=30
         )
@@ -131,32 +138,31 @@ class Commands(DiscordFeaturesMixin):
             role_id = int(role_mention[3:-1])
             role = guild.get_role(role_id)
         except ValueError:
-            await interaction.response.send_message(
-                'Неверный формат упоминания игровой роли!',
+            await interaction.response.send_message(  # noqa
+                constants.incorrect_gamerole_mention,
                 ephemeral=True,
                 delete_after=30
             )
             return
 
-        embed = discord.Embed(title=f"Запрос по игре {role.name}",
+        embed = discord.Embed(title=constants.game_request(name=role.name),
                               color=role.color)
 
         data = await self.db.get_activity_duration(interaction.user.id, role.id)
         if data:
             game_time = datetime.timedelta(seconds=data['seconds'])
-            embed.add_field(name='Зарегистрировано в игре ',
+            embed.add_field(name=constants.game_embed_header,
                             value=f"{str(game_time).split('.')[0]}",
                             inline=False)
         else:
-            embed.add_field(
-                name='Вы не играли в эту игру или Discord не смог это обнаружить',
-                value='Если вам нужна эта функция,'
-                      'то зайдите в Настройки пользователя\Игровая активность\Отображать '
-                      'в статусе игру в которую сейчас играете',
-                inline=False)
-        embed.set_footer(text='Великий бот - ' + self.bot.user.display_name,
-                         icon_url=self.bot.user.avatar)
-        await interaction.response.send_message(embed=embed, ephemeral=True,
+            embed.add_field(name=constants.game_not_played_header,
+                            value=constants.game_not_played_body,
+                            inline=False)
+        embed.set_footer(
+            text=constants.bot_signature(name=self.bot.user.display_name),
+            icon_url=self.bot.user.avatar
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True,  # noqa
                                                 delete_after=30)
 
     async def update_sess_name(self, channel: discord.VoiceChannel, name: str):
@@ -188,7 +194,7 @@ class Commands(DiscordFeaturesMixin):
         await self.db.user_update(id=interaction.user.id,
                                   default_sess_name=name)
         msg = f'Успешно установлено стандартное название сессии: {name}'
-        await interaction.response.send_message(msg, ephemeral=True,
+        await interaction.response.send_message(msg, ephemeral=True,  # noqa
                                                 delete_after=30)
         channel = await self.get_user_channel(interaction.user.id)
         if channel:

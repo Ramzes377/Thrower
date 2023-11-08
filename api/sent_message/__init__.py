@@ -4,8 +4,8 @@ from api.specification import SentMessageID
 
 router = crud_fabric(
     table=tables.SentMessage,
-    prefix='sent_message',
-    path='/{message_id}',
+    relative_path='sent_message',
+    get_path='/{message_id}',
     response_model=ID,
     specification=SentMessageID
 )

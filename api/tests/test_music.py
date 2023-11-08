@@ -18,7 +18,7 @@ async def test_post_music(client: AsyncClient, post_user):
         json={'user_id': 122, 'query': 'http://some-url.com'}
     )
     data = response.json()
-    assert response.status_code == 202
+    assert response.status_code == 201
     assert data['counter'] == 2  # update user-music note
 
     response = await client.post(

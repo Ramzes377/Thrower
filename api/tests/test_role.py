@@ -38,7 +38,7 @@ async def test_get_role_emoji(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_role_info(client):
+async def test_get_role_info(client: AsyncClient):
     response = await client.get(f"/role/20001/info")
     data = response.json()
     assert response.status_code == 200

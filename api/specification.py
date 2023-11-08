@@ -2,6 +2,10 @@ class Specification:
     column_name = None
     _id = None
 
+    @property
+    def value(self):
+        return self._id
+
     def __call__(self, *args, **kwargs) -> dict:
         return {self.column_name: self._id}
 

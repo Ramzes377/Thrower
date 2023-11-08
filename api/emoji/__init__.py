@@ -19,11 +19,17 @@ async def create_emoji(emoji: Emoji, service: SrvEmoji = Depends()):
 
 
 @router.get('/{emoji_id}', response_model=Emoji)
-async def get_emoji(emoji_id: EmojiID = Depends(), service: SrvEmoji = Depends()):
+async def emoji_get(
+        emoji_id: EmojiID = Depends(),
+        service: SrvEmoji = Depends()
+):
     return await service.get(emoji_id)
 
 
 @router.get('/{emoji_id}/role', response_model=Role)
-async def get_role(emoji_id: EmojiID = Depends(), service: SrvEmoji = Depends()):
+async def get_emoji_role(
+        emoji_id: EmojiID = Depends(),
+        service: SrvEmoji = Depends()
+):
     emoji: tables.Emoji = await service.get(emoji_id)
     return emoji.role

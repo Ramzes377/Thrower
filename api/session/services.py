@@ -1,5 +1,6 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import Depends
 from sqlalchemy import select, Sequence
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
 
@@ -17,8 +18,8 @@ class SrvSession(CreateReadUpdate):
 
     @classmethod
     def filter_by_timeperiod(
-        cls,
-        period: dict = Depends(default_period)
+            cls,
+            period: dict = Depends(default_period)
     ) -> BinaryExpression:
         return cls.table.begin.between(period['begin'], period['end'])
 
@@ -42,18 +43,19 @@ class SrvSession(CreateReadUpdate):
         return user_unclosed.first()
 
     async def add_member(
-        self,
-        sess_specification: Specification,
-        user_specification: Specification
+            self,
+            sess_specification: Specification,
+            user_specification: Specification
     ) -> tables.Member:
-        executed = await self._session.scalars(
-            select(tables.Member).filter_by(**user_specification())
-        )
-        user = executed.first()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        async def _add_member(session: AsyncSession) -> tables.Member:
+            query = select(tables.Member).filter_by(**user_specification())
 
-        session: tables.Session = await self.get(sess_specification)
-        session.members.append(user)
-        await self.create(session)
-        return user
+            user = await self.get(_query=query, session_=session)
+            session_table: tables.Session = await self.get(sess_specification,
+                                                           session_=session)
+            session_table.members.append(user)
+
+            await self._create(object_=session_table, session=session)
+            return user
+
+        return await self.reflect_execute(_add_member)

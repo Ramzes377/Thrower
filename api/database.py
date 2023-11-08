@@ -1,24 +1,19 @@
 import logging
 
-from sqlalchemy.ext.asyncio import (
-    AsyncSession, create_async_engine,
-    async_sessionmaker,
-)
-
-from api.tables import session_fabric
+from api.tables import SessionFabric
 from config import Config
 
 logger = logging.FileHandler('sqlalchemy.log')
 logger.setLevel(logging.DEBUG)
 logging.getLogger('sqlalchemy').addHandler(logger)
 
-engine = create_async_engine(
-    Config.DB_URI,
-    echo=False,
+# Creating sessions in semi-manual mode
+
+get_session_local = SessionFabric.build(
+    db_uri=Config.local_db_uri,
     connect_args={"check_same_thread": False, "timeout": 120}
 )
-async_session = async_sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
 
-get_session = session_fabric(async_session, engine)
+get_session_remote = SessionFabric.build(
+    db_uri=Config.remote_db_uri,
+)

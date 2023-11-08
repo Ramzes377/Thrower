@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_post_presences(client, post_sessions):
+async def test_post_presences(client: AsyncClient, post_sessions):
     response = await client.post(f"/prescence",
                                  json={'channel_id': 1, 'member_id': 112,
                                        'begin': '2000-01-01 02:00:00'}

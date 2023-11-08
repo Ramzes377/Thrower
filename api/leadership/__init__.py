@@ -8,7 +8,7 @@ router = APIRouter(prefix='/leadership', tags=['leadership'])
 
 
 @router.post('', response_model=Leadership, status_code=status.HTTP_201_CREATED)
-async def leadership(
+async def leadership_create(
     leadership: Leadership | LeaderChange,
     service: SrvLeadership = Depends()
 ):
@@ -24,7 +24,7 @@ async def session_leader(
 
 
 @router.get('/hist/{session_id}', response_model=list[Leadership])
-async def leadership(
+async def leadership_get(
     session_id: SessionID = Depends(),
     service: SrvLeadership = Depends()
 ):

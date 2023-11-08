@@ -2,7 +2,8 @@ from fastapi import Depends, APIRouter, status
 
 from .services import SrvSession
 from api import tables
-from api.schemas import Session, User, Prescence, Activity, Leadership, EndSession
+from api.schemas import (Session, User, Prescence, Activity, Leadership,
+                         EndSession)
 from api.specification import SessionID, MessageID, LeaderID, SessionMember
 
 router = APIRouter(prefix='/session', tags=['session'])

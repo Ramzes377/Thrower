@@ -28,7 +28,7 @@ cog = CogsContainer(
     logger=Logger,
 )
 
-if Config.MUSIC_ONLY:
+if Config.music_only:
     from bot.cogs.music import Music
 
     cog.music = Music

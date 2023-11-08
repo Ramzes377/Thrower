@@ -6,6 +6,7 @@ from typing import Awaitable
 import discord
 from discord.ext import commands
 
+from constants import constants
 from .requests import BasicRequests
 from utils import logger, request
 
@@ -19,7 +20,7 @@ class BaseCogMixin(commands.Cog):
         super(BaseCogMixin, self).__init__()
         self.bot = bot
         if not sub_cog:
-            logger.info(f'Cog {type(self).__name__} have been started!')
+            logger.info(constants.cog_started(name=type(self).__name__))
 
     @staticmethod
     def get_app_id(user: discord.Member) -> int | None:
@@ -49,7 +50,7 @@ class DiscordFeaturesMixin(BaseCogMixin):
             sess_name = member['default_sess_name']
         else:
             session = await self.db.get_user_session(user.id)
-            sess_name = session['name'] if session else f"Сессия {user.display_name}'а"
+            sess_name = session['name'] if session else constants.session_name(name=user.display_name)
         return sess_name
 
     @staticmethod

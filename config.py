@@ -2,33 +2,50 @@ import os
 
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import HttpUrl, IPvAnyAddress
+from pydantic import HttpUrl, IPvAnyAddress, computed_field
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(validate_default=False)
+    model_config = SettingsConfigDict(
+        env_file=os.environ.get('ENV_PATH', 'env/stable.env'),
+        env_file_encoding='utf-8',
+        validate_default=False
+    )
 
-    TOKEN: str | None = None
+    token: str | None = None
 
-    DEBUG: bool = False
-    MUSIC_ONLY: bool = False
+    debug: bool = False
+    music_only: bool = False
 
-    MIN_SESS_DURATION: int = 300  # 5 minutes in seconds
-    CREATION_COOLDOWN: int = 15  # seconds
+    min_sess_duration: int = 300  # 5 minutes in seconds
+    creation_cooldown: int = 15  # seconds
 
-    API_HOST: IPvAnyAddress = '127.0.0.1'
-    API_PORT: int = 8000
-    BASE_URI: HttpUrl = f'http://{API_HOST}:{API_PORT}'
+    api_host: IPvAnyAddress = '127.0.0.1'
+    api_port: int = 8000
 
-    LAVALINK_URI: str = 'lavalink'
-    LAVALINK_PORT: int = 2333
-    LAVALINK_PASSWORD: str = 'youshallnotpass'
+    lavalink_uri: str = 'lavalink'
+    lavalink_port: int = 2333
+    lavalink_password: str = 'youshallnotpass'
 
-    DB_ENGINE: MultiHostUrl = 'sqlite+aiosqlite:///'
-    DB_URI: MultiHostUrl = f'{DB_ENGINE}./local.sqlite3'
+    local_db_engine: MultiHostUrl = 'sqlite+aiosqlite:///'
+    local_connection: str = 'local.sqlite3'
+
+    remote_db_engine: MultiHostUrl = 'mysql+asyncmy://'
+    remote_connection: str = ''
+
+    defer_sleep_seconds: float = 30
+
+    @computed_field
+    def base_uri(self) -> HttpUrl:
+        return f'http://{self.api_host}:{self.api_port}'
+
+    @computed_field
+    def local_db_uri(self) -> str:
+        return f'{self.local_db_engine}{self.local_connection}'
+
+    @computed_field
+    def remote_db_uri(self) -> str:
+        return f'{self.remote_db_engine}{self.remote_connection}'
 
 
-Config = Settings(
-    _env_file=os.environ.get('ENV_PATH', 'env/stable.env'),
-    _env_file_encoding='utf-8'
-)
+Config = Settings()
