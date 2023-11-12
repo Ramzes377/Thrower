@@ -5,6 +5,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from logging.handlers import RotatingFileHandler
 from typing import Callable, Type
 
 import discord
@@ -34,7 +35,69 @@ def table_to_json(table) -> dict:
     return jsonable_encoder(table.__dict__, exclude={'_sa_instance_state'})
 
 
-logger = logging.getLogger('discord.client')
+def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
+    class _ColourFormatter(logging.Formatter):
+        """ Taken from discord api to uniform logging. """
+
+        LEVEL_COLOURS = [
+            (logging.DEBUG, '\x1b[40;1m'),
+            (logging.INFO, '\x1b[34;1m'),
+            (logging.WARNING, '\x1b[33;1m'),
+            (logging.ERROR, '\x1b[31m'),
+            (logging.CRITICAL, '\x1b[41m'),
+        ]
+
+        FORMATS = {
+            level: logging.Formatter(
+                f'\x1b[30;1m%(asctime)s\x1b[0m {colour}%(levelname)-8s\x1b[0m \x1b[35m%(name)s\x1b[0m %(message)s',
+                '%Y-%m-%d %H:%M:%S',
+            )
+            for level, colour in LEVEL_COLOURS
+        }
+
+        def format(self, record):
+            formatter = self.FORMATS.get(record.levelno)
+            if formatter is None:
+                formatter = self.FORMATS[logging.DEBUG]
+
+            # Override the traceback to always print in red
+            if record.exc_info:
+                text = formatter.formatException(record.exc_info)
+                record.exc_text = f'\x1b[31m{text}\x1b[0m'
+
+            output = formatter.format(record)
+
+            # Remove the cache layer
+            record.exc_text = None
+            return output
+
+    level = logging.DEBUG if Config.debug else logging.ERROR
+
+    _logger = logging.getLogger(name="thrower.api")
+    _logger.setLevel(logging.DEBUG)
+
+    strerr_handler = logging.StreamHandler()
+    strerr_handler.setFormatter(_ColourFormatter())
+    strerr_handler.setLevel(level=level)
+
+    file_handler = RotatingFileHandler('log.log', encoding='utf-8')
+    file_handler.setFormatter(
+        logging.Formatter(
+            fmt='[%(asctime)s] [%(levelname)s    ] %(name)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S')
+    )
+    file_handler.setLevel(logging.DEBUG)
+
+    _discord_log = logging.getLogger('discord.client')
+    _discord_log.setLevel(level=level)
+
+    _logger.addHandler(file_handler)
+    _logger.addHandler(strerr_handler)
+
+    return _logger, _discord_log
+
+
+logger, discord_logger = _init_loggers()
 
 
 async def clear_messages(bot: discord.Client, guild_id: int):
@@ -46,11 +109,11 @@ async def clear_messages(bot: discord.Client, guild_id: int):
         for channel in text_channels:
             with suppress(discord.NotFound):
                 if msg := await channel.fetch_message(message['id']):
-                    logger.info(msg)
+                    discord_logger.debug(msg)
                     # deletion process
                     # await msg.delete()
                 else:
-                    logger.warning(
+                    discord_logger.warning(
                         await request(f'sent_message/{msg.id}', 'delete')
                     )
 
@@ -91,6 +154,10 @@ def handle_dict(
         value_handler: Callable = lambda x: x,
 ) -> dict:
     return {key_handler(k): value_handler(v) for k, v in d.items()}
+
+
+def format_dict(dct: dict) -> str:
+    return ', '.join(f'{k} = {v}' for k, v in dct.items())
 
 
 class CustomWarning(Warning):
@@ -140,7 +207,6 @@ async def create_if_not_exists(
         post_url: str,
         object_: dict
 ) -> dict | None:
-
     data = await request(url=get_url)
     if 'detail' not in data:
         return

@@ -25,8 +25,7 @@ class SrvPrescence(CreateReadUpdate):
             ] = True,
     ):
         super().__init__(sessions, defer_handle)
-        # override base query to use base method _get
-        # more native way with filter by message_id
+
         self._default_query = self._base_query
         self._base_query = self._base_query.join(tables.Session)
 
@@ -51,18 +50,18 @@ class SrvPrescence(CreateReadUpdate):
             session_: AsyncSession = None,
             **kwargs
     ) -> Prescence:
-        specification = (
-                SessionID(prescence.channel_id) &
-                UserID(prescence.member_id) & Unclosed()
-        )
+        specification = (SessionID(prescence.channel_id) &
+                         UserID(prescence.member_id) & Unclosed())
 
-        query = self._default_query.order_by(tables.Prescence.begin.desc())
-        member_prescence = partial(super().get, _query=query,
-                                   _multiple_result=True)
+        query = (
+            self._default_query
+            .filter_by(**specification())
+            .order_by(tables.Prescence.begin.desc())
+        )
+        member_prescence = partial(super().get, _query=query)
 
         return await super().patch(
             specification=specification,
-            data={'end': prescence.end},
+            data=dict(end=prescence.end),
             get_method=member_prescence,  # noqa
-            _multiple_result=True
         )

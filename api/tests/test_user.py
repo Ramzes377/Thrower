@@ -17,7 +17,7 @@ async def test_post_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_user(client: AsyncClient, post_user: None):
+async def test_get_user(client: AsyncClient, post_users):
     response = await get_user_112(client)
     assert response.status_code == 200
 
@@ -27,7 +27,7 @@ async def test_get_user(client: AsyncClient, post_user: None):
 
 
 @pytest.mark.asyncio
-async def test_patch_user(client: AsyncClient, post_user):
+async def test_patch_user(client: AsyncClient, post_users):
     response = await client.patch(
         f"/user/112",
         json={'name': 'NicknameUpdate', 'default_sess_name': 'New session name'}
@@ -39,7 +39,7 @@ async def test_patch_user(client: AsyncClient, post_user):
 
 
 @pytest.mark.asyncio
-async def test_get_all_users(client: AsyncClient, post_user):
+async def test_get_all_users(client: AsyncClient, post_users):
     response = await client.get(f"/user")
     data = response.json()
 

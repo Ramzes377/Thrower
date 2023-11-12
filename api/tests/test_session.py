@@ -81,7 +81,7 @@ async def test_patch_session(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_add_session_member(client: AsyncClient, post_user):
+async def test_add_session_member(client: AsyncClient, post_users):
     response = await client.post(
         f"/session/{TEST_CHANNEL_ID}/members/{TEST_USER_ID}"
     )
@@ -89,6 +89,12 @@ async def test_add_session_member(client: AsyncClient, post_user):
 
     assert response.status_code == 201
     assert isinstance(data['id'], int)
+
+    response = await client.post(
+        f"/session/{TEST_CHANNEL_ID}/members/{TEST_USER_ID}"
+    )
+    same_data = response.json()
+    assert data == same_data
 
 
 @pytest.mark.asyncio
@@ -113,7 +119,7 @@ async def test_get_session_presence(client: AsyncClient):
     response = await client.get(f"/session/{TEST_MSG_ID}/prescence")
     data = response.json()
     assert response.status_code == 200
-    assert isinstance(data, list) and len(data) == 1
+    assert isinstance(data, list) and len(data) == 2
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_post_music(client: AsyncClient, post_user):
+async def test_post_music(client: AsyncClient, post_users):
     response = await client.post(
         f"/favorite_music",
         json={'user_id': 122, 'query': 'http://some-url.com',

@@ -9,7 +9,7 @@ from discord.ext import commands
 
 from api.service import Service
 from config import Config
-from utils import CustomWarning, logger, _init_channels, _fill_activity_info
+from utils import CustomWarning, _init_channels, _fill_activity_info, logger
 
 bot = commands.Bot(
     command_prefix='!',
@@ -34,8 +34,8 @@ class Permissions:
 
 @bot.event
 async def on_ready():
-
-    bot.loop.create_task(Service.deferrer.start())
+    asyncio.set_event_loop(bot.loop)
+    asyncio.create_task(Service.deferrer.start(bot.loop))
 
     bot.permissions = Permissions
 
@@ -44,17 +44,18 @@ async def on_ready():
         _fill_activity_info(),
     )
 
-    await bot.load_extension('bot')     # load only after init data
+    await bot.load_extension('bot')  # load only after init data
     with suppress(ClientConnectorError):
         sync_commands = ', '.join(map(str, await bot.tree.sync()))
 
-    logger.info("Bot have been started!")
-    logger.info(f'Synced commands: {sync_commands}')
+    logger.critical("Bot have been started!")
+    logger.critical(f'Synced commands: {sync_commands}')
 
 
 @bot.tree.error
 async def on_command_error(_, error):
     warnings.warn(error, CustomWarning)
+    logger.error(str(error))
 
 
 if __name__ == '__main__':

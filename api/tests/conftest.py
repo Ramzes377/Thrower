@@ -31,17 +31,20 @@ async def client(session: AsyncSession) -> Generator:
 
 
 @pytest_asyncio.fixture()
-async def post_user(client: AsyncClient):
-    # try:
+async def post_users(client: AsyncClient):
     response = await client.post(
         f"/user",
         json={'id': TEST_USER_ID, 'name': 'USER',
               'default_sess_name': 'Session name'}
     )
     assert response.status_code == 201
-    # except Exception as e:
-    #     print('aaaaaa', e)
-    #     pass
+
+    response = await client.post(
+        f"/user",
+        json={'id': TEST_USER_ID + 1, 'name': 'Another USER',
+              'default_sess_name': 'Another Session name'}
+    )
+    assert response.status_code == 201
 
 
 @pytest_asyncio.fixture()
@@ -88,7 +91,7 @@ async def end_activity(client: AsyncClient):
 
 
 @pytest_asyncio.fixture()
-async def add_session_member(client: AsyncClient, post_user, post_sessions):
+async def add_session_member(client: AsyncClient, post_users, post_sessions):
     with suppress(IntegrityError):
         await client.post(
             f"/session/{TEST_CHANNEL_ID}/members/{TEST_USER_ID}"

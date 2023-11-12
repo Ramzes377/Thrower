@@ -1,7 +1,8 @@
+from utils import CrudType
+from api import tables
 from api.schemas import ActivityInfo
 from api.specification import ActivityID
-from utils import CrudType
-from .. import crud_fabric, tables
+from api.service import crud_fabric
 
 router = crud_fabric(
     table=tables.ActivityInfo,

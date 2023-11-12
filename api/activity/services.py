@@ -25,18 +25,11 @@ class SrvActivities(CreateReadUpdate):
         specification = (AppID(activity.id) & UserID(activity.member_id)
                          & Unclosed())
 
-        query = (
-            self._base_query
-            .filter_by(**specification())
-            .order_by(self.table.begin.desc())
-        )
-
-        current_activity = partial(super().get, _query=query,
-                                   _multiple_result=True)
+        current_activity = partial(super().get,
+                                   _ordering=self.table.begin.desc())
 
         return await super().patch(
             specification,
             activity,
             get_method=current_activity,  # noqa
-            _multiple_result=True
         )

@@ -44,7 +44,7 @@ async def activity_info(
         app_id: AppID = Depends(),
         service: SrvActivities = Depends()
 ):
-    activity = await service.get(app_id, _multiple_result=True)
+    activity = await service.get(app_id)
     return activity.info
 
 

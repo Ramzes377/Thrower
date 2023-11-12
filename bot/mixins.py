@@ -8,7 +8,7 @@ from discord.ext import commands
 
 from constants import constants
 from .requests import BasicRequests
-from utils import logger, request
+from utils import request, logger
 
 sess_re = re.compile('[^a-zA-Z0-9а-яА-Я +]')
 
@@ -20,7 +20,7 @@ class BaseCogMixin(commands.Cog):
         super(BaseCogMixin, self).__init__()
         self.bot = bot
         if not sub_cog:
-            logger.info(constants.cog_started(name=type(self).__name__))
+            logger.critical(constants.cog_started(name=type(self).__name__))
 
     @staticmethod
     def get_app_id(user: discord.Member) -> int | None:

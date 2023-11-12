@@ -61,7 +61,7 @@ async def session_users(
     return sess.members
 
 
-@router.post('/{session_id}/members/{user_id}', response_model=User,
+@router.post('/{session_id}/members/{user_id}', response_model=User | None,
              status_code=status.HTTP_201_CREATED)
 async def session_add_member(
     session_id: SessionID = Depends(),

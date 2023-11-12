@@ -1,5 +1,6 @@
 from fastapi import Depends
 from sqlalchemy import select, Sequence
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.elements import BinaryExpression
@@ -42,6 +43,22 @@ class SrvSession(CreateReadUpdate):
         )
         return user_unclosed.first()
 
+    @staticmethod
+    async def _add_member_orm(session: AsyncSession,
+                              session_table: tables.Session,
+                              user: tables.Member):
+
+        async with session.begin():
+            try:
+                session_table.members.append(user)
+                session.add(session_table)
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+
+        async with session.begin():
+            await session.refresh(session_table)
+
     async def add_member(
             self,
             sess_specification: Specification,
@@ -51,11 +68,9 @@ class SrvSession(CreateReadUpdate):
             query = select(tables.Member).filter_by(**user_specification())
 
             user = await self.get(_query=query, session_=session)
-            session_table: tables.Session = await self.get(sess_specification,
-                                                           session_=session)
-            session_table.members.append(user)
+            session_table = await self.get(sess_specification, session_=session)
+            await self._add_member_orm(session, session_table, user)
 
-            await self._create(object_=session_table, session=session)
             return user
 
-        return await self.reflect_execute(_add_member)
+        return await self.reflect_execute(_add_member, repeat_on_failure=True)

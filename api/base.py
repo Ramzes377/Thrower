@@ -2,6 +2,7 @@ import asyncio
 
 import fastapi
 
+from api.service import Service
 from api import router
 from config import Config
 
@@ -16,7 +17,8 @@ def home():
 
 @app.on_event("startup")
 async def startup_event():
-    from api.service import Service
+    """ Init deferred task event loop when running web server manually. """
+
     asyncio.create_task(Service.deferrer.start())
 
 

@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_post_presences(client: AsyncClient, post_sessions):
+async def test_post_presences(client: AsyncClient, post_sessions, post_users):
     response = await client.post(f"/prescence",
                                  json={'channel_id': 1, 'member_id': 112,
                                        'begin': '2000-01-01 02:00:00'}
@@ -11,6 +11,12 @@ async def test_post_presences(client: AsyncClient, post_sessions):
     data = response.json()
     assert response.status_code == 201
     assert data['end'] is None
+
+    response = await client.post(f"/prescence",
+                                 json={'channel_id': 1, 'member_id': 113,
+                                       'begin': '2000-01-01 02:00:01'}
+                                 )
+    assert response.status_code == 201
 
 
 @pytest.mark.asyncio
@@ -36,7 +42,7 @@ async def test_get_presences(client: AsyncClient):
     response = await client.get(f"/prescence/1")
     data = response.json()
     assert response.status_code == 200
-    assert isinstance(data, list) and len(data) == 1
+    assert isinstance(data, list) and len(data) == 2
 
 
 @pytest.mark.asyncio
@@ -44,4 +50,4 @@ async def test_get_by_msg_presences(client: AsyncClient):
     response = await client.get(f"/prescence/by_msg/326")
     data = response.json()
     assert response.status_code == 200
-    assert isinstance(data, list) and len(data) == 1
+    assert isinstance(data, list) and len(data) == 2

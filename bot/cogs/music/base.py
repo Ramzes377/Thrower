@@ -7,7 +7,7 @@ import lavalink
 
 from constants import constants
 from config import Config
-from utils import logger
+from utils import discord_logger
 from bot.mixins import DiscordFeaturesMixin
 from .views import PlayerButtonsView
 from .views import create_view
@@ -104,7 +104,7 @@ class MusicBase(DiscordFeaturesMixin):
                         name=" за заказами 🎶"
                     )
                 )
-                logger.info("Ready to accept orders . . .")
+                discord_logger.info("Ready to accept orders . . .")
 
             case lavalink.events.QueueEndEvent:
 

@@ -1,4 +1,5 @@
-from api import crud_fabric, tables
+from api import tables
+from api import crud_fabric
 from api.schemas import ID
 from api.specification import SentMessageID
 

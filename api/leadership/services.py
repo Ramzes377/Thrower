@@ -20,48 +20,46 @@ class SrvLeadership(CreateReadUpdate):
                   session_: AsyncSession = None,
                   suppress_error: bool = False,
                   **additional_filters) -> BaseTable:
-        query = (
-            self._base_query
-            .filter_by(**specification())
-            .order_by(tables.Leadership.end.desc())
-        )
 
         return await super().get(specification,
                                  session_=session_,
-                                 _query=query,
-                                 suppress_error=True,
-                                 _multiple_result=True)
+                                 _ordering=tables.Leadership.end.desc(),
+                                 suppress_error=True)
 
     async def _end_current_leadership(
             self,
             leadership: Leadership | LeaderChange
     ) -> Leadership | None:
+        """ End current leadership of session."""
+
         specification = SessionID(leadership.channel_id) & Unclosed()
-        _leadership: tables.Leadership = await self.get(specification)
 
-        if _leadership is None:
-            return
-
-        return await super().patch(
-            specification,
-            {'end': leadership.begin},
-            get_method=self.get
-        )
+        if (_leadership := await self.get(specification)) is not None:
+            return await super().patch(
+                specification,
+                {'end': leadership.begin},
+                get_method=self.get
+            )
 
     async def history(self, specification: Specification) -> Sequence:
         return await super().all(query=self.query(specification))
 
     async def post(
             self,
-            leadership: Leadership | LeaderChange
+            leadership: Leadership | LeaderChange,
+            repeat_on_failure: bool = True,
     ) -> tables.Leadership | JSONResponse:
+        """
+        Set previous leadership as finished if exist
+        and creates new leadership of session.
+        """
+
         current = await self._end_current_leadership(leadership)
 
-        if leadership.member_id is None and current:  # session is closed
-            return JSONResponse(status_code=202,
-                                content=table_to_json(current))
+        if current and leadership.member_id is None:  # session is closed
+            return JSONResponse(status_code=202, content=table_to_json(current))
 
-        _leadership = await super().post(leadership)
+        _leadership = await super().post(leadership, repeat_on_failure)
         if current is not None:  # session not over and leader change
             return JSONResponse(status_code=202,
                                 content=table_to_json(_leadership))
