@@ -9,11 +9,9 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import text
 
 import api.tables
 
-# revision identifiers, used by Alembic.
 revision: str = '000'
 down_revision: Union[str, None] = None  # do not erase already existed data
 branch_labels: Union[str, Sequence[str], None] = None
@@ -81,8 +79,8 @@ def upgrade() -> None:
         sa.Column('leader_id', sa.Integer(), nullable=True),
         sa.Column('message_id', sa.Integer(), nullable=True),
         sa.Column('channel_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.CustomDateTime(), nullable=False),
-        sa.Column('end', api.tables.CustomDateTime(), nullable=True),
+        sa.Column('begin', api.tables.DateTime(), nullable=False),
+        sa.Column('end', api.tables.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('channel_id')
     )
     op.create_index(
@@ -96,9 +94,9 @@ def upgrade() -> None:
         'activity',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.CustomDateTime(),
+        sa.Column('begin', api.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.CustomDateTime(),
+        sa.Column('end', api.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['id'], ['activity_info.app_id'], ),
         sa.ForeignKeyConstraint(['member_id'], ['member.id'], ),
@@ -137,9 +135,9 @@ def upgrade() -> None:
         'leadership',
         sa.Column('channel_id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.CustomDateTime(),
+        sa.Column('begin', api.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.CustomDateTime(),
+        sa.Column('end', api.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['channel_id'],
                                 ['session.channel_id'], ),
@@ -167,9 +165,9 @@ def upgrade() -> None:
         'prescence',
         sa.Column('channel_id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.CustomDateTime(),
+        sa.Column('begin', api.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.CustomDateTime(),
+        sa.Column('end', api.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['channel_id'],
                                 ['session.channel_id'], ),
@@ -188,7 +186,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=True),
         sa.Column('app_id', sa.Integer(), nullable=False),
         sa.Column('guild_id', sa.Integer(), nullable=False,
-                  server_default=text('257878464667844618')),
+                  server_default=sa.text('257878464667844618')),
         sa.ForeignKeyConstraint(['app_id'],
                                 ['activity_info.app_id'], ),
         sa.PrimaryKeyConstraint('app_id', 'guild_id'),

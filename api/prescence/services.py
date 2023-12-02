@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import tables
 from api.specification import Specification
-from api.schemas import Prescence, EndPrescence
+from api.schemas import SessionLike, AnyFields
 from api.service import CreateReadUpdate
 from api.specification import SessionID, UserID, Unclosed
 from api.dependencies import db_sessions
@@ -44,12 +44,12 @@ class SrvPrescence(CreateReadUpdate):
 
     async def patch(
             self,
-            prescence: EndPrescence,
+            prescence: SessionLike,
             *args,
             get_method: Callable = None,
             session_: AsyncSession = None,
             **kwargs
-    ) -> Prescence:
+    ) -> SessionLike:
         specification = (SessionID(prescence.channel_id) &
                          UserID(prescence.member_id) & Unclosed())
 
@@ -62,6 +62,6 @@ class SrvPrescence(CreateReadUpdate):
 
         return await super().patch(
             specification=specification,
-            data=dict(end=prescence.end),
+            data=AnyFields(end=prescence.end),
             get_method=member_prescence,  # noqa
         )

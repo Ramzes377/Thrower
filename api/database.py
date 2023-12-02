@@ -3,9 +3,9 @@ import logging
 from api.tables import SessionFabric
 from config import Config
 
-logger = logging.FileHandler('sqlalchemy.log')
-logger.setLevel(logging.DEBUG)
-logging.getLogger('sqlalchemy').addHandler(logger)
+handler = logging.FileHandler('sqlalchemy.log')
+handler.setLevel(logging.DEBUG)
+logging.getLogger('sqlalchemy').addHandler(handler)
 
 # Creating sessions in semi-manual mode
 

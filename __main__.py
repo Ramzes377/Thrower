@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import discord
 from aiohttp import ClientConnectorError
 from discord.ext import commands
+from discord.ext.commands import ExtensionAlreadyLoaded
 
 from api.service import Service
 from config import Config
@@ -43,8 +44,8 @@ async def on_ready():
         _init_channels(bot),
         _fill_activity_info(),
     )
-
-    await bot.load_extension('bot')  # load only after init data
+    with suppress(ExtensionAlreadyLoaded):
+        await bot.load_extension('bot')  # load only after init data
     with suppress(ClientConnectorError):
         sync_commands = ', '.join(map(str, await bot.tree.sync()))
 

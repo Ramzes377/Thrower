@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import warnings
 from contextlib import suppress
@@ -6,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from logging.handlers import RotatingFileHandler
-from typing import Callable, Type
+from typing import Callable, Type, Coroutine
 
 import discord
 from fastapi import HTTPException
@@ -14,6 +13,7 @@ from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
 
 from config import Config
+from constants import constants
 
 offset = timedelta(hours=3)
 tzMoscow = timezone(offset, name='МСК')
@@ -31,8 +31,9 @@ def now() -> datetime:
     return datetime.now(tz=tzMoscow).replace(microsecond=0, tzinfo=None)
 
 
-def table_to_json(table) -> dict:
-    return jsonable_encoder(table.__dict__, exclude={'_sa_instance_state'})
+def table_to_json(table, *additional_exclude: tuple[str]) -> dict:
+    exclude = {'_sa_instance_state'} & set(additional_exclude)
+    return jsonable_encoder(table.__dict__, exclude=exclude)
 
 
 def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
@@ -182,6 +183,27 @@ class CustomWarning(Warning):
 warnings.formatwarning = CustomWarning.formatwarning
 
 
+@dataclass
+class CoroItem:
+    coro_fabric: Callable
+    coro_kwargs: dict
+    meta_kw: dict
+
+    def __post_init__(self):
+        self.meta_kw.setdefault('attempts_remain', 5)
+
+    def build_coro(self) -> Coroutine:
+        return self.coro_fabric(**self.coro_kwargs)
+
+    def decr(self):
+        self.meta_kw['attempts_remain'] -= 1
+
+    @property
+    def is_active(self) -> bool:
+        return (self.meta_kw['repeat_on_failure'] and
+                self.meta_kw['attempts_remain'] > 0)
+
+
 @dataclass(frozen=True)
 class GuildChannels:
     create: discord.VoiceChannel
@@ -215,10 +237,12 @@ async def create_if_not_exists(
 
 
 async def _fill_activity_info():
+    from api.service import Service
+
     all_activities = await request('activity_info')
     activity_ids = {row['app_id'] for row in all_activities}
 
-    url = 'https://discord.com/api/v10/applications/detectable'
+    url = constants.discord_detectable_apps_url
 
     async with AsyncClient() as client:
         response = await client.request('get', url)
@@ -234,16 +258,14 @@ async def _fill_activity_info():
         if app_id in activity_ids:
             continue
 
-        icon_url = f'https://cdn.discordapp.com/app-icons/{app_id}/{icon}.png?size=4096'
+        icon_url = constants.icon_url(app_id=app_id, icon=icon)
         game_data = {'icon_url': icon_url, 'app_id': app_id,
                      'app_name': app_name}
 
-        coroutines.append(
-            create_if_not_exists(
-                get_url=f'activity_info/{app_id}',
-                post_url='activity_info',
-                object_=game_data
-            )
+        await Service.deferrer.add(
+            CoroItem(coro_fabric=create_if_not_exists,
+                     coro_kwargs=dict(get_url=f'activity_info/{app_id}',
+                                      post_url='activity_info',
+                                      object_=game_data),
+                     meta_kw=dict(repeat_on_failure=True)),
         )
-
-    await asyncio.gather(*coroutines)

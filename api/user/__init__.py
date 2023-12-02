@@ -1,7 +1,8 @@
 from fastapi import Depends, APIRouter, status
 
 from .services import SrvUser
-from api.schemas import User, Session, IngameSeconds, DurationActivity
+from api.schemas import User, Session, IngameSeconds, DurationActivity, \
+    AnyFields
 from api.specification import AppID, RoleID, SessionMember, UserID
 
 router = APIRouter(prefix='/user', tags=['user'])
@@ -22,12 +23,13 @@ async def user_get(
         user_id: SessionMember = Depends(),
         service: SrvUser = Depends()
 ):
-    return await service.get(user_id)
+    u = await service.get(user_id)
+    return u
 
 
 @router.patch('/{user_id}', response_model=User)
 async def user_update(
-        userdata: dict,
+        userdata: AnyFields,
         user_id: SessionMember = Depends(),
         service: SrvUser = Depends()
 ):

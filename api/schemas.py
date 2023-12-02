@@ -1,74 +1,88 @@
 from datetime import datetime
+from typing import Optional
 
-from pydantic import BaseModel, NonNegativeInt
-
-
-class EncoderBase(BaseModel):
-    class Config:
-        json_encoders = {
-            datetime: str
-        }
-        from_attributes = True
+from pydantic import BaseModel, ConfigDict, PositiveInt
 
 
-class Role(EncoderBase):
+class Role(BaseModel):
     id: int
     app_id: int
     guild_id: int
 
 
-class Emoji(EncoderBase):
+class Emoji(BaseModel):
     id: int
     role_id: int
 
 
-class FavoriteMusic(EncoderBase):
+class FavoriteMusic(BaseModel):
     user_id: int
     query: str
-    title: str | None = None
-    counter: NonNegativeInt = None
+    title: Optional[str] = None
+    counter: Optional[PositiveInt] = None
 
 
-class User(EncoderBase):
+class User(BaseModel):
     id: int
     name: str
-    default_sess_name: str | None = None
+    default_sess_name: Optional[str] = None
 
 
-class ID(EncoderBase):
+class GuildForeign(BaseModel):
     id: int
+    guild_id: int
 
 
-class SessionLike(EncoderBase):
-    member_id: int
-    channel_id: int
-
-    begin: datetime
-    end: datetime | None = None
-
-
-class Session(EncoderBase):
+class Session(BaseModel):
     channel_id: int
     name: str
-    leader_id: int
+    leader_id: int = None
     creator_id: int
     message_id: int
     begin: datetime
-    end: datetime | None = None
+    end: Optional[datetime] = None
 
 
-class ActivityInfo(EncoderBase):
+class ActivityInfo(BaseModel):
     app_id: int
     app_name: str
     icon_url: str
 
 
-class Activity(EncoderBase):
+class Activity(BaseModel):
     member_id: int
     id: int
 
     begin: datetime
-    end: datetime | None = None
+    end: Optional[datetime] = None
+
+
+class SentMessage(BaseModel):
+    id: int
+    guild_id: int
+    channel_id: Optional[int] = None
+
+
+class DurationActivity(Activity):
+    duration: int
+
+
+class SessionLike(BaseModel):
+    member_id: Optional[int] = None
+    channel_id: int
+    begin: Optional[datetime] = None
+    end: Optional[datetime] = None
+
+
+class EndActivity(BaseModel):
+    id: int
+    member_id: int
+    end: datetime
+
+
+class GuildChannels(BaseModel):
+    id: int
+    initialized_channels: dict
 
 
 class IngameSeconds(BaseModel):
@@ -76,44 +90,8 @@ class IngameSeconds(BaseModel):
     seconds: int
 
 
-class DurationActivity(Activity):
-    duration: int
+class AnyFields(BaseModel):
+    model_config = ConfigDict(extra="allow")
 
-
-class Prescence(SessionLike):
-    end: datetime | None = None
-
-
-class Leadership(SessionLike):
-    member_id: int | None
-
-
-class LeaderChange(BaseModel):
-    channel_id: int
-    member_id: int | None
-    begin: datetime
-
-
-class EndPrescence(EncoderBase):
-    member_id: int
-    channel_id: int
-    end: datetime
-
-
-class EndActivity(EncoderBase):
-    member_id: int
-    id: int
-    end: datetime
-
-
-class EndSession(EncoderBase):
-    end: datetime
-
-
-class GuildForeign(ID):
-    guild_id: int
-
-
-class GuildChannels(EncoderBase):
-    id: int
-    initialized_channels: dict
+    # fields for type hints
+    id: Optional[int] = None

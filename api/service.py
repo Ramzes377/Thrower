@@ -1,28 +1,40 @@
 import logging
+from contextlib import suppress
+from typing import Callable, Any, Coroutine, Annotated, Optional, Protocol, \
+    Type, TYPE_CHECKING
 from functools import partial
-from typing import Callable, Any, Coroutine, Annotated, Optional, Protocol, Type
 
-from pydantic import BaseModel
-from fastapi import Depends, HTTPException, APIRouter, Query, status
-from sqlalchemy import select, Select, Sequence
+from fastapi import Depends, HTTPException, APIRouter, status, Query
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import BinaryExpression, UnaryExpression
 
 from config import Config
-from utils import NotFoundException, CrudType, format_dict, table_to_json
+from utils import NotFoundException, CrudType, format_dict, table_to_json, \
+    CoroItem
 from constants import constants
-from .deffered import DeferredTasksProcessor
-from .specification import Specification
-from .tables import Base as BaseTable
-from .dependencies import db_sessions
+from api.deffered import DeferredTasksProcessor
+from api.dependencies import db_sessions
+
+if TYPE_CHECKING:
+    from api.tables import Base as BaseTable
+    from api.specification import Specification
+
+    from pydantic import BaseModel
+
+    from sqlalchemy import Select, Sequence
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.sql.elements import BinaryExpression, UnaryExpression
 
 log = logging.getLogger(name="thrower.api")
 
 
 class Service:
-    table: BaseTable = None
-    order_by: UnaryExpression = None
+    table: Optional["BaseTable"] = None
+    order_by: Optional["UnaryExpression"] = None
+
+    @property
+    def _name(self):
+        return self.table.__name__
 
     deferrer = DeferredTasksProcessor(sleep_seconds=Config.defer_sleep_seconds)
 
@@ -43,24 +55,28 @@ class Service:
         log.debug(constants.log_reflect_begin(coro_fabric=coro_fabric))
 
         resp = await coro_fabric(session=self._session)
-        log.debug(
-            constants.log_reflect_main_response(response=table_to_json(resp))
-        )
+        if resp is not None:
+            log.debug(
+                constants.log_reflect_main_response(
+                    response=table_to_json(resp))
+            )
 
         for other_session in self._other_sessions:
             log.debug(constants.log_reflect_execution(session=other_session))
             await self.coro_handler(
-                coro_fabric=coro_fabric,
-                coro_kwargs=dict(session=other_session),
+                coro_item=CoroItem(coro_fabric=coro_fabric,
+                                   coro_kwargs=dict(session=other_session),
+                                   meta_kw=dict(
+                                       repeat_on_failure=repeat_on_failure)
+                                   ),
                 is_ordered=is_ordered,
-                repeat_on_failure=repeat_on_failure
             )
 
         return resp
 
     def __init__(
             self,
-            sessions: tuple[AsyncSession, ...] = Depends(db_sessions),
+            sessions: tuple["AsyncSession", ...] = Depends(db_sessions),
             defer_handle: Annotated[
                 bool, Query(include_in_schema=False)
             ] = True,
@@ -77,8 +93,8 @@ class Service:
 
 class GetORM(Protocol):
     async def __call__(self,
-                       specification: Specification,
-                       session_: AsyncSession = None,
+                       specification: "Specification",
+                       session_: "AsyncSession" = None,
                        suppress_error: bool = False,
                        **additional_filters: Any) -> Service:
         ...
@@ -87,13 +103,13 @@ class GetORM(Protocol):
 class Create(Service):
 
     async def _create(self,
-                      session: AsyncSession,
+                      session: "AsyncSession",
                       data: Optional[dict] = None,
-                      object_: Optional[BaseTable] = None,
+                      object_: Optional["BaseTable"] = None,
                       suppress_unique_error: bool = True,
-                      suppress_any_error: bool = False) -> BaseModel | None:
+                      suppress_any_error: bool = False) -> Optional["BaseModel"]:
         if object_ is None:
-            object_: BaseTable = self.table(**data)
+            object_: "BaseTable" = self.table(**data)
 
         async with session.begin() as transaction:
             try:
@@ -101,7 +117,8 @@ class Create(Service):
                                          specs=format_dict(data))
                 log.debug(constants.log_object_creation(object=o))
                 session.add(object_)
-                await session.flush()
+                with suppress(RuntimeError):
+                    await session.flush()
             except IntegrityError as e:
                 await transaction.rollback()
                 log.debug(constants.log_unique_error)
@@ -118,33 +135,32 @@ class Create(Service):
         return object_
 
     async def post(self,
-                   data: BaseModel,
-                   repeat_on_failure: bool = True) -> BaseTable:
+                   data: "BaseModel",
+                   repeat_on_failure: bool = True) -> "BaseTable":
         create = partial(self._create, data=data.model_dump())
-        return await self.reflect_execute(create,
-                                          repeat_on_failure=repeat_on_failure)
+        return await self.reflect_execute(create, repeat_on_failure)
 
 
 class Read(Service):
 
     @property
-    def _query(self) -> Select:
+    def _query(self) -> "Select":
         query = self._base_query
         if self._order_by is not None:
             query = query.order_by(self._order_by)
         return query
 
-    def query(self, specification: Specification, *_, **kw) -> Select:
+    def query(self, specification: "Specification", *_, **kw) -> "Select":
         return self._query.filter_by(**specification()).filter_by(**kw)
 
     async def get(self,
-                  specification: Optional[Specification] = None,
-                  session_: AsyncSession = None,
+                  specification: Optional["Specification"] = None,
+                  session_: "AsyncSession" = None,
                   suppress_error: bool = False,
                   *,
-                  _query: Optional[Select] = None,
-                  _ordering: UnaryExpression = None,
-                  **additional_filters: Any) -> BaseTable:
+                  _query: Optional["Select"] = None,
+                  _ordering: "UnaryExpression" = None,
+                  **additional_filters: Any) -> "BaseTable":
 
         session = session_ or self._session
 
@@ -156,9 +172,7 @@ class Read(Service):
 
         specs = specification() if specification else {}
         specs = format_dict({**specs, **additional_filters})
-        db_request = constants.db_request(table_name=self.table.__name__,
-                                          specs=specs)
-
+        db_request = constants.db_request(table_name=self._name, specs=specs)
         log.debug(constants.log_get_object(filters=db_request))
 
         async with session.begin():
@@ -173,22 +187,21 @@ class Read(Service):
                 raise HTTPException(status_code=404, detail=details)
 
         params = table_to_json(object_) if object_ else {}
-        db_request = constants.db_request(table_name=self.table.__name__,
+        db_request = constants.db_request(table_name=self._name,
                                           specs=format_dict(params))
         log.debug(constants.log_success_get(object=db_request))
 
         return object_
 
     async def all(self,
-                  filter_: Optional[BinaryExpression] = None,
-                  specification: Optional[Specification] = None,
+                  filter_: Optional["BinaryExpression"] = None,
+                  specification: Optional["Specification"] = None,
                   *,
-                  query: Select | None = None,
-                  **kwargs) -> Sequence:
+                  query: Optional["Select"] = None,
+                  **kwargs) -> "Sequence":
         specs = specification() if specification else {}
         specs = format_dict(specs)
-        db_request = constants.db_request(table_name=self.table.__name__,
-                                          specs=specs)
+        db_request = constants.db_request(table_name=self._name, specs=specs)
         log.debug(constants.log_all_rows(request=db_request,
                                          filter=filter_))
 
@@ -203,8 +216,7 @@ class Read(Service):
 
         r = r.all()
 
-        log.debug(constants.log_success_all_get(count=len(r),
-                                                type=self.table.__name__))
+        log.debug(constants.log_success_all_get(count=len(r), type=self._name))
 
         return r
 
@@ -212,8 +224,8 @@ class Read(Service):
 class Update(Read):
     @staticmethod
     async def update(object_: Service,
-                     data: BaseModel | dict,
-                     session: AsyncSession) -> None:
+                     data: "BaseModel",
+                     session: "AsyncSession") -> None:
         """ Update orm object  """
 
         log.debug(
@@ -221,9 +233,9 @@ class Update(Read):
                                         params=data)
         )
 
-        iterable = data.items() if isinstance(data, dict) else data
-        for k, v in iterable:
-            setattr(object_, k, v)
+        for field in data.model_fields_set:
+            field_value = getattr(data, field)
+            setattr(object_, field, field_value)
 
         async with session.begin_nested():
             try:
@@ -235,15 +247,15 @@ class Update(Read):
                 raise e
 
     async def patch(self,
-                    specification: Specification,
-                    data: BaseModel | dict,
-                    session_: Optional[AsyncSession] = None,
+                    specification: "Specification",
+                    data: "BaseModel",
+                    session_: Optional["AsyncSession"] = None,
                     *,
                     get_method: Optional[GetORM] = None,
                     suppress_error: bool = False,
-                    **kwargs) -> BaseTable:
+                    **kwargs) -> "BaseTable":
 
-        async def _patch(_get: GetORM, session: AsyncSession) -> BaseTable:
+        async def _patch(_get: GetORM, session: "AsyncSession") -> "BaseTable":
             object_ = await _get(specification, session, suppress_error)
 
             if suppress_error and object_ is None:
@@ -260,7 +272,7 @@ class Update(Read):
 
 class Delete(Read):
     @staticmethod
-    async def erase(object_: BaseTable, session: AsyncSession) -> None:
+    async def erase(object_: "BaseTable", session: "AsyncSession") -> None:
 
         async with session.begin():
             try:
@@ -270,13 +282,12 @@ class Delete(Read):
                 await session.rollback()
                 raise e
 
-    async def delete(self, specification: Specification) -> None:
+    async def delete(self, specification: "Specification") -> None:
 
         specs = format_dict(specification())
-        db_request = constants.db_request(table_name=self.table.__name__,
-                                          specs=specs)
+        db_request = constants.db_request(table_name=self._name, specs=specs)
 
-        async def _delete(session: AsyncSession):
+        async def _delete(session: "AsyncSession"):
             log.debug(constants.log_delete_object(filters=db_request))
 
             if object_ := await self.get(specification, session_=session):
@@ -301,11 +312,11 @@ class CRUD(Delete, CreateReadUpdate):
     ...
 
 
-def crud_fabric(table: BaseTable,
+def crud_fabric(table: "BaseTable",
                 relative_path: str,
                 get_path: str,
-                specification: Specification,
-                response_model: Type[BaseModel] | dict = dict,
+                specification: "Specification",
+                response_model: Type["BaseModel"],
                 *,
                 include_in_schema: bool = True,
                 with_all: bool = True,

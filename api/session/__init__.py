@@ -2,8 +2,8 @@ from fastapi import Depends, APIRouter, status
 
 from .services import SrvSession
 from api import tables
-from api.schemas import (Session, User, Prescence, Activity, Leadership,
-                         EndSession)
+from api.schemas import (Session, User, SessionLike, Activity,
+                         AnyFields)
 from api.specification import SessionID, MessageID, LeaderID, SessionMember
 
 router = APIRouter(prefix='/session', tags=['session'])
@@ -46,7 +46,7 @@ async def session(
 @router.patch('/{session_id}', response_model=Session)
 async def session(
     session_id: SessionID = Depends(),
-    sess_data: Session | EndSession | dict = None,
+    sess_data: Session | AnyFields = None,
     service: SrvSession = Depends()
 ):
     return await service.patch(session_id, sess_data)
@@ -88,7 +88,7 @@ async def session_activities(
     return sess.activities
 
 
-@router.get('/{message_id}/leadership', response_model=list[Leadership])
+@router.get('/{message_id}/leadership', response_model=list[SessionLike])
 async def session_leadership(
     message_id: MessageID = Depends(),
     service: SrvSession = Depends()
@@ -97,7 +97,7 @@ async def session_leadership(
     return sess.leadership
 
 
-@router.get('/{message_id}/prescence', response_model=list[Prescence])
+@router.get('/{message_id}/prescence', response_model=list[SessionLike])
 async def session_prescence(
     message_id: MessageID = Depends(),
     service: SrvSession = Depends()

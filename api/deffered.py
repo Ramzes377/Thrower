@@ -1,20 +1,21 @@
 import asyncio
 from asyncio import AbstractEventLoop
 from asyncio import Queue as AsyncQueue
-from typing import Coroutine, Callable
 
 from fastapi import HTTPException
 
-from utils import discord_logger
+from constants import constants
+from utils import logger, CoroItem
 
 
 class DeferredTasksProcessor:
+    repeat_attempts = 5
     _event_loop = None
 
     def __init__(self, sleep_seconds: int = 30):
 
-        self._unordered_items: list[Coroutine] = []
-        self._ordered_items: AsyncQueue[tuple[Callable, dict, dict]] = AsyncQueue()
+        self._unordered_items: AsyncQueue[CoroItem] = AsyncQueue()
+        self._ordered_items: AsyncQueue[CoroItem] = AsyncQueue()
 
         self.sleep_seconds = sleep_seconds
 
@@ -28,52 +29,64 @@ class DeferredTasksProcessor:
         self._ordered_items = AsyncQueue()
 
     async def add(self,
-                  coro_fabric: Callable,
-                  coro_kwargs: dict,
-                  repeat_on_failure: bool,
+                  coro_item: CoroItem,
                   is_ordered: bool = True) -> None:
         """ Add item to deferred tasks execution container. """
 
         if is_ordered:
-            await self._ordered_items.put(
-                (coro_fabric, coro_kwargs,
-                 dict(repeat_on_failure=repeat_on_failure))
-            )
+            await self._ordered_items.put(coro_item)
         else:
-            coro: Coroutine = coro_fabric(**coro_kwargs)
-            self._unordered_items.append(coro)
+            await self._unordered_items.put(coro_item)
 
     async def _run_unordered(self) -> None:
-        await asyncio.gather(*self._unordered_items)
-        self._unordered_items.clear()
+        unordered = [] #self._unordered_items.copy()
+        while not self._unordered_items.empty():
+            unordered.append(await self._unordered_items.get())
+        try:
+            logger.debug(constants.log_unordered_tasks(num=len(unordered)))
+            [item.decr() for item in unordered]
+            coroutines = [item.build_coro() for item in unordered]
+            results = await asyncio.gather(*coroutines, return_exceptions=True)
+        except Exception as e:  # noqa
+            # If task will not have time to complete, and some coroutine
+            # raises exception this task also raise asyncio.CancelledError
+            # TODO: potentially it can create loop when all items wait for only
+            #  one that raises exception too fast for some reason. Maybe need
+            #  to create additional "chill-container"
+            for r, item in zip(results, unordered):  # noqa
+                if isinstance(r, Exception) and item.is_active:
+                    await self.add(coro_item=item, is_ordered=False)
+            logger.debug(
+                constants.log_unordered_tasks_complete(
+                    num=len(unordered) - len(self._unordered_items)
+                )
+            )
 
     async def _run_ordered(self) -> None:
         while not self._ordered_items.empty():
-            discord_logger.debug(f'Current tasks num: {self._ordered_items.qsize()}')
+            logger.debug(f'Current tasks num: {self._ordered_items.qsize()}')
 
-            coro_fabric, coro_kwargs, kw = await self._ordered_items.get()
-            coro: Coroutine = coro_fabric(**coro_kwargs)
+            coro_item = await self._ordered_items.get()
+            coro = coro_item.build_coro()
             try:
-                discord_logger.debug(f"Execute coro: {coro}")
+                coro_item.decr()
+                logger.debug(f"Execute coro: {coro}")
                 resp = await coro
-                discord_logger.debug(f"Response: {resp}")
+                logger.debug(f"Response: {resp}")
             except HTTPException as e:
-                discord_logger.debug(e.detail)
-                if kw['repeat_on_failure']:
-                    await self.add(coro_fabric, coro_kwargs, **kw)
+                logger.debug(e.detail)
+                if coro_item.is_active:
+                    await self.add(coro_item)
                 continue
             except Exception as e:
-                discord_logger.debug(e)
-                if kw['repeat_on_failure']:
-                    await self.add(coro_fabric, coro_kwargs, **kw)
+                logger.debug(e)
+                if coro_item.is_active:
+                    await self.add(coro_item)
                 continue
 
     async def start(self, loop: AbstractEventLoop) -> None:
         self.event_loop = loop
 
         while True:
-            await asyncio.gather(
-                self._run_unordered(),
-                self._run_ordered()
-            )
+            await self._run_ordered()
             await asyncio.sleep(self.sleep_seconds)

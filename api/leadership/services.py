@@ -5,7 +5,7 @@ from starlette.responses import JSONResponse
 from api import tables
 from api.specification import Specification
 from api.tables import Base as BaseTable
-from api.schemas import Leadership, LeaderChange
+from api.schemas import SessionLike, AnyFields
 from api.service import CreateReadUpdate
 from api.specification import SessionID, Unclosed
 from utils import table_to_json
@@ -28,8 +28,8 @@ class SrvLeadership(CreateReadUpdate):
 
     async def _end_current_leadership(
             self,
-            leadership: Leadership | LeaderChange
-    ) -> Leadership | None:
+            leadership: SessionLike
+    ) -> SessionLike | None:
         """ End current leadership of session."""
 
         specification = SessionID(leadership.channel_id) & Unclosed()
@@ -37,7 +37,7 @@ class SrvLeadership(CreateReadUpdate):
         if (_leadership := await self.get(specification)) is not None:
             return await super().patch(
                 specification,
-                {'end': leadership.begin},
+                AnyFields(end=leadership.begin),    # noqa
                 get_method=self.get
             )
 
@@ -46,7 +46,7 @@ class SrvLeadership(CreateReadUpdate):
 
     async def post(
             self,
-            leadership: Leadership | LeaderChange,
+            leadership: SessionLike,
             repeat_on_failure: bool = True,
     ) -> tables.Leadership | JSONResponse:
         """

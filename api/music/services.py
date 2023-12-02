@@ -1,12 +1,9 @@
-from contextlib import suppress
+from sqlalchemy import update
 
-from fastapi import HTTPException
-
-from api.specification import MusicUserID, QueryFilter
 from api import tables
-from api.specification import Specification
 from api.schemas import FavoriteMusic
 from api.service import CreateReadUpdate
+from api.specification import MusicUserID, QueryFilter, Specification
 
 
 class SrvFavoriteMusic(CreateReadUpdate):
@@ -21,18 +18,21 @@ class SrvFavoriteMusic(CreateReadUpdate):
         records = await self._session.scalars(self.query(user_id).limit(amount))
         return records.all()
 
-    async def post(self, music_data: FavoriteMusic) -> tables.FavoriteMusic:
+    async def post(self, music_data: FavoriteMusic, *_) -> dict:
         specification = MusicUserID(music_data.user_id) & QueryFilter(
             music_data.query)
-
-        with suppress(HTTPException):
-            record = await self.get(specification)
-            # track already exists, just increasing it counter
-            modified_record = await self.patch(
-                specification,
-                {'counter': record.counter + 1},
-                suppress_error=True
+        stmt = (
+                update(self.table)
+                .filter_by(**specification())
+                .values(counter=self.table.counter + 1)
+                .returning(self.table.counter)
             )
-            return modified_record
+
+        async with self._session.begin():
+            r = await self._session.execute(stmt)
+            if (counter := r.scalars().first()) is not None:
+                return {'user_id': music_data.user_id,
+                        'query': music_data.query,
+                        'counter': counter}
 
         return await super().post(music_data)

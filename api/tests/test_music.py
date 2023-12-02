@@ -23,7 +23,7 @@ async def test_post_music(client: AsyncClient, post_users):
 
     response = await client.post(
         f"/favorite_music",
-        json={'user_id': 122, 'query': 'http://some-another-url.com'}
+        json={'user_id': 122, 'query': 'http://some-another-url.com', 'title': 'Another Track Name'}
     )
     assert response.status_code == 201  # create another user-music note
 

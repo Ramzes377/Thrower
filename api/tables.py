@@ -1,105 +1,72 @@
 import asyncio
-import datetime
-from typing import Union
+from datetime import datetime
+from contextlib import suppress
+from functools import partial
+from typing import Union, Generator, Optional, Callable
 
 from sqlalchemy import (
-    Table, Text, and_, or_, Column, DateTime, Integer, ForeignKey, select,
-    TypeDecorator, JSON, Engine, BigInteger
+    Text, and_, or_, Column, DateTime, Integer, ForeignKey,
+    JSON, Engine, BigInteger, UniqueConstraint, create_engine
 )
-
+from sqlalchemy.exc import IllegalStateChangeError
+from sqlalchemy.ext.asyncio import (AsyncSession, AsyncEngine,
+                                    async_sessionmaker, create_async_engine)
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import relationship, remote, declared_attr, \
-    declarative_base, sessionmaker
-from sqlalchemy.sql import func, cast
+from sqlalchemy.orm import (relationship, remote, sessionmaker, mapped_column,
+                            Mapped)
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, \
-    AsyncEngine, create_async_engine
 
 Base = declarative_base()
 
-seconds_in_day = 24 * 60 * 60
-
-IntegerVariant = BigInteger().with_variant(Integer, "sqlite")
-
-
-class CustomDateTime(TypeDecorator):
-    impl = DateTime
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if type(value) is str:
-            return datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%S')
-        return value
+IntegerVariant = BigInteger().with_variant(Integer, 'sqlite')
+mapped_integer = partial(mapped_column, IntegerVariant)
 
 
 class BaseTimePeriod:
-    begin = Column(CustomDateTime, nullable=False)
-    end = Column(CustomDateTime, nullable=True)
+    begin: Mapped[datetime] = Column(DateTime, nullable=False)
+    end: Mapped[datetime] = Column(DateTime, nullable=True)
 
     @hybrid_property
     def duration(self):
         return (self.end - self.begin).seconds
 
-    @duration.expression
-    def duration(self):
-        seconds = cast(
-            seconds_in_day * (
-                    func.julianday(self.end) - func.julianday(self.begin)),
-            IntegerVariant
-        )
-        return select(func.coalesce(seconds, 0))
-
 
 class PrimaryBegin(BaseTimePeriod):
-    begin = Column(CustomDateTime, primary_key=True)
+    begin: Mapped[datetime] = mapped_column(DateTime, primary_key=True)
 
 
 class SessionLike(BaseTimePeriod):
-    @declared_attr
-    def channel_id(self):
-        return Column(IntegerVariant, ForeignKey('session.channel_id'),
-                      primary_key=True, index=True)
+    __abstract__ = True
 
-    @declared_attr
-    def member_id(self):
-        return Column(
-            IntegerVariant,
-            ForeignKey("member.id"),
-            primary_key=True,
-            index=True
-        )
-
-    @declared_attr
-    def begin(self):
-        return Column(CustomDateTime, primary_key=True)
-
-
-member_session = Table(
-    "member_session",
-    Base.metadata,  # noqa
-    Column("member_id", ForeignKey("member.id"), primary_key=True, index=True),
-    Column("channel_id", ForeignKey("session.channel_id"), primary_key=True,
-           index=True),
-)
+    channel_id: Mapped[int] = mapped_integer(
+        ForeignKey('session.channel_id'),
+        primary_key=True,
+        index=True
+    )
+    member_id: Mapped[int] = mapped_integer(
+        ForeignKey('member.id'),
+        primary_key=True,
+        index=True
+    )
+    begin: Mapped[datetime] = mapped_column(DateTime, primary_key=True)
 
 
 class Activity(Base, PrimaryBegin):
     __tablename__ = 'activity'
 
-    id = Column(
-        IntegerVariant,
+    id: Mapped[int] = mapped_column(
         ForeignKey('activity_info.app_id'),
         primary_key=True,
         index=True
     )
-    member_id = Column(
-        IntegerVariant,
+    member_id: Mapped[int] = mapped_column(
         ForeignKey('member.id'),
         primary_key=True,
         index=True
     )
 
-    info = relationship("ActivityInfo", lazy="selectin")
+    info = relationship('ActivityInfo', lazy='selectin')
 
 
 class Leadership(Base, SessionLike):
@@ -110,53 +77,78 @@ class Prescence(Base, SessionLike):
     __tablename__ = 'prescence'
 
 
+class MemberSessionAssociation(Base):
+    __tablename__ = 'member_session'
+    __table_args__ = (
+        UniqueConstraint(
+            'member_id',
+            'channel_id',
+            name='idx_unique_member_session'
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    member_id: Mapped[int] = mapped_column(
+        ForeignKey('member.id'),
+        index=True,
+    )
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey('session.channel_id'),
+        index=True,
+    )
+
+
 class Member(Base):
     __tablename__ = 'member'
 
-    id = Column(IntegerVariant, primary_key=True, index=True)
+    id: Mapped[int] = mapped_integer(primary_key=True, index=True)
 
-    name = Column(Text)
-    default_sess_name = Column(Text, default=None)
+    name: Mapped[str]
+    default_sess_name: Mapped[Optional[str]]
 
-    sessions = relationship(
-        "Session",
-        secondary=member_session,
+    sessions: Mapped[list['Session']] = relationship(
+        'Session',
+        secondary='member_session',
         back_populates='members',
         uselist=True,
         lazy='dynamic'
     )
-    activities = relationship(
-        "Activity",
-        lazy='dynamic'
+    activities: Mapped[list['Activity']] = relationship(
+        'Activity',
+        lazy='selectin'
     )
-    prescences = relationship("Prescence")
+    prescences: Mapped[list['Prescence']] = relationship('Prescence')
 
 
 class Session(Base, BaseTimePeriod):
     __tablename__ = 'session'
 
-    name = Column(Text)
-    creator_id = Column(IntegerVariant)
-    leader_id = Column(IntegerVariant)
-    message_id = Column(IntegerVariant)
+    name: Mapped[str]
+    creator_id: Mapped[int] = mapped_integer()
+    leader_id: Mapped[int] = mapped_integer()
+    message_id: Mapped[int] = mapped_integer()
 
-    channel_id = Column(IntegerVariant, primary_key=True, index=True)
+    channel_id: Mapped[int] = mapped_integer(primary_key=True, index=True)
 
-    prescence = relationship("Prescence", lazy='selectin')
-
-    leadership = relationship(
-        "Leadership",
-        uselist=True,
-        lazy='subquery',
+    prescence: Mapped[list['Prescence']] = relationship(
+        'Prescence',
+        lazy='selectin'
     )
-    members = relationship(
-        "Member",
+
+    leadership: Mapped[list['Leadership']] = relationship(
+        'Leadership',
+        uselist=True,
+        lazy='selectin',
+    )
+    members: Mapped[list['Member']] = relationship(
+        'Member',
         secondary='member_session',
         back_populates='sessions',
         uselist=True,
-        lazy='subquery'
+        lazy='selectin',
+        innerjoin=True,
     )
-    activities = relationship(
+    activities: Mapped[list['Activity']] = relationship(
         'Activity',
         innerjoin=True,
         lazy='immediate',
@@ -165,8 +157,8 @@ class Session(Base, BaseTimePeriod):
         order_by=Activity.begin,
         primaryjoin=  # noqa
         and_(
-            channel_id == remote(member_session.c.channel_id),
-            member_session.c.member_id == Member.id,
+            channel_id == remote(MemberSessionAssociation.channel_id),
+            MemberSessionAssociation.member_id == Member.id,
             Member.id == Activity.member_id,
             Prescence.member_id == Member.id,
             channel_id == Prescence.channel_id,
@@ -193,14 +185,14 @@ class Session(Base, BaseTimePeriod):
 class ActivityInfo(Base):
     __tablename__ = 'activity_info'
 
-    app_name = Column(Text)
-    icon_url = Column(Text)
+    app_id: Mapped[int] = mapped_integer(index=True, primary_key=True)
 
-    app_id = Column(IntegerVariant, index=True, primary_key=True)
+    app_name: Mapped[str]
+    icon_url: Mapped[str]
 
-    role = relationship(
-        "Role",
-        back_populates="info",
+    role: Mapped['Role'] = relationship(
+        'Role',
+        back_populates='info',
         uselist=False,
         lazy='selectin'
     )
@@ -209,31 +201,33 @@ class ActivityInfo(Base):
 class Role(Base):
     __tablename__ = 'role'
 
-    id = Column(IntegerVariant, index=True)
-    info = relationship("ActivityInfo", lazy="selectin")
-
-    app_id = Column(
-        IntegerVariant,
-        ForeignKey("activity_info.app_id"),
+    id: Mapped[int] = mapped_integer(index=True)
+    app_id: Mapped[int] = mapped_integer(
+        ForeignKey('activity_info.app_id'),
         primary_key=True
     )
-    guild_id = Column(
-        IntegerVariant,
+    guild_id: Mapped[int] = mapped_integer(
         ForeignKey('guild.id'),
         primary_key=True,
-        default=257878464667844618
+        nullable=False,
+        server_default='257878464667844618'
     )
 
-    emoji = relationship(
-        "Emoji",
-        back_populates="role",
-        lazy="selectin",
-        cascade="all, delete",
+    info: Mapped['ActivityInfo'] = relationship(
+        'ActivityInfo',
+        lazy='selectin',
         uselist=False
     )
-    guild = relationship(
-        "Guild",
-        lazy="selectin",
+    emoji: Mapped['Emoji'] = relationship(
+        'Emoji',
+        back_populates='role',
+        lazy='selectin',
+        cascade='all, delete',
+        uselist=False
+    )
+    guild: Mapped['Guild'] = relationship(
+        'Guild',
+        lazy='selectin',
         uselist=False
     )
 
@@ -241,46 +235,52 @@ class Role(Base):
 class Emoji(Base):
     __tablename__ = 'emoji'
 
-    id = Column(IntegerVariant, index=True)
+    id: Mapped[int] = mapped_integer(index=True)
 
-    role_id = Column(IntegerVariant, ForeignKey("role.id"),
-                     primary_key=True,
-                     index=True)
-    role = relationship("Role")
+    role_id: Mapped[int] = mapped_integer(
+        ForeignKey('role.id'),
+        primary_key=True,
+        index=True
+    )
+    role: Mapped['Role'] = relationship('Role')
 
 
 class FavoriteMusic(Base):
     __tablename__ = 'favorite_music'
 
-    user_id = Column(
-        IntegerVariant,
+    user_id: Mapped[int] = mapped_integer(
         ForeignKey('member.id'),
         primary_key=True,
         index=True
     )
-    title = Column(Text)
+    title: Mapped[str]
 
-    query = Column(
-        Text().with_variant(mysql.VARCHAR(length=512, charset="utf8"),
-                            "mysql"),
+    query: Mapped[str] = mapped_column(
+        Text().with_variant(mysql.VARCHAR(length=512, charset='utf8'),
+                            'mysql'),
         primary_key=True
     )
-    counter = Column(IntegerVariant, default=1)
+    counter: Mapped[int] = mapped_integer(default=1)
 
 
 class SentMessage(Base):
     __tablename__ = 'sent_message'
 
-    id = Column(IntegerVariant, primary_key=True, index=True)
-    guild_id = Column(IntegerVariant, ForeignKey('guild.id'))
+    id: Mapped[int] = mapped_integer(primary_key=True, index=True)
+    guild_id: Mapped[int] = mapped_integer(ForeignKey('guild.id'))
+    channel_id: Mapped[Optional[int]]
 
 
 class Guild(Base):
     __tablename__ = 'guild'
 
-    id = Column(IntegerVariant, primary_key=True, index=True)
+    id: Mapped[int] = mapped_integer(primary_key=True, index=True)
 
-    initialized_channels = Column(JSON, nullable=False, default={})
+    initialized_channels: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+        default={}
+    )
 
 
 class SessionFabric:
@@ -291,11 +291,7 @@ class SessionFabric:
                 async with _engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
 
-            try:
-                asyncio.create_task(init_models(self.engine))
-            except RuntimeError:
-                asyncio.run(init_models(self.engine))
-
+            asyncio.run(init_models(self.engine))
         else:
             Base.metadata.create_all(bind=self.engine)
 
@@ -311,46 +307,56 @@ class SessionFabric:
         self.init_tables()
 
     @staticmethod
-    def _build(
-            db_uri: str,
-            connect_args: dict | None = None,
-    ) -> tuple[AsyncEngine, async_sessionmaker]:
+    def _build(db_uri: str,
+               connect_args: dict | None = None,
+               is_async: bool = True) -> tuple[AsyncEngine, async_sessionmaker]:
         if connect_args is None:
             connect_args = {}
 
-        engine = create_async_engine(
-            db_uri,
-            echo=False,
-            pool_pre_ping=True,
-            connect_args=connect_args
-        )
-        session_maker = async_sessionmaker(
-            engine, class_=AsyncSession, expire_on_commit=False
-        )
+        if is_async:
+            engine = create_async_engine(
+                db_uri,
+                echo=False,
+                pool_pre_ping=True,
+                connect_args=connect_args
+            )
+            session_maker = async_sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
+        else:
+            engine = create_engine(
+                db_uri,
+                echo=False,
+                pool_pre_ping=True,
+                connect_args=connect_args
+            )
+            session_maker = sessionmaker(engine, expire_on_commit=False)
 
         return engine, session_maker
 
     @classmethod
-    def build(
-            cls,
-            db_uri: str,
-            connect_args: dict | None = None,
-    ):
+    def build(cls,
+              db_uri: str,
+              connect_args: Optional[dict] = None,
+              is_async: bool = True) -> Callable:
         engine, session_maker = cls._build(
             db_uri=db_uri,
             connect_args=connect_args,
+            is_async=is_async,
         )
         self = cls(
             engine=engine,
             session_maker=session_maker,
+            is_async=is_async,
         )
 
-        return self.get_session
+        return self.get_async if self.is_async else self.get_sync
 
-    async def get_session(self) -> AsyncSession:
-        if self.is_async:
+    async def get_async(self) -> Generator:
+        with suppress(IllegalStateChangeError):
             async with self.session_maker() as session:
                 yield session
-        else:
-            with self.session_maker() as session:
-                yield session
+
+    def get_sync(self) -> Generator:
+        with self.session_maker() as session:
+            yield session

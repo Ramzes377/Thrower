@@ -1,25 +1,28 @@
 import asyncio
+from contextlib import asynccontextmanager
 
-import fastapi
+from fastapi import FastAPI, responses
 
 from api.service import Service
 from api import router
 from config import Config
 
-app = fastapi.FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """ Init deferred task event loop when running web server manually. """
+    loop = asyncio.get_event_loop()
+    asyncio.create_task(Service.deferrer.start(loop=loop))
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 
 
 @app.get('/')
 def home():
-    return fastapi.responses.RedirectResponse("docs")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """ Init deferred task event loop when running web server manually. """
-
-    asyncio.create_task(Service.deferrer.start())
+    return responses.RedirectResponse("docs")
 
 
 if __name__ == '__main__':

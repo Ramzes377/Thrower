@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Type
 
 from discord.ext.commands import Cog
 
@@ -8,8 +9,6 @@ from bot.cogs.channels_manager import ChannelsManager
 from bot.cogs.commands import Commands
 from bot.cogs.gameroles import GameRoles
 from bot.cogs.logger import Logger
-
-from typing import Type
 
 
 @dataclass

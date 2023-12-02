@@ -11,7 +11,7 @@ async def test_post_leadership(client: AsyncClient):
     # initiate leadership  of channel
     data = response.json()
     assert response.status_code == 201
-    assert data['begin'] == '2000-01-01 02:00:00'
+    assert data['begin'] == '2000-01-01T02:00:00'
     assert data['end'] is None
 
     response = await client.post(f"/leadership",
@@ -42,7 +42,7 @@ async def test_get_leadership(client: AsyncClient):
     response = await client.get(f"/leadership/1")
     data = response.json()
     assert response.status_code == 200
-    assert data['end'] == '2000-01-01 04:00:00'
+    assert data['end'] == '2000-01-01T04:00:00'
 
 
 @pytest.mark.asyncio

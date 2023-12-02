@@ -10,12 +10,12 @@ async def get_all(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_post_sent_message(client: AsyncClient):
 
-    response = await client.post(f"/sent_message", json={'id': 1005})
+    response = await client.post(f"/sent_message", json={'id': 1005, 'guild_id': 99999})
     data = response.json()
     assert response.status_code == 201
     assert data['id'] == 1005
 
-    response = await client.post(f"/sent_message", json={'id': 1006})
+    response = await client.post(f"/sent_message", json={'id': 1006, 'guild_id': 99999})
     assert response.status_code == 201
 
 
