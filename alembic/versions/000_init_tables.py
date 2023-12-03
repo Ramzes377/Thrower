@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-import api.tables
+from src.app import routers
 
 revision: str = '000'
 down_revision: Union[str, None] = None  # do not erase already existed data
@@ -79,8 +79,8 @@ def upgrade() -> None:
         sa.Column('leader_id', sa.Integer(), nullable=True),
         sa.Column('message_id', sa.Integer(), nullable=True),
         sa.Column('channel_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.DateTime(), nullable=False),
-        sa.Column('end', api.tables.DateTime(), nullable=True),
+        sa.Column('begin', routers.tables.DateTime(), nullable=False),
+        sa.Column('end', routers.tables.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('channel_id')
     )
     op.create_index(
@@ -94,9 +94,9 @@ def upgrade() -> None:
         'activity',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.DateTime(),
+        sa.Column('begin', routers.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.DateTime(),
+        sa.Column('end', routers.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['id'], ['activity_info.app_id'], ),
         sa.ForeignKeyConstraint(['member_id'], ['member.id'], ),
@@ -135,9 +135,9 @@ def upgrade() -> None:
         'leadership',
         sa.Column('channel_id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.DateTime(),
+        sa.Column('begin', routers.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.DateTime(),
+        sa.Column('end', routers.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['channel_id'],
                                 ['session.channel_id'], ),
@@ -165,9 +165,9 @@ def upgrade() -> None:
         'prescence',
         sa.Column('channel_id', sa.Integer(), nullable=False),
         sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.Column('begin', api.tables.DateTime(),
+        sa.Column('begin', routers.tables.DateTime(),
                   nullable=False),
-        sa.Column('end', api.tables.DateTime(),
+        sa.Column('end', routers.tables.DateTime(),
                   nullable=True),
         sa.ForeignKeyConstraint(['channel_id'],
                                 ['session.channel_id'], ),

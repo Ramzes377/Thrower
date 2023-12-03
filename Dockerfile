@@ -1,4 +1,4 @@
-FROM python:3.11.4-alpine
+FROM python:3.11.6-alpine
 
 # Set work directory
 WORKDIR /usr/src/bot

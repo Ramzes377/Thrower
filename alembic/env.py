@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from api.tables import Base
-from api.tables import (
+from app.tables import (
+    Base,
     Activity,
     Session,
     Member,
@@ -37,7 +37,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-# other values from the config, defined by the needs of env.py,
+# other values from the config, defined by the needs of envs.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
