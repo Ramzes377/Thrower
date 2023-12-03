@@ -1,15 +1,18 @@
 import asyncio
 from contextlib import suppress
+from typing import TYPE_CHECKING
 
-from discord.ext import commands
+from discord.ext.commands import ExtensionAlreadyLoaded
 
-from .cogs import cog
-
+from bot.cogs import cog
 from config import Config
 
+if TYPE_CHECKING:
+    from discord.ext.commands import Bot
 
-async def setup(bot: commands.Bot):
-    with suppress(commands.ExtensionAlreadyLoaded):
+
+async def setup(bot: "Bot"):
+    with suppress(ExtensionAlreadyLoaded):
         await bot.add_cog(cog.commands(bot))
 
         if Config.music_only:

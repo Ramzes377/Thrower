@@ -5,15 +5,18 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from logging.handlers import RotatingFileHandler
-from typing import Callable, Type, Coroutine
+from typing import Callable, Type, Coroutine, TYPE_CHECKING
 
-import discord
+from discord import NotFound
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from httpx import AsyncClient
 
 from config import Config
 from constants import constants
+
+if TYPE_CHECKING:
+    from discord import VoiceChannel, CategoryChannel, Client
 
 offset = timedelta(hours=3)
 tzMoscow = timezone(offset, name='МСК')
@@ -101,14 +104,14 @@ def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
 logger, discord_logger = _init_loggers()
 
 
-async def clear_messages(bot: discord.Client, guild_id: int):
+async def clear_messages(bot: 'Client', guild_id: int):
     guild = bot.get_guild(guild_id)
     text_channels = [channel for channel in guild.channels if
                      channel.type.name == 'text']
     messages = await request('sent_message')
     for message in messages:
         for channel in text_channels:
-            with suppress(discord.NotFound):
+            with suppress(NotFound):
                 if msg := await channel.fetch_message(message['id']):
                     discord_logger.debug(msg)
                     # deletion process
@@ -206,15 +209,15 @@ class CoroItem:
 
 @dataclass(frozen=True)
 class GuildChannels:
-    create: discord.VoiceChannel
-    logger: discord.VoiceChannel
-    role_request: discord.VoiceChannel
-    commands: discord.VoiceChannel
-    playing_category: discord.CategoryChannel
-    idle_category: discord.CategoryChannel
+    create: 'VoiceChannel'
+    logger: 'VoiceChannel'
+    role_request: 'VoiceChannel'
+    commands: 'VoiceChannel'
+    playing_category: 'CategoryChannel'
+    idle_category: 'CategoryChannel'
 
 
-async def _init_channels(bot: discord.Client) -> dict[int, dataclass]:
+async def _init_channels(bot: 'Client') -> dict[int, dataclass]:
     def to_dataclass(ids: dict):
         return GuildChannels(**handle_dict(ids, value_handler=bot.get_channel))
 
@@ -248,7 +251,6 @@ async def _fill_activity_info():
         response = await client.request('get', url)
         data = response.json()
 
-    coroutines = []
     for x in data:
         if not (icon := x.get('icon', x.get('cover_image'))):
             continue

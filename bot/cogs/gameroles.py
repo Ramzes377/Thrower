@@ -1,14 +1,18 @@
 import re
 from contextlib import suppress
 from io import BytesIO
+from typing import TYPE_CHECKING
 
-import discord
-from discord.ext import commands
+from discord import errors, Color, ActivityType, HTTPException
+from discord.ext.commands import Cog
 from PIL import Image
 from cachetools import TTLCache
 from httpx import AsyncClient
 
 from bot.mixins import BaseCogMixin
+
+if TYPE_CHECKING:
+    from discord import Emoji, Member, RawReactionActionEvent
 
 
 def get_dominant_color(
@@ -16,7 +20,6 @@ def get_dominant_color(
         colors_num: int = 15,
         resize: int = 64
 ) -> tuple[int, int, int] | None:
-
     img = Image.open(BytesIO(raw_img))
     img = img.copy()
     img.thumbnail((resize, resize))
@@ -37,14 +40,11 @@ class GameRoleHandlers(BaseCogMixin):
 
     def __init__(self, bot):
         super(GameRoleHandlers, self).__init__(bot)
-        self.cache = TTLCache(
-            maxsize=100,
-            ttl=2
-        )  # cache stores items only 2 seconds
+        self.cache = TTLCache(maxsize=100, ttl=2)
 
     async def manage_roles(
             self,
-            payload: discord.RawReactionActionEvent,
+            payload: 'RawReactionActionEvent',
             add=True
     ) -> tuple | None:
 
@@ -68,7 +68,7 @@ class GameRoleHandlers(BaseCogMixin):
 
         return member, role
 
-    async def add_game_role(self, user: discord.Member) -> None:
+    async def add_game_role(self, user: 'Member') -> None:
 
         guild = user.guild
         app_id = self.get_app_id(user)
@@ -79,22 +79,19 @@ class GameRoleHandlers(BaseCogMixin):
             if role and role not in user.roles:  # check user haven't this role
                 await user.add_roles(role)
 
-        elif user.activity.type == discord.ActivityType.playing:
+        elif user.activity.type == ActivityType.playing:
             # if status isn't custom create new role
 
             with suppress(TypeError, AttributeError):
                 # discord unregistered activity
                 await self.create_activity_role(user, app_id)
 
-    async def create_activity_role(
-            self,
-            user: discord.Member,
-            app_id: int
-    ) -> None:
+    async def create_activity_role(self, user: 'Member', app_id: int) -> None:
         if not (activity_info := await self.db.get_activityinfo(app_id)):
             raise TypeError('Adding only a roles registered by discord API')
 
-        name = re.compile('[^a-zA-Z0-9]').sub('', activity_info['app_name'])[:32]
+        name = re.compile('[^a-zA-Z0-9]').sub('', activity_info['app_name'])[
+               :32]
         icon_url = activity_info['icon_url'][:-10]
 
         async with AsyncClient() as client:
@@ -113,25 +110,26 @@ class GameRoleHandlers(BaseCogMixin):
             mentionable=True,
             display_icon=content,
             permissions=guild.default_role.permissions,
-            color=discord.Color.from_rgb(*dominant_color)
+            color=Color.from_rgb(*dominant_color)
         )
         try:
             role = await guild.create_role(**kw)
-        except discord.errors.Forbidden:
+        except errors.Forbidden:
             kw.pop('display_icon')
             role = await guild.create_role(**kw)
 
         await self.db.role_create(role.id, app_id, guild.id)
         await user.add_roles(role)
 
-        with suppress(discord.HTTPException):
+        with suppress(HTTPException):
             emoji = await guild.create_custom_emoji(name=name, image=content)
             await self.db.emoji_create(emoji.id, role.id)
-            await self.add_emoji_role_request(emoji, user.activity.name, guild.id)
+            await self.add_emoji_role_request(emoji, user.activity.name,
+                                              guild.id)
 
     async def add_emoji_role_request(
             self,
-            emoji: discord.Emoji,
+            emoji: 'Emoji',
             app_name: str,
             guild_id: int,
     ) -> None:
@@ -146,22 +144,22 @@ class GameRoleHandlers(BaseCogMixin):
 
 class GameRoles(GameRoleHandlers):
 
-    @commands.Cog.listener()
-    async def on_presence_update(self, _, after: discord.Member) -> None:
+    @Cog.listener()
+    async def on_presence_update(self, _, after: 'Member') -> None:
         if self.user_is_playing(after):
             await self.add_game_role(after)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_raw_reaction_add(
             self,
-            payload: discord.RawReactionActionEvent
+            payload: 'RawReactionActionEvent'
     ) -> None:
         await self.manage_roles(payload, add=True)
 
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_raw_reaction_remove(
             self,
-            payload: discord.RawReactionActionEvent
+            payload: 'RawReactionActionEvent'
     ) -> None:
         await self.manage_roles(payload, add=False)
 

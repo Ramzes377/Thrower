@@ -3,10 +3,9 @@ import warnings
 from contextlib import suppress
 from dataclasses import dataclass
 
-import discord
 from aiohttp import ClientConnectorError
+from discord import Intents, PermissionOverwrite
 from discord.ext import commands
-from discord.ext.commands import ExtensionAlreadyLoaded
 
 from api.service import Service
 from config import Config
@@ -14,19 +13,19 @@ from utils import CustomWarning, _init_channels, _fill_activity_info, logger
 
 bot = commands.Bot(
     command_prefix='!',
-    intents=discord.Intents.all(),
+    intents=Intents.all(),
     fetch_offline_members=False,
 )
 
 
 @dataclass(frozen=True)
 class Permissions:
-    default = discord.PermissionOverwrite(
+    default = PermissionOverwrite(
         kick_members=False,
         manage_channels=False,
         create_instant_invite=True
     )
-    leader = discord.PermissionOverwrite(
+    leader = PermissionOverwrite(
         kick_members=True,
         manage_channels=True,
         create_instant_invite=True
@@ -44,7 +43,7 @@ async def on_ready():
         _init_channels(bot),
         _fill_activity_info(),
     )
-    with suppress(ExtensionAlreadyLoaded):
+    with suppress(commands.ExtensionAlreadyLoaded):
         await bot.load_extension('bot')  # load only after init data
     with suppress(ClientConnectorError):
         sync_commands = ', '.join(map(str, await bot.tree.sync()))

@@ -1,13 +1,18 @@
 import asyncio
 from contextlib import suppress
+from typing import TYPE_CHECKING
 
 import cachetools
-import discord
+#import discord
+from discord import HTTPException, NotFound
 from discord.ext import tasks, commands
 
 from constants import constants
 from bot.mixins import DiscordFeaturesMixin
 from config import Config
+
+if TYPE_CHECKING:
+    from discord import VoiceChannel, VoiceState, Member
 
 
 class ChannelsManager(DiscordFeaturesMixin):
@@ -35,7 +40,7 @@ class ChannelsManager(DiscordFeaturesMixin):
                 continue
 
             voice_channel = member.voice.channel if member.voice else None
-            with suppress(discord.HTTPException):
+            with suppress(HTTPException):
                 if voice_channel is not None:  # user join channel
                     self.bot.dispatch(
                         "member_join_channel",
@@ -54,7 +59,7 @@ class ChannelsManager(DiscordFeaturesMixin):
         #     to_delete.extend(
         #         [channel
         #          for channel in server.channels
-        #          if isinstance(channel, discord.VoiceChannel)
+        #          if isinstance(channel, VoiceChannel)
         #          and channel != channels.create
         #          and channel.id not in unclosed_ids
         #          and channel.guild == server]
@@ -75,17 +80,17 @@ class ChannelsManager(DiscordFeaturesMixin):
     @commands.Cog.listener()
     async def on_presence_update(
             self,
-            before: discord.Member,
-            after: discord.Member
+            before: 'Member',
+            after: 'Member'
     ):
         self.bot.dispatch("activity", before, after)
 
     @commands.Cog.listener()
     async def on_voice_state_update(
             self,
-            member: discord.Member,
-            before: discord.VoiceState,
-            after: discord.VoiceState
+            member: 'Member',
+            before: 'VoiceState',
+            after: 'VoiceState'
     ):
         if before.channel == after.channel:
             # handling only channel changing, not mute or deaf member
@@ -120,7 +125,7 @@ class ChannelsManager(DiscordFeaturesMixin):
             else:  # channel is "empty"
                 await self.end_session(channel)
 
-    async def user_create_channel(self, user: discord.Member, guild_id: int):
+    async def user_create_channel(self, user: 'Member', guild_id: int):
         if await self.db.get_user_session(user.id) and self._cache.get(user.id):
             await user.send(
                 constants.wait_cooldown(cooldown=Config.creation_cooldown),
@@ -132,15 +137,15 @@ class ChannelsManager(DiscordFeaturesMixin):
         channel = await self.make_channel(user, guild_id)
         self._cache[user.id] = user.id  # create a cooldown for user
 
-        with suppress(discord.HTTPException):
+        with suppress(HTTPException):
             await user.move_to(channel)  # send user to his channel
             self.bot.dispatch("session_begin", user, channel)
 
     async def make_channel(
             self,
-            user: discord.Member,
+            user: 'Member',
             guild_id: int
-    ) -> discord.VoiceChannel:
+    ) -> 'VoiceChannel':
 
         name = await self.get_user_sess_name(user)
         category = self.get_category(user, guild_id)
@@ -153,7 +158,7 @@ class ChannelsManager(DiscordFeaturesMixin):
                                                         overwrites=permissions)
         return channel
 
-    async def end_session(self, channel: discord.VoiceChannel):
-        with suppress(discord.NotFound):
+    async def end_session(self, channel: 'VoiceChannel'):
+        with suppress(NotFound):
             self.bot.dispatch("session_over", channel)
             await channel.delete()

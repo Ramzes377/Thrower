@@ -1,11 +1,14 @@
-import asyncio
-from asyncio import AbstractEventLoop
-from asyncio import Queue as AsyncQueue
+from asyncio import Queue as AsyncQueue, sleep, gather
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 
 from constants import constants
-from utils import logger, CoroItem
+from utils import logger
+
+if TYPE_CHECKING:
+    from asyncio import AbstractEventLoop
+    from utils import CoroItem
 
 
 class DeferredTasksProcessor:
@@ -14,8 +17,8 @@ class DeferredTasksProcessor:
 
     def __init__(self, sleep_seconds: int = 30):
 
-        self._unordered_items: AsyncQueue[CoroItem] = AsyncQueue()
-        self._ordered_items: AsyncQueue[CoroItem] = AsyncQueue()
+        self._unordered_items: AsyncQueue['CoroItem'] = AsyncQueue()
+        self._ordered_items: AsyncQueue['CoroItem'] = AsyncQueue()
 
         self.sleep_seconds = sleep_seconds
 
@@ -24,12 +27,12 @@ class DeferredTasksProcessor:
         return self._event_loop
 
     @event_loop.setter
-    def event_loop(self, loop: AbstractEventLoop):
+    def event_loop(self, loop: 'AbstractEventLoop'):
         self._event_loop = loop
         self._ordered_items = AsyncQueue()
 
     async def add(self,
-                  coro_item: CoroItem,
+                  coro_item: 'CoroItem',
                   is_ordered: bool = True) -> None:
         """ Add item to deferred tasks execution container. """
 
@@ -46,7 +49,7 @@ class DeferredTasksProcessor:
             logger.debug(constants.log_unordered_tasks(num=len(unordered)))
             [item.decr() for item in unordered]
             coroutines = [item.build_coro() for item in unordered]
-            results = await asyncio.gather(*coroutines, return_exceptions=True)
+            results = await gather(*coroutines, return_exceptions=True)
         except Exception as e:  # noqa
             # If task will not have time to complete, and some coroutine
             # raises exception this task also raise asyncio.CancelledError
@@ -84,9 +87,9 @@ class DeferredTasksProcessor:
                     await self.add(coro_item)
                 continue
 
-    async def start(self, loop: AbstractEventLoop) -> None:
+    async def start(self, loop: 'AbstractEventLoop') -> None:
         self.event_loop = loop
 
         while True:
             await self._run_ordered()
-            await asyncio.sleep(self.sleep_seconds)
+            await sleep(self.sleep_seconds)

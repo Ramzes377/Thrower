@@ -1,41 +1,45 @@
 import asyncio
-import datetime
+from datetime import datetime
 from contextlib import suppress
+from typing import TYPE_CHECKING, Optional
 
 from cachetools import TTLCache
-import discord
+from discord import Embed, Color, NotFound
 from discord.ext import commands
 
 from constants import constants
-from .views import LoggerView
 from config import Config
 from utils import now, create_if_not_exists
 from bot.mixins import DiscordFeaturesMixin
+from .views import LoggerView
+
+if TYPE_CHECKING:
+    from discord import Member, VoiceChannel, VoiceState, Guild
 
 
 def create_embed(
         name: str,
         members: str,
-        creator: discord.Member | None,
+        creator: Optional['Member'],
         begin: str,
         end: str = None,
         duration: str = None,
         thumbnail_url: str = None,
         footer_text: str = None,
         footer_url: str = None,
-) -> discord.Embed:
-    embed = discord.Embed()
+) -> Embed:
+    embed = Embed()
     embed.add_field(name=f'├ Время начала', value=f'├ **`{begin}`**')
 
     if not end:  # session create
         embed.title = f"Активен сеанс: {name}"
-        embed.colour = discord.Color.green()
+        embed.colour = Color.green()
         embed.add_field(name='Текущий лидер', value=creator.mention)
         embed.set_footer(text=creator.display_name + " - Создатель сессии",
                          icon_url=creator.display_avatar)
     else:  # session over
         embed.title = f"Сеанс {name} окончен!"
-        embed.colour = discord.Color.red()
+        embed.colour = Color.red()
         embed.add_field(name='Время окончания', value=f'**`{end}`**')
         embed.add_field(name='├ Продолжительность', value=duration,
                         inline=False)
@@ -51,32 +55,32 @@ class LoggerHelpers:
     bot = db = None
 
     @staticmethod
-    def get_voice_channel(user: discord.Member):
+    def get_voice_channel(user: 'Member'):
         return user.voice.channel if user.voice else None
 
     @staticmethod
-    def fmt(dt: datetime.datetime) -> str:
+    def fmt(dt: datetime) -> str:
         return dt.strftime('%H:%M %d.%m.%y')
 
     @staticmethod
-    def dt_from_str(s: str) -> datetime.datetime:
-        return datetime.datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
+    def dt_from_str(s: str) -> datetime:
+        return datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
 
     def datetime_handler(self, x):
         return self.fmt(self.dt_from_str(x)) if x else '-'
 
     async def restore_log_session_message(
             self,
-            from_date: datetime.datetime | None = None,
-            to_date: datetime.datetime | None = None
+            from_date: datetime | None = None,
+            to_date: datetime | None = None
     ):
         # TODO: replace guild get
-        guild: discord.Guild = 'guild'
+        guild: 'Guild' = 'guild'
         for session in await self.db.get_all_sessions(from_date, to_date):
 
             name = session['name']
-            begin: datetime.datetime = self.dt_from_str(session['begin'])
-            end: datetime.datetime = self.dt_from_str(session['end'])
+            begin: datetime = self.dt_from_str(session['begin'])
+            end: datetime = self.dt_from_str(session['end'])
 
             creator = guild.get_member(session['creator_id'])
             sess_duration = end - begin
@@ -142,7 +146,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
         )
         await asyncio.gather(*tasks)
 
-    async def update_embed_members(self, channel: discord.VoiceChannel):
+    async def update_embed_members(self, channel: 'VoiceChannel'):
 
         if (guild_channels := self.bot.guild_channels.get(
                 channel.guild.id)) is None:
@@ -165,7 +169,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
 
     async def update_activity_icon(
             self,
-            channel: discord.VoiceChannel | None,
+            channel: Optional['VoiceChannel'],
             app_id: int
     ) -> None:
 
@@ -194,7 +198,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
     async def _member_join_channel(
             self,
             member_id: int,
-            channel: discord.VoiceChannel
+            channel: 'VoiceChannel'
     ):
         async def _add_member():
             try:
@@ -224,14 +228,15 @@ class Logger(LoggerEventHandlers):
     MIN_SESS_DURATION = Config.min_sess_duration  # in seconds
 
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
+    async def on_member_join(self, member: 'Member'):
         await self.db.user_create(id=member.id, name=member.display_name)
 
     @commands.Cog.listener()
     async def on_voice_state_update(
-            self, member: discord.Member,
-            before: discord.VoiceState,
-            after: discord.VoiceState
+            self, 
+            member: 'Member',
+            before: 'VoiceState',
+            after: 'VoiceState'
     ):
         if before.channel == after.channel:  # mute or deaf
             return
@@ -251,7 +256,7 @@ class Logger(LoggerEventHandlers):
 
     @commands.Cog.listener()
     async def on_member_join_channel(self, member_id: int,
-                                     channel: discord.VoiceChannel):
+                                     channel: 'VoiceChannel'):
         await self._member_join_channel(member_id, channel)
 
     @commands.Cog.listener()
@@ -260,8 +265,8 @@ class Logger(LoggerEventHandlers):
 
     @commands.Cog.listener()
     async def on_session_begin(
-            self, creator: discord.Member,
-            channel: discord.VoiceChannel
+            self, creator: 'Member',
+            channel: 'VoiceChannel'
     ):
         begin = now()
         name = channel.name
@@ -295,7 +300,7 @@ class Logger(LoggerEventHandlers):
         self.bot.dispatch("activity", None, creator)
 
     @commands.Cog.listener()
-    async def on_session_over(self, channel: discord.VoiceChannel):
+    async def on_session_over(self, channel: 'VoiceChannel'):
         session = await self.db.get_session(channel.id)
         if session is None:
             return
@@ -309,7 +314,7 @@ class Logger(LoggerEventHandlers):
         name, msg_id = session['name'], session['message_id']
         try:
             msg = await logger_channel.fetch_message(msg_id)
-        except discord.NotFound:
+        except NotFound:
             return
 
         begin = self.dt_from_str(session['begin'])
@@ -321,7 +326,7 @@ class Logger(LoggerEventHandlers):
         await self.db.session_update(channel_id=channel.id, end=end)
 
         if sess_duration.seconds < Logger.MIN_SESS_DURATION:
-            with suppress(discord.NotFound):
+            with suppress(NotFound):
                 await msg.delete()
             return
 
@@ -347,8 +352,8 @@ class Logger(LoggerEventHandlers):
     @commands.Cog.listener()
     async def on_activity(
             self,
-            before: discord.Member | None,
-            after: discord.Member,
+            before: Optional['Member'],
+            after: 'Member',
     ):
         dt = now()
 
@@ -380,8 +385,8 @@ class Logger(LoggerEventHandlers):
     @commands.Cog.listener()
     async def on_leader_change(
             self,
-            channel: discord.VoiceChannel,
-            leader: discord.Member
+            channel: 'VoiceChannel',
+            leader: 'Member'
     ) -> None:
         session = await self.db.get_session(channel.id)
         if not session:
@@ -394,7 +399,7 @@ class Logger(LoggerEventHandlers):
 
         msg = await logger_channel.fetch_message(session['message_id'])
         name = await self.get_user_sess_name(leader)
-        embed: discord.Embed = msg.embeds[0]
+        embed: Embed = msg.embeds[0]
         embed.title = constants.active_session(name=name)
         embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader.id}>')
         await msg.edit(embed=embed)
