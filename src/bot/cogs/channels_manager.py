@@ -49,23 +49,7 @@ class ChannelsManager(DiscordFeaturesMixin):
                 if self._is_empty_channel(channel):
                     await self.end_session(channel)
 
-        # to_delete = []  # unregistered channels
-        # for guild_id, channels in self.bot.guild_channels.items():
-        #     server = self.bot.get_guild(guild_id)
-        #     unclosed_ids = [session['channel_id']
-        #                     for session in
-        #                     await self.db.get_unclosed_sessions()]
-        #     to_delete.extend(
-        #         [channel
-        #          for channel in server.channels
-        #          if isinstance(channel, VoiceChannel)
-        #          and channel != channels.create
-        #          and channel.id not in unclosed_ids
-        #          and channel.guild == server]
-        #     )
-        #
-        # for channel in to_delete:
-        #     await channel.delete()
+        # FIXME: need upgrade
 
     @handle_created_channels.before_loop
     async def distribute_create_channel_members(self) -> None:
@@ -85,12 +69,10 @@ class ChannelsManager(DiscordFeaturesMixin):
         self.bot.dispatch("activity", before, after)
 
     @commands.Cog.listener()
-    async def on_voice_state_update(
-            self,
-            member: 'Member',
-            before: 'VoiceState',
-            after: 'VoiceState'
-    ):
+    async def on_voice_state_update(self,
+                                    member: 'Member',
+                                    before: 'VoiceState',
+                                    after: 'VoiceState'):
         if before.channel == after.channel:
             # handling only channel changing, not mute or deaf member
             return
@@ -129,22 +111,22 @@ class ChannelsManager(DiscordFeaturesMixin):
             await user.send(
                 constants.wait_cooldown(cooldown=Config.creation_cooldown),
                 delete_after=10
-                )
+            )
             # for too quickly channel creation
             await asyncio.sleep(Config.creation_cooldown)
 
         channel = await self.make_channel(user, guild_id)
+
+        self.bot.loop.create_task(
+            user.move_to(channel))  # send user to his channel
+        self.bot.dispatch("session_begin", user, channel)
+
         self._cache[user.id] = user.id  # create a cooldown for user
 
-        with suppress(HTTPException):
-            await user.move_to(channel)  # send user to his channel
-            self.bot.dispatch("session_begin", user, channel)
-
-    async def make_channel(
-            self,
-            user: 'Member',
-            guild_id: int
-    ) -> 'VoiceChannel':
+    async def make_channel(self,
+                           user: 'Member',
+                           guild_id: int,
+                           ) -> 'VoiceChannel':
 
         name = await self.get_user_sess_name(user)
         category = self.get_category(user, guild_id)

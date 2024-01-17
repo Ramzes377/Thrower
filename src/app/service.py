@@ -106,8 +106,8 @@ class Create(Service):
                       data: Optional[dict] = None,
                       object_: Optional['BaseTable'] = None,
                       suppress_unique_error: bool = True,
-                      suppress_any_error: bool = False) -> Optional[
-        'BaseModel']:
+                      suppress_any_error: bool = False) \
+            -> Optional['BaseModel']:
         if object_ is None:
             object_: 'BaseTable' = self.table(**data)
 

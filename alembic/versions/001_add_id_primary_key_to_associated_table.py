@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from src.app import routers
+from src.app import tables
 from src.config import Config
 
 # revision identifiers, used by Alembic.
@@ -21,7 +21,7 @@ down_revision: Union[str, None] = '000'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-get_session_local = routers.tables.SessionFabric.build(
+get_session_local = tables.SessionFabric.build(
     db_uri=Config.local_db_uri,
     connect_args={"check_same_thread": False, "timeout": 120},
     is_async=False

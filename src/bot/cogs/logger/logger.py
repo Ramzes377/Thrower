@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from datetime import datetime
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
@@ -14,7 +15,7 @@ from src.bot.mixins import DiscordFeaturesMixin
 from .views import LoggerView
 
 if TYPE_CHECKING:
-    from discord import Member, VoiceChannel, VoiceState, Guild
+    from discord import Member, VoiceChannel, VoiceState, Guild, Emoji
 
 
 def create_embed(
@@ -64,7 +65,7 @@ class LoggerHelpers:
 
     @staticmethod
     def dt_from_str(s: str) -> datetime:
-        return datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S')
+        return datetime.strptime(s[:19], '%Y-%m-%dT%H:%M:%S')
 
     def datetime_handler(self, x):
         return self.fmt(self.dt_from_str(x)) if x else '-'
@@ -74,41 +75,8 @@ class LoggerHelpers:
             from_date: datetime | None = None,
             to_date: datetime | None = None
     ):
-        # TODO: replace guild get
-        guild: 'Guild' = 'guild'
-        for session in await self.db.get_all_sessions(from_date, to_date):
-
-            name = session['name']
-            begin: datetime = self.dt_from_str(session['begin'])
-            end: datetime = self.dt_from_str(session['end'])
-
-            creator = guild.get_member(session['creator_id'])
-            sess_duration = end - begin
-
-            duration_field = f"├ **`{str(sess_duration).split('.')[0]}`**"
-            members_field = '└ ' + ', '.join(
-                f'<@{member["id"]}>' for member in
-                await self.db.get_session_members(session['channel_id'])
-            )
-
-            if sess_duration.seconds < Logger.MIN_SESS_DURATION:
-                return
-
-            embed = create_embed(
-                name,
-                members_field,
-                creator,
-                self.fmt(begin),
-                self.fmt(end),
-                duration_field,
-            )
-
-            msg = await self.bot.guild_channels.logger.send(
-                embed=embed,
-                view=LoggerView(self.bot, self.datetime_handler)
-            )
-            await self.db.session_update(channel_id=session['channel_id'],
-                                         message_id=msg.id)
+        # FIXME: reuse
+        ...
 
     async def wait_for_session_created(self, session_id: int):
         def check(channel_id: int, _):
@@ -125,6 +93,8 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
         # cache stores items only 5 seconds
         self.cache = TTLCache(maxsize=1_000, ttl=5)
 
+        self.vc_status = defaultdict(str)
+
         self.bot.loop.create_task(self.register_logger_views())
         self.bot.loop.create_task(self.add_members())
 
@@ -135,14 +105,16 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             self.bot.add_view(view, message_id=session['message_id'])
 
     async def add_members(self):
+        unique_members = set(member
+                             for guild in self.bot.guilds
+                             for member in guild.members)
         tasks = (
             create_if_not_exists(
                 get_url=f'user/{member.id}',
                 post_url='user',
                 object_={'id': member.id, 'name': member.display_name}
             )
-            for guild in self.bot.guilds
-            for member in guild.members
+            for member in unique_members
         )
         await asyncio.gather(*tasks)
 
@@ -167,6 +139,14 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
         )
         await message.edit(embed=embed)
 
+    async def add_activity_voice_channel(self, channel_id: int, emoji: 'Emoji'):
+
+        if (channel := self.bot.get_channel(channel_id)) is None:
+            return
+
+        self.vc_status[channel_id] = str(emoji) + self.vc_status[channel_id]
+        await channel.edit(status=self.vc_status[channel_id])
+
     async def update_activity_icon(
             self,
             channel: Optional['VoiceChannel'],
@@ -180,9 +160,7 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             message_id, icon_url = session['message_id'], app_info['icon_url']
 
             guild_id = channel.guild.id
-            if (
-                    guild_channels := self.bot.guild_channels.get(
-                        guild_id)) is None:
+            if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
                 return
 
             logger_channel = guild_channels.logger
@@ -192,8 +170,13 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             embed = msg.embeds[0]
             embed.set_thumbnail(url=icon_url)
             await msg.edit(embed=embed)
-            if emoji := await self.db.get_activity_emoji(app_id):
-                await msg.add_reaction(self.bot.get_emoji(emoji['id']))
+            if emoji_db := await self.db.get_activity_emoji(app_id):
+                emoji = self.bot.get_emoji(emoji_db['id'])
+                self.bot.loop.create_task(msg.add_reaction(emoji))
+                self.bot.loop.create_task(
+                    self.add_activity_voice_channel(channel_id=channel.id,
+                                                    emoji=emoji)
+                )
 
     async def _member_join_channel(
             self,
@@ -209,11 +192,11 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
 
             await self.update_embed_members(channel)
 
-        await _add_member()
-        await self.db.prescence_update(
-            channel_id=channel.id,
-            member_id=member_id,
-            begin=now()
+        await asyncio.gather(
+            _add_member(),
+            self.db.prescence_update(channel_id=channel.id,
+                                     member_id=member_id,
+                                     begin=now())
         )
 
     async def _member_abandon_channel(self, member_id: int, channel_id: int):
@@ -274,7 +257,7 @@ class Logger(LoggerEventHandlers):
 
         embed = create_embed(
             name,
-            '└ ' + f'<@{creator.id}>',
+            '└ ' + creator.mention,
             creator,
             self.fmt(begin)
         )
@@ -366,21 +349,27 @@ class Logger(LoggerEventHandlers):
             # bot call with same data when registered same user from
             # different guilds
 
-            await self.db.member_activity(
-                member_id=after.id,
-                id=after_app_id,
-                begin=dt,
-                end=None,
+            self.bot.loop.create_task(
+                self.db.member_activity(
+                    member_id=after.id,
+                    id=after_app_id,
+                    begin=dt,
+                    end=None,
+                )
             )
 
             if voice_channel:
-                await self.update_activity_icon(voice_channel, after_app_id)
+                self.bot.loop.create_task(
+                    self.update_activity_icon(voice_channel, after_app_id)
+                )
 
         if before_app_id:
-            await self.db.member_activity(
-                member_id=before.id,
-                id=before_app_id,
-                end=dt
+            self.bot.loop.create_task(
+                self.db.member_activity(
+                    member_id=before.id,
+                    id=before_app_id,
+                    end=dt
+                )
             )
 
     @Cog.listener()
@@ -402,10 +391,13 @@ class Logger(LoggerEventHandlers):
         name = await self.get_user_sess_name(leader)
         embed: Embed = msg.embeds[0]
         embed.title = constants.active_session(name=name)
-        embed.set_field_at(1, name='Текущий лидер', value=f'<@{leader.id}>')
-        await msg.edit(embed=embed)
-        await self.db.update_leader(
-            channel_id=channel.id,
-            member_id=leader.id,
-            begin=now()
+        embed.set_field_at(1, name='Текущий лидер', value=leader.mention)
+
+        self.bot.loop.create_task(msg.edit(embed=embed))
+        self.bot.loop.create_task(
+            self.db.update_leader(
+                channel_id=channel.id,
+                member_id=leader.id,
+                begin=now()
+            ),
         )

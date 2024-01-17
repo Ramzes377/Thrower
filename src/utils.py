@@ -84,7 +84,7 @@ def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
     strerr_handler.setFormatter(_ColourFormatter())
     strerr_handler.setLevel(level=level)
 
-    file_handler = RotatingFileHandler('../log.log', encoding='utf-8')
+    file_handler = RotatingFileHandler('./log.log', encoding='utf-8')
     file_handler.setFormatter(
         logging.Formatter(
             fmt='[%(asctime)s] [%(levelname)s    ] %(name)s: %(message)s',

@@ -5,8 +5,8 @@ from functools import partial
 from typing import Union, Generator, Optional, Callable
 
 from sqlalchemy import (
-    Text, and_, or_, Column, DateTime, Integer, ForeignKey,
-    JSON, Engine, BigInteger, UniqueConstraint, create_engine
+    Text, and_, or_, DateTime, Integer, ForeignKey,
+    JSON, Engine, BigInteger, UniqueConstraint, create_engine, TypeDecorator
 )
 from sqlalchemy.exc import IllegalStateChangeError
 from sqlalchemy.ext.asyncio import (AsyncSession, AsyncEngine,
@@ -23,9 +23,19 @@ IntegerVariant = BigInteger().with_variant(Integer, 'sqlite')
 mapped_integer = partial(mapped_column, IntegerVariant)
 
 
+class CustomDateTime(TypeDecorator):
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if type(value) is str:
+            return datetime.strptime(value, '%Y-%m-%dT%H:%M:%S')
+        return value
+
+
 class BaseTimePeriod:
-    begin: Mapped[datetime] = Column(DateTime, nullable=False)
-    end: Mapped[datetime] = Column(DateTime, nullable=True)
+    begin: Mapped[datetime] = mapped_column(CustomDateTime, nullable=False)
+    end: Mapped[datetime] = mapped_column(CustomDateTime, nullable=True)
 
     @hybrid_property
     def duration(self):
@@ -33,7 +43,7 @@ class BaseTimePeriod:
 
 
 class PrimaryBegin(BaseTimePeriod):
-    begin: Mapped[datetime] = mapped_column(DateTime, primary_key=True)
+    begin: Mapped[datetime] = mapped_column(CustomDateTime, primary_key=True)
 
 
 class SessionLike(BaseTimePeriod):
@@ -49,7 +59,7 @@ class SessionLike(BaseTimePeriod):
         primary_key=True,
         index=True
     )
-    begin: Mapped[datetime] = mapped_column(DateTime, primary_key=True)
+    begin: Mapped[datetime] = mapped_column(CustomDateTime, primary_key=True)
 
 
 class Activity(Base, PrimaryBegin):

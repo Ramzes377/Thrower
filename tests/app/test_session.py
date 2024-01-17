@@ -79,6 +79,13 @@ async def test_patch_session(client: AsyncClient):
     data = response.json()
     assert data['name'] == '1'
 
+    # response = await client.patch(
+    #     f"/session/{TEST_CHANNEL_ID}",
+    #     json={'end': datetime.datetime.now(tz=None)}
+    # )
+    # data = response.json()
+    # assert data['name'] == '1'
+
 
 @pytest.mark.asyncio
 async def test_add_session_member(client: AsyncClient, post_users):

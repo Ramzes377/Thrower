@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-discord = "^2.3.1"
+discord-py = {git = "https://github.com/Rapptz/discord.py.git", rev = "9ce733321b445db245924bfd21fedf20a01a570b"}
 fastapi = "^0.104.1"
 sqlalchemy = "^2.0.20"
 alembic = "^1.12.0"
