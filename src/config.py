@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     min_sess_duration: int = 300  # 5 minutes in seconds
     creation_cooldown: int = 15  # seconds
+    channel_creation_wait_duration: int = 30  # seconds
 
     api_host: IPvAnyAddress = '127.0.0.1'
     api_port: int = 8000

@@ -1,20 +1,17 @@
 import asyncio
-import re
 from contextlib import suppress
 from typing import Awaitable, TYPE_CHECKING, Optional
 
 from discord import ActivityType, NotFound
 from discord.ext import commands
 
+from src.bot.requests import BasicRequests
 from src.constants import constants
-from .requests import BasicRequests
 from src.utils import request, logger
 
 
 if TYPE_CHECKING:
     from discord import Member, VoiceChannel, CategoryChannel
-
-sess_re = re.compile('[^a-zA-Z0-9а-яА-Я +]')
 
 
 class BaseCogMixin(commands.Cog):
@@ -34,7 +31,7 @@ class BaseCogMixin(commands.Cog):
     @staticmethod
     def user_is_playing(user: 'Member') -> bool:
         activity = user.activity
-        return activity and activity.type == ActivityType.playing
+        return activity and activity.type is ActivityType.playing
 
 
 class DiscordFeaturesMixin(BaseCogMixin):

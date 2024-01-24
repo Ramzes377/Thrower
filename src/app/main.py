@@ -29,7 +29,7 @@ if __name__ == '__main__':
     import uvicorn
 
     uvicorn.run(
-        app='routers.base:app',
+        app='main:app',
         host=Config.api_host,
         port=Config.api_port,
         reload=True,

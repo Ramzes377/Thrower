@@ -117,7 +117,7 @@ class Create(Service):
                                          specs=format_dict(data))
                 log.debug(constants.log_object_creation(object=o))
                 session.add(object_)
-                with suppress(RuntimeError):
+                with suppress(RuntimeError, OverflowError):
                     await session.flush()
             except IntegrityError as e:
                 await transaction.rollback()

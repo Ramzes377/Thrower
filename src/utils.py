@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from logging.handlers import RotatingFileHandler
-from typing import Callable, Type, Coroutine, TYPE_CHECKING
+from typing import Callable, Type, Coroutine, TYPE_CHECKING, Iterable
 
 from discord import NotFound
 from fastapi import HTTPException
@@ -39,50 +39,54 @@ def table_to_json(table, *additional_exclude: tuple[str]) -> dict:
     return jsonable_encoder(table.__dict__, exclude=exclude)
 
 
+class _ColourFormatter(logging.Formatter):
+    """ Taken from discord routers to uniform logging. """
+
+    LEVEL_COLOURS = [
+        (logging.DEBUG, '\x1b[40;1m'),
+        (logging.INFO, '\x1b[34;1m'),
+        (logging.WARNING, '\x1b[33;1m'),
+        (logging.ERROR, '\x1b[31m'),
+        (logging.CRITICAL, '\x1b[41m'),
+    ]
+
+    FORMATS = {
+        level: logging.Formatter(
+            f'\x1b[30;1m%(asctime)s\x1b[0m {colour}%(levelname)-8s\x1b[0m \x1b[35m%(name)s\x1b[0m %(message)s',
+            '%Y-%m-%d %H:%M:%S',
+        )
+        for level, colour in LEVEL_COLOURS
+    }
+
+    def format(self, record):
+        formatter = self.FORMATS.get(record.levelno)
+        if formatter is None:
+            formatter = self.FORMATS[logging.DEBUG]
+
+        # Override the traceback to always print in red
+        if record.exc_info:
+            text = formatter.formatException(record.exc_info)
+            record.exc_text = f'\x1b[31m{text}\x1b[0m'
+
+        output = formatter.format(record)
+
+        # Remove the cache layer
+        record.exc_text = None
+        return output
+
+
 def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
-    class _ColourFormatter(logging.Formatter):
-        """ Taken from discord routers to uniform logging. """
+    def set_level(*loggers: tuple[logging.Filterer, ...]) -> None:
+        level = logging.DEBUG if Config.debug else logging.WARNING
+        for log in loggers:
+            log.setLevel(level=level)   # noqa
 
-        LEVEL_COLOURS = [
-            (logging.DEBUG, '\x1b[40;1m'),
-            (logging.INFO, '\x1b[34;1m'),
-            (logging.WARNING, '\x1b[33;1m'),
-            (logging.ERROR, '\x1b[31m'),
-            (logging.CRITICAL, '\x1b[41m'),
-        ]
-
-        FORMATS = {
-            level: logging.Formatter(
-                f'\x1b[30;1m%(asctime)s\x1b[0m {colour}%(levelname)-8s\x1b[0m \x1b[35m%(name)s\x1b[0m %(message)s',
-                '%Y-%m-%d %H:%M:%S',
-            )
-            for level, colour in LEVEL_COLOURS
-        }
-
-        def format(self, record):
-            formatter = self.FORMATS.get(record.levelno)
-            if formatter is None:
-                formatter = self.FORMATS[logging.DEBUG]
-
-            # Override the traceback to always print in red
-            if record.exc_info:
-                text = formatter.formatException(record.exc_info)
-                record.exc_text = f'\x1b[31m{text}\x1b[0m'
-
-            output = formatter.format(record)
-
-            # Remove the cache layer
-            record.exc_text = None
-            return output
-
-    level = logging.DEBUG if Config.debug else logging.ERROR
-
-    _logger = logging.getLogger(name="thrower.routers")
-    _logger.setLevel(logging.DEBUG)
+    thrower_log = logging.getLogger(name="thrower.routers")
+    discord_log = logging.getLogger('discord.client')
+    sa_log = logging.getLogger('sqlalchemy')
 
     strerr_handler = logging.StreamHandler()
     strerr_handler.setFormatter(_ColourFormatter())
-    strerr_handler.setLevel(level=level)
 
     file_handler = RotatingFileHandler('./log.log', encoding='utf-8')
     file_handler.setFormatter(
@@ -90,15 +94,16 @@ def _init_loggers() -> tuple[logging.Logger, logging.Logger]:
             fmt='[%(asctime)s] [%(levelname)s    ] %(name)s: %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S')
     )
-    file_handler.setLevel(logging.DEBUG)
 
-    _discord_log = logging.getLogger('discord.client')
-    _discord_log.setLevel(level=level)
+    sa_handler = logging.FileHandler('sqlalchemy.log')
 
-    _logger.addHandler(file_handler)
-    _logger.addHandler(strerr_handler)
+    set_level(discord_log, thrower_log, strerr_handler, file_handler, sa_handler) # noqa
 
-    return _logger, _discord_log
+    thrower_log.addHandler(file_handler)
+    thrower_log.addHandler(strerr_handler)
+    sa_log.addHandler(sa_handler)
+
+    return thrower_log, discord_log
 
 
 logger, discord_logger = _init_loggers()
@@ -135,12 +140,12 @@ async def request(
         if method in ('get', 'delete'):
             response = await client.request(method, url, params=params)
         else:
-            data = jsonable_encoder(data)  # noqa
+            json = jsonable_encoder(data)
             response = await client.request(
                 method,
                 url,
                 params=params,
-                json=data
+                json=json
             )
 
     return response.json()

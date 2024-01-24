@@ -1,11 +1,5 @@
-import logging
-
 from src.app.tables import SessionFabric
 from src.config import Config
-
-handler = logging.FileHandler('sqlalchemy.log')
-handler.setLevel(logging.DEBUG)
-logging.getLogger('sqlalchemy').addHandler(handler)
 
 # Creating sessions in semi-manual mode
 

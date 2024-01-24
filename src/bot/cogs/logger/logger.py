@@ -82,7 +82,13 @@ class LoggerHelpers:
         def check(channel_id: int, _):
             return channel_id == session_id
 
-        result = await self.bot.wait_for('db_session_created', check=check)
+        result = await self.bot.wait_for(
+            'db_session_created',
+            check=check,
+            timeout=Config.channel_creation_wait_duration,
+        )
+        # if TimeoutError, then session don't registered by bot.
+        # Possible channel is static on server
         return result
 
 
@@ -160,7 +166,8 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
             message_id, icon_url = session['message_id'], app_info['icon_url']
 
             guild_id = channel.guild.id
-            if (guild_channels := self.bot.guild_channels.get(guild_id)) is None:
+            if (
+            guild_channels := self.bot.guild_channels.get(guild_id)) is None:
                 return
 
             logger_channel = guild_channels.logger
@@ -192,12 +199,11 @@ class LoggerEventHandlers(DiscordFeaturesMixin, LoggerHelpers):
 
             await self.update_embed_members(channel)
 
-        await asyncio.gather(
-            _add_member(),
-            self.db.prescence_update(channel_id=channel.id,
-                                     member_id=member_id,
-                                     begin=now())
-        )
+        with suppress(TimeoutError):
+            await _add_member()
+            await self.db.prescence_update(channel_id=channel.id,
+                                           member_id=member_id,
+                                           begin=now())
 
     async def _member_abandon_channel(self, member_id: int, channel_id: int):
         await self.db.prescence_update(
@@ -230,12 +236,12 @@ class Logger(LoggerEventHandlers):
         except KeyError:
             return
 
+        if before.channel and before.channel != create_channel:
+            await self._member_abandon_channel(member.id, before.channel.id)
+
         # User join to foreign channel (leave considered the same)
         if after.channel and after.channel != create_channel:
             await self._member_join_channel(member.id, after.channel)
-
-        if before.channel and before.channel != create_channel:
-            await self._member_abandon_channel(member.id, before.channel.id)
 
     @Cog.listener()
     async def on_member_join_channel(self, member_id: int,

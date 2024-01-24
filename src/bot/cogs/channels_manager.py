@@ -87,24 +87,26 @@ class ChannelsManager(DiscordFeaturesMixin):
         if after.channel == create_channel:
             # user join to create own channel
             await self.user_create_channel(member, guild_id)
-        elif ((channel := await self.get_user_channel(member.id))
-              and member not in channel.members):
+        elif (
+                (user_channel := await self.get_user_channel(member.id))
+                and member not in user_channel.members
+        ):
             # User join to foreign channel (leave considered the same)
-            if not self._is_empty_channel(channel):  # transfer user channel
-                new_leader = next(
-                    member for member in channel.members if not member.bot
-                )
-                self.bot.dispatch("activity", None, new_leader)
-                self.bot.dispatch("leader_change", channel, new_leader)
-                overwrites = {member: self.bot.permissions.default,
-                              new_leader: self.bot.permissions.leader}
-                await self.edit_channel_name_category(
-                    new_leader,
-                    channel,
-                    overwrites=overwrites
-                )
-            else:  # channel is "empty"
-                await self.end_session(channel)
+            if self._is_empty_channel(user_channel):  # channel is "empty"
+                await self.end_session(user_channel)
+                return
+
+            # transfer user channel
+            new_leader = next(
+                member for member in channel.members if not member.bot
+            )
+            self.bot.dispatch("leader_change", channel, new_leader)
+            self.bot.dispatch("activity", None, new_leader)
+            overwrites = {member: self.bot.permissions.default,
+                          new_leader: self.bot.permissions.leader}
+            await self.edit_channel_name_category(new_leader,
+                                                  channel,
+                                                  overwrites=overwrites)
 
     async def user_create_channel(self, user: 'Member', guild_id: int):
         if await self.db.get_user_session(user.id) and self._cache.get(user.id):
@@ -117,8 +119,7 @@ class ChannelsManager(DiscordFeaturesMixin):
 
         channel = await self.make_channel(user, guild_id)
 
-        self.bot.loop.create_task(
-            user.move_to(channel))  # send user to his channel
+        await user.move_to(channel)  # send user to his channel
         self.bot.dispatch("session_begin", user, channel)
 
         self._cache[user.id] = user.id  # create a cooldown for user
