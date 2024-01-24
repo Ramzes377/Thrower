@@ -7,7 +7,7 @@ services:
     build:
       context: .
     environment:
-      ENV_PATH: env/music.env
+      ENV_PATH: envs/stable.envs
       PYTHONUNBUFFERED: 1
 
   lavalink:
